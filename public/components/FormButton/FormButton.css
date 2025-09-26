@@ -1,0 +1,25 @@
+.form__button {
+    display: inline-flex;
+    padding: 10px 30px;
+    border: none;
+    border-radius: 10px;
+    background: var(--primary-color);
+    color: var(--text-color);
+    font-size: 18px;
+    font-weight: var(--font-weight-regular);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.form__button:hover {
+    background: var(--primary-hover);
+}
+
+.form__button:active {
+    background: var(--primary-active);
+}
+
+.form__button:disabled {
+    background: var(--primary-disabled);
+    cursor: not-allowed;
+}

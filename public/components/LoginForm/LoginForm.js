@@ -21,8 +21,6 @@ async function getLoginTemplate() {
     return loginTemplate;
 }
 
-
-
 function clearErrors(form) {
     form.querySelectorAll('.form__input').forEach(input => {
         input.classList.remove('error');
@@ -158,17 +156,6 @@ export class LoginForm {
                 showGlobalError(form, 'Ошибка сети. Проверьте подключение.');
             }
         });
-
-
-
-
-
-
-
-
-
-
-
 
         const signUpLink = div.querySelector('.login-form__footer .link');
         if (signUpLink) {

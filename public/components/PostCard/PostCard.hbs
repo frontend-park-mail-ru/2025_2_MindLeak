@@ -1,0 +1,44 @@
+<div class="post-card">
+    {{> user-menu name=user.name subtitle=user.subtitle avatar=user.avatar isSubscribed=user.isSubscribed}}
+
+    <h2 class="post-card__title">
+        {{#if titleTruncated}}
+            {{titleTruncated}}...
+        {{else}}
+            {{title}}
+        {{/if}}
+    </h2>
+
+    <p class="post-card__text">
+        {{#if textTruncated}}
+            <span class="post-card__text-preview">{{textTruncated}}...</span>
+            <span class="post-card__text-full" hidden>{{text}} {{#if link}}<a href="{{link}}" class="post-card__link">{{linkText}}</a>{{/if}}</span>
+            <button class="post-card__toggle-text" data-key="toggle-text">Показать полностью</button>
+        {{else}}
+            {{text}} {{#if link}}<a href="{{link}}" class="post-card__link">{{linkText}}</a>{{/if}}
+        {{/if}}
+    </p>
+
+    {{#if image}}
+        <div class="post-card__image-container">
+            <img src="{{image}}" alt="Изображение поста" class="post-card__image">
+        </div>
+    {{/if}}
+
+    {{#each tags}}
+        {{> tag key=this.key icon=this.icon count=this.count}}
+    {{/each}}
+
+    {{> tag key="add-tag" count="+"}}
+
+    <div class="post-card__footer">
+        <div class="left-side-footer">
+            {{> tag key="comments" icon="/img/icons/comment.svg" count=commentsCount}}
+            {{> tag key="reposts" icon="/img/icons/repost.svg" count=repostsCount}}
+            {{> icon key="bookmark" src="/img/icons/bookmark.svg" title="Сохранить"}}
+        </div>
+        <div class="right-side-footer">
+            {{> tag key="views" icon="/img/icons/views.svg" count=viewsCount}}
+        </div>
+    </div>
+</div>

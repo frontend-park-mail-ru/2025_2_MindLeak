@@ -1,0 +1,31 @@
+<!-- /components/UserMenu/UserMenu.hbs -->
+<div class="user-menu">
+    <div class="user-menu__avatar">
+        {{#if avatar}}
+            <img src="{{avatar}}" alt="Аватар" class="user-menu__avatar-img">
+        {{else}}
+            <div class="user-menu__avatar-placeholder">👤</div>
+        {{/if}}
+    </div>
+
+    <div class="user-menu__info">
+        <div class="firstRowUser">
+            <div class="user-menu__name">{{name}}</div>
+            
+            {{#if isLoggedIn}}
+                <button 
+                    class="user-menu__button {{#if isSubscribed}}user-menu__button--subscribed{{/if}}"
+                    data-key="toggle-subscribe">
+                    {{#if isSubscribed}}✔{{else}}Подписаться{{/if}}
+                </button>
+            {{else}}
+                <button 
+                    class="user-menu__button user-menu__button--login"
+                    data-key="open-login">
+                    Подписаться
+                </button>
+            {{/if}}
+        </div>
+        <div class="user-menu__subtitle">{{subtitle}}</div>
+    </div>
+</div>

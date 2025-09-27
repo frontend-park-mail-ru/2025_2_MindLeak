@@ -1,0 +1,29 @@
+.tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    background: var(--section-hover);
+    color: var(--text-color);
+    border-radius: 10px;
+    font-size: var(--text-base);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid var(--section-hover);
+}
+
+.tag:hover {
+    border: 1px solid var(--text-lighter);
+}
+
+.tag__icon {
+    width: 20px;
+    height: 20px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.tag__count {
+    font-weight: var(--font-weight-medium);
+}

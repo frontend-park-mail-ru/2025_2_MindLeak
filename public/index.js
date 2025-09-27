@@ -1,8 +1,6 @@
 import { Header } from '/components/Header/Header.js';
-import { Button } from '/components/FormButton/FormButton.js';
-import { Input } from '/components/Input/Input.js';
 import { LoginForm } from '/components/LoginForm/LoginForm.js';
-import { SignUpForm } from '/components/SignUpForm/SignUpForm.js';
+//import { SignUpForm } from '/components/SignUpForm/SignUpForm.js';
 import { PostCard } from '/components/PostCard/PostCard.js';
 import { mockPosts } from '/data/mockPosts.js';
 
@@ -53,7 +51,7 @@ Object.entries(config.menu).forEach(async ([key, {text}], index) => {  // убр
     }
 
     menuContainer.appendChild(button);
-}); */
+}); 
 
 async function renderLogin() {
   const loginForm = new LoginForm();
@@ -63,7 +61,7 @@ async function renderLogin() {
 async function renderSignUp() {
   const signUpForm = new SignUpForm();
   return await signUpForm.render();
-}
+}*/
 
 const feedContainer = document.createElement('div');
 feedContainer.className = 'feed';

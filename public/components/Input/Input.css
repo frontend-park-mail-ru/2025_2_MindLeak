@@ -1,0 +1,16 @@
+.form__input {
+    display: block;
+    width: 100%;
+    padding: 11px 16px;
+    background: var(--section-hover);
+    border: none;
+    border-radius: 8px;
+    color: var(--text-color);
+    font-size: var(--text-base);
+    outline: none;
+    box-sizing: border-box;
+}
+
+.form__input::placeholder {
+    color: var(--text-lighter)
+}

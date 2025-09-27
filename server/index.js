@@ -13,7 +13,7 @@ const app = express();
 app.use(morgan('dev'));
 // cтатика до всех API-роутов
 app.use(express.static(path.resolve(__dirname, '..', 'public')));
-//app.use(express.static(path.resolve(__dirname, '..', 'node_modules')));
+app.use(express.static(path.resolve(__dirname, '..', 'node_modules')));
 
 //парсит тело входящего запроса как JSON
 app.use(bodyParser.json());

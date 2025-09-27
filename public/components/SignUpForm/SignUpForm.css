@@ -31,12 +31,9 @@
 }
 
 .registration-modal__logo {
-    height: 45px;
-    margin-bottom: 24px;
-    margin: 0 auto;
+  height: 45px;
+  margin: 40px auto 24px auto;
 }
-
-/* todo не соблюдает расстояние между текстом и logo - сделать чтобы соблюдалось*/
 
 .registration-modal__content h1 {
     font-size: var(--text-xl);
@@ -56,13 +53,13 @@
     color: var(--text-lighter);
 }
 
-.input-wrapper {   /*new*/
+.input-wrapper {
   position: relative;
   width: 100%;
 }
 
 .input-wrapper .form__input {
-  padding-right: 40px; /* место для иконки */
+  padding-right: 40px;
 }
 
 .password-toggle {

@@ -1,6 +1,3 @@
-import { Input } from '../Input/Input.js';
-import { Button } from '../FormButton/FormButton.js';
-
 let loginTemplate = null; //кэширование 
 
 async function getLoginTemplate() {
@@ -153,6 +150,7 @@ export class LoginForm {
                 if (modal.parentNode) modal.remove();
                 window.location.reload();
             } catch (err) {
+                console.error('Ошибка сети:', err);
                 showGlobalError(form, 'Ошибка сети. Проверьте подключение.');
             }
         });

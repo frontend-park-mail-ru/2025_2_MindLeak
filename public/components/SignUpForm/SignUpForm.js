@@ -1,6 +1,3 @@
-import { Input } from '../Input/Input.js';
-import { Button } from '../FormButton/FormButton.js';
-
 let signUpTemplate = null;
 
 async function getSignUpTemplate() {
@@ -162,6 +159,7 @@ export class SignUpForm {
                     });
                 });
             } catch (err) {
+                console.error('Ошибка сети:', err);
                 showGlobalError(form, 'Ошибка сети. Проверьте подключение.');
             }
         });

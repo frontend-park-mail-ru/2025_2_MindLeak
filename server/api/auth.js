@@ -125,6 +125,15 @@ module.exports = {
         res.json(formUser(users[email]));
     },
 
+    logout: (req, res) => {
+        const id = req.cookies['podvorot'];
+        if (id) {
+            delete ids[id]; // удаляем сессию на сервере
+        }
+        res.clearCookie('podvorot'); // удаляем кук у клиента
+        res.status(200).json({ ok: true });
+    }
+
     /*app.get('/feed', (req, res) => {
         const id = req.cookies['podvorot'];
         const emailSession = ids[id];

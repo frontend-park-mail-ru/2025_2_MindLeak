@@ -6,6 +6,7 @@ const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const path = require('path');
 //const crypto = require('crypto'); // перенесен в auth 
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 
@@ -20,8 +21,33 @@ app.use(bodyParser.json());
 //парсит куки из заголовка Cookie и сохраняет их в req.cookies
 app.use(cookieParser());
 
-const apiRouter = require('./api'); //пойдет в api/index.js
-app.use(apiRouter);
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    
+    // ВАЖНО: отвечаем на OPTIONS запрос сразу
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    
+    next();
+});
+
+
+// прокси для API
+app.use('/api', createProxyMiddleware({
+    target: 'http://62.109.19.84:90',
+    changeOrigin: true,
+    cookieDomainRewrite: 'localhost',
+    onProxyReq: (proxyReq, req, res) => {
+        console.log('Proxying request:', req.method, req.url);
+    },
+    onProxyRes: (proxyRes, req, res) => {
+        console.log('Proxy response:', proxyRes.statusCode, req.url);
+    }
+}));
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {

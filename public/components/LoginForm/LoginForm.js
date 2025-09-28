@@ -98,6 +98,8 @@ export class LoginForm {
             const email = formData.get('email')?.trim();
             const password = formData.get('password');
 
+            console.log('Login attempt with:', { email, password });
+
             clearErrors(form);
 
             const errors = [];
@@ -121,34 +123,61 @@ export class LoginForm {
             }
 
             try {
-                const res = await fetch('/login', {
+
+                console.log('Sending login request to /api/login...');
+
+                const res = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({ email, password })
                 });
 
-                const data = await res.json();
+                console.log('Login response status:', res.status);
+                console.log('Login response headers:', res.headers);
+
+                // Проверяем content-type перед парсингом JSON
+                const contentType = res.headers.get('content-type');
+                let data;
+
+                if (contentType && contentType.includes('application/json')) {
+                    data = await res.json();
+                } else {
+                    const text = await res.text();
+                    console.log('Non-JSON response:', text);
+                    throw new Error('Server returned non-JSON response');
+                }
+
+                console.log('Login response data:', data);
 
                 if (!res.ok) {
                     clearErrors(form);
 
-                    if (data.fieldErrors && Array.isArray(data.fieldErrors)) {
-                        showFieldErrors(form, data.fieldErrors);
-                    }
-
-                    if (data.globalError) {
-                        showGlobalError(form, data.globalError);
-                    }
-
-                    if (data.error && !data.globalError && !data.fieldErrors) {
-                        showGlobalError(form, data.error);
+                    if (data.errors && Array.isArray(data.errors)) {
+                       
+                        const fieldErrors = data.errors.map(error => ({
+                            field: error.field || 'email',
+                            message: error.message || 'Ошибка авторизации'
+                        }));
+                        showFieldErrors(form, fieldErrors);
+                    } else if (data.message) {
+                        showGlobalError(form, data.message);
+                    } else {
+                        showGlobalError(form, 'Ошибка авторизации');
                     }
 
                     return;
                 }
 
-                if (modal.parentNode) modal.remove();
-                window.location.reload();
+
+
+                if (res.status === 200) {
+                    console.log('Login successful!');
+                    if (modal.parentNode) modal.remove();
+
+                    window.location.reload();
+
+                }
             } catch (err) {
                 console.error('Ошибка сети:', err);
                 showGlobalError(form, 'Ошибка сети. Проверьте подключение.');
@@ -175,7 +204,7 @@ export class LoginForm {
 
         // обработчик закрытия по клику вне формы
         modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.remove();
+            if (e.target === modal) modal.remove();
         });
 
         return modal;

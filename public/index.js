@@ -1,6 +1,8 @@
 import { Header } from '/components/Header/Header.js';
+import { Button } from '/components/FormButton/FormButton.js';
+import { Input } from '/components/Input/Input.js';
 import { LoginForm } from '/components/LoginForm/LoginForm.js';
-//import { SignUpForm } from '/components/SignUpForm/SignUpForm.js';
+import { SignUpForm } from '/components/SignUpForm/SignUpForm.js';
 import { PostCard } from '/components/PostCard/PostCard.js';
 import { mockPosts } from '/data/mockPosts.js';
 
@@ -19,40 +21,6 @@ rootElem.appendChild(pageElement);
 })();
 
 
-
-/*
-const config = {
-    menu:{
-        login: {
-            text: 'Вход',
-            render: renderLogin,
-        }
-    }
-}
-
-const state = {
-    activeMenuLink: null,
-};
-
-
-Object.entries(config.menu).forEach(async ([key, {text}], index) => {  // убрать асинк потому что параша
-    // Создаем кнопку через компонент Button
-    const button = await new Button({ 
-        text: text,
-        type: 'button'
-    }).render();
-    
-    button.dataset.section = key;
-    button.classList.add('menu-button'); // добавляем класс для меню
-
-    if (index === 0){
-        button.classList.add('active');
-        state.activeMenuLink = button;
-    }
-
-    menuContainer.appendChild(button);
-}); 
-
 async function renderLogin() {
   const loginForm = new LoginForm();
   return await loginForm.render();
@@ -61,7 +29,7 @@ async function renderLogin() {
 async function renderSignUp() {
   const signUpForm = new SignUpForm();
   return await signUpForm.render();
-}*/
+}
 
 const feedContainer = document.createElement('div');
 feedContainer.className = 'feed';
@@ -70,22 +38,66 @@ pageElement.appendChild(feedContainer);
 let virtualPostIndex = 0;
 const POSTS_PER_LOAD = 3;
 
+async function fetchPosts() {
+    try {
+        const res = await fetch('http://62.109.19.84:90/api/feed');
+        if (!res.ok) throw new Error('Ошибка загрузки постов');
+        return await res.json();
+    } catch (err) {
+        console.error('Не удалось загрузить посты:', err);
+        return [];
+    }
+}
+
+function transformPost(apiPost) {
+    return {
+        user: {
+            name: apiPost.author_name || 'Аноним',
+            subtitle: 'Блог',
+            avatar: apiPost.author_avatar || '/img/LogoMain.svg',
+            isSubscribed: false
+        },
+        title: apiPost.title,
+        text: apiPost.content,
+        image: apiPost.image?.trim() || '',
+        tags: [
+            { key: 'tag1', icon: '/img/icons/js.svg', count: 'тег1' },
+            { key: 'tag2', icon: '/img/icons/web.svg', count: 'тег2' }
+        ],
+        commentsCount: '0',
+        repostsCount: '0',
+        viewsCount: '0'
+    };
+}
+
 async function renderPost(postData) {
     const postCard = new PostCard(postData);
     return await postCard.render();
 }
 
+let allPosts = [];
+let loadedPosts = 0; 
+
 async function loadMorePosts() {
-    const fragment = document.createDocumentFragment();
-    for (let i = 0; i < POSTS_PER_LOAD; i++) {
-        const postIndex = virtualPostIndex % mockPosts.length;
-        const postData = { ...mockPosts[postIndex], id: virtualPostIndex + 1 };
-        const postEl = await renderPost(postData);
-        fragment.appendChild(postEl);
-        virtualPostIndex++;
+    if (allPosts.length === 0) {
+        const rawPosts = await fetchPosts();
+        allPosts = rawPosts.map(transformPost);
     }
 
-    feedContainer.insertBefore(fragment, sentinel);
+    const fragment = document.createDocumentFragment();
+    for (let i = 0; i < POSTS_PER_LOAD; i++) {
+        if (loadedPosts >= allPosts.length) break;
+        
+        const postEl = await renderPost(allPosts[loadedPosts]);
+        fragment.appendChild(postEl);
+        loadedPosts++;
+    }
+
+    if (fragment.childElementCount > 0) {
+        feedContainer.insertBefore(fragment, sentinel);
+    } else {
+        observer.unobserve(sentinel);
+    }
 }
 
 const sentinel = document.createElement('div');
@@ -97,49 +109,9 @@ const observer = new IntersectionObserver((entries) => {
         loadMorePosts();
     }
 }, {
-    rootMargin: '100px'
+    rootMargin: '100px' 
 });
 
 observer.observe(sentinel);
 
 loadMorePosts();
-
-/*
-function renderFeed() {
-    const feed = document.createElement('div');
-
-    return feed;
-}
-
-menuContainer.addEventListener('click', async (e) => {
-    const {target} = e;
-
-    if (target.tagName.toLowerCase() === 'button' || target instanceof HTMLAnchorElement ) { 
-        e.preventDefault();
-
-        const section = target.dataset.section;
-        
-        state.activeMenuLink.classList.remove('active');
-        e.target.classList.add('active');
-        state.activeMenuLink = target;
-
-
-
-        if (section === 'login') {
-            // Для логина — открываем модалку поверх всего
-            const loginForm = new LoginForm();
-            const modal = await loginForm.render();
-            document.body.appendChild(modal); //  добавляем в body
-        } else if (section === 'signUp') {
-            const signUpForm = new SignUpForm();
-            const modal = await signUpForm.render();
-            document.body.appendChild(modal);
-        } else {
-            // Для остальных — как раньше
-            pageElement.innerHTML = '';
-            const element = await config.menu[section].render();
-            pageElement.appendChild(element);
-        }
-    }
-});
-*/

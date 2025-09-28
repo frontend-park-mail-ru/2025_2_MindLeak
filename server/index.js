@@ -38,7 +38,7 @@ app.use((req, res, next) => {
 
 // прокси для API
 app.use('/api', createProxyMiddleware({
-    target: 'http://62.109.19.84:90',
+    target: 'http://62.109.19.84:8090',
     changeOrigin: true,
     cookieDomainRewrite: 'localhost',
     onProxyReq: (proxyReq, req, res) => {

@@ -127,7 +127,7 @@ export class SignUpForm {
 
             // отправка на сервер
             try {
-                    const res = await fetch('/signup', {
+                    const res = await fetch('http://62.109.19.84:8090/registration', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, email, password })

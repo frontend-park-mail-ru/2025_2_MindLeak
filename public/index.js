@@ -40,7 +40,7 @@ const POSTS_PER_LOAD = 3;
 
 async function fetchPosts() {
     try {
-        const res = await fetch('http://62.109.19.84:90/api/feed');
+        const res = await fetch('http://62.109.19.84:8090/feed');
         if (!res.ok) throw new Error('Ошибка загрузки постов');
         return await res.json();
     } catch (err) {

@@ -126,7 +126,7 @@ export class LoginForm {
 
                 console.log('Sending login request to /api/login...');
 
-                const res = await fetch('/api/login', {
+                const res = await fetch('http://62.109.19.84:8090/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',

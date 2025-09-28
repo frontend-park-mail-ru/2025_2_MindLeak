@@ -19,7 +19,7 @@ async function getHeaderTemplate() {
 
 async function checkAuth() {
     try {
-        const res = await fetch('/api/me', { 
+        const res = await fetch('http://62.109.19.84:8090/me', { 
             method: 'GET',
             credentials: 'include'
         });
@@ -105,7 +105,7 @@ export class Header {
                 e.preventDefault();
                 try {
                     // запрос на выход
-                    const res = await fetch('/api/logout', { 
+                    const res = await fetch('http://62.109.19.84:8090/logout', { 
                         method: 'POST',
                         credentials: 'include'
                     });

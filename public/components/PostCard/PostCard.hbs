@@ -13,7 +13,7 @@
         {{#if textTruncated}}
             <span class="post-card__text-preview">{{textTruncated}}...</span>
             <span class="post-card__text-full" hidden>{{text}} {{#if link}}<a href="{{link}}" class="post-card__link">{{linkText}}</a>{{/if}}</span>
-            <button class="post-card__toggle-text" data-key="toggle-text">Показать полностью</button>
+            <span class="post-card__toggle-text" data-key="toggle-text">Показать полностью</span>
         {{else}}
             {{text}} {{#if link}}<a href="{{link}}" class="post-card__link">{{linkText}}</a>{{/if}}
         {{/if}}
@@ -35,7 +35,7 @@
         <div class="left-side-footer">
             {{> tag key="comments" icon="/img/icons/comment.svg" count=commentsCount}}
             {{> tag key="reposts" icon="/img/icons/repost.svg" count=repostsCount}}
-            {{> icon key="bookmark" src="/img/icons/bookmark.svg" title="Сохранить"}}
+            {{> tag key="bookmark" src="/img/icons/bookmark.svg" count=1}}
         </div>
         <div class="right-side-footer">
             {{> tag key="views" icon="/img/icons/views.svg" count=viewsCount}}

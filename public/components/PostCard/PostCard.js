@@ -47,11 +47,26 @@ export class PostCard {
     }
 
     async render() {
+        const MAX_TITLE_LENGTH = 60;
+        const MAX_TEXT_LENGTH = 200;
+
+        // Обрезаем заголовок
+        const titleTruncated = this.title.length > MAX_TITLE_LENGTH
+            ? this.title.substring(0, MAX_TITLE_LENGTH)
+            : null;
+
+        // Обрезаем текст
+        const textTruncated = this.text.length > MAX_TEXT_LENGTH
+            ? this.text.substring(0, MAX_TEXT_LENGTH)
+            : null;
+
         const template = await getPostCardTemplate();
         const html = template({
             user: this.user,
             title: this.title,
+            titleTruncated: titleTruncated,
             text: this.text,
+            textTruncated: textTruncated,
             link: this.link,
             linkText: this.linkText,
             image: this.image,
@@ -64,6 +79,41 @@ export class PostCard {
         const div = document.createElement('div');
         div.innerHTML = html.trim();
         const postCard = div.firstElementChild;
+
+        // === Обработчик для текста ===
+        const toggleTextBtn = postCard.querySelector('[data-key="toggle-text"]');
+        const textPreview = postCard.querySelector('.post-card__text-preview');
+        const textFull = postCard.querySelector('.post-card__text-full');
+
+        if (toggleTextBtn && textPreview && textFull) {
+            let isExpanded = false;
+            toggleTextBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                isExpanded = !isExpanded;
+                textPreview.hidden = isExpanded;
+                textFull.hidden = !isExpanded;
+                toggleTextBtn.textContent = isExpanded ? 'Скрыть' : 'Показать полностью';
+            });
+        }
+
+        // === Обработчик для заголовка (опционально) ===
+        const titleEl = postCard.querySelector('.post-card__title');
+        if (titleTruncated) {
+            let isTitleExpanded = false;
+            titleEl.style.cursor = 'pointer';
+            titleEl.title = 'Кликните, чтобы увидеть весь заголовок';
+
+            titleEl.addEventListener('click', () => {
+                isTitleExpanded = !isTitleExpanded;
+                if (isTitleExpanded) {
+                    titleEl.textContent = this.title;
+                    titleEl.title = 'Кликните, чтобы свернуть';
+                } else {
+                    titleEl.innerHTML = `${this.title.substring(0, MAX_TITLE_LENGTH)}...`;
+                    titleEl.title = 'Кликните, чтобы увидеть весь заголовок';
+                }
+            });
+        }
 
         return postCard;
     }

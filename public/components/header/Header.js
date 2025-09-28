@@ -19,9 +19,18 @@ async function getHeaderTemplate() {
 
 async function checkAuth() {
     try {
-        const res = await fetch('/me', { method: 'GET' });
+        const res = await fetch('/api/me', { 
+            method: 'GET',
+            credentials: 'include'
+        });
+
+        console.log('Auth response status:', res.status);
+
         if (res.ok) {
             const userData = await res.json();
+
+            console.log('User data:', userData);
+
             return {
                 isLoggedIn: true,
                 user: {
@@ -31,7 +40,8 @@ async function checkAuth() {
             };
         }
         return { isLoggedIn: false, user: null };
-    } catch {
+    } catch (error) {
+        console.error('Auth check error:', error);
         return { isLoggedIn: false, user: null };
     }
 }
@@ -94,12 +104,13 @@ export class Header {
             logoutButton.addEventListener('click', async (e) => {
                 e.preventDefault();
                 try {
-                    // Отправляем запрос на выход
-                    const res = await fetch('/logout', { method: 'POST' });
+                    // запрос на выход
+                    const res = await fetch('/api/logout', { 
+                        method: 'POST',
+                        credentials: 'include'
+                    });
                     if (res.ok) {
-                        // Успешный выход — перезагружаем страницу или обновляем UI
-                        window.location.reload(); // самый простой способ
-                        // ИЛИ: вызвать callback на обновление всего приложения
+                        window.location.reload(); 
                     } else {
                         console.error('Ошибка при выходе');
                     }
@@ -112,3 +123,5 @@ export class Header {
         return header;
     }
 }
+
+export { checkAuth };

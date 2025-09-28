@@ -29,13 +29,13 @@
         {{> tag key=this.key icon=this.icon count=this.count}}
     {{/each}}
 
-    {{> tag key="add-tag" count="+"}}
+    {{> tag key="add-tag" icon="/img/icons/add.svg"}}
 
     <div class="post-card__footer">
         <div class="left-side-footer">
             {{> tag key="comments" icon="/img/icons/comment.svg" count=commentsCount}}
             {{> tag key="reposts" icon="/img/icons/repost.svg" count=repostsCount}}
-            {{> tag key="bookmark" src="/img/icons/bookmark.svg" count=1}}
+            {{> tag key="bookmark" icon="/img/icons/bookmark.svg"}}
         </div>
         <div class="right-side-footer">
             {{> tag key="views" icon="/img/icons/views.svg" count=viewsCount}}

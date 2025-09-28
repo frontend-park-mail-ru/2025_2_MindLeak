@@ -58,3 +58,9 @@
     display: flex;
     gap: 20px;
 }
+
+.post-card__toggle-text {
+    font-size: var(--text-base);
+    color: var(--accent-color);
+    cursor: pointer;
+}

@@ -76,28 +76,32 @@ async function renderPost(postData) {
 }
 
 let allPosts = [];
-let loadedPosts = 0; 
+let isPostsLoaded = false;
 
 async function loadMorePosts() {
-    if (allPosts.length === 0) {
+    if (!isPostsLoaded) {
         const rawPosts = await fetchPosts();
-        allPosts = rawPosts.map(transformPost);
+        allPosts = (Array.isArray(rawPosts) && rawPosts.length > 0)
+            ? rawPosts.map(transformPost)
+            : mockPosts.map(transformPost);
+        isPostsLoaded = true;
+    }
+
+    if (allPosts.length === 0) {
+        observer.unobserve(sentinel);
+        return;
     }
 
     const fragment = document.createDocumentFragment();
     for (let i = 0; i < POSTS_PER_LOAD; i++) {
-        if (loadedPosts >= allPosts.length) break;
-        
-        const postEl = await renderPost(allPosts[loadedPosts]);
+        const postIndex = virtualPostIndex % allPosts.length;
+        const postData = { ...allPosts[postIndex] }; 
+        const postEl = await renderPost(postData);
         fragment.appendChild(postEl);
-        loadedPosts++;
+        virtualPostIndex++;
     }
 
-    if (fragment.childElementCount > 0) {
-        feedContainer.insertBefore(fragment, sentinel);
-    } else {
-        observer.unobserve(sentinel);
-    }
+    feedContainer.insertBefore(fragment, sentinel);
 }
 
 const sentinel = document.createElement('div');

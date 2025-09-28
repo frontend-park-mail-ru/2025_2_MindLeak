@@ -16,7 +16,7 @@ export class Button {
     }
 
     async render() {
-        const template = await getButtonTemplate(); //ждем загрузку hbs
+        const template = await getButtonTemplate(); 
         const html = template(this);
 
         const div = document.createElement('div');

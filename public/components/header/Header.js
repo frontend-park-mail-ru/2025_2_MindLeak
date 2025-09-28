@@ -89,6 +89,26 @@ export class Header {
             });
         }
 
+        const logoutButton = header.querySelector('button[data-key="logout"]');
+        if (logoutButton && authData.isLoggedIn) {
+            logoutButton.addEventListener('click', async (e) => {
+                e.preventDefault();
+                try {
+                    // Отправляем запрос на выход
+                    const res = await fetch('/logout', { method: 'POST' });
+                    if (res.ok) {
+                        // Успешный выход — перезагружаем страницу или обновляем UI
+                        window.location.reload(); // самый простой способ
+                        // ИЛИ: вызвать callback на обновление всего приложения
+                    } else {
+                        console.error('Ошибка при выходе');
+                    }
+                } catch (err) {
+                    console.error('Не удалось выйти:', err);
+                }
+            });
+        }
+
         return header;
     }
 }

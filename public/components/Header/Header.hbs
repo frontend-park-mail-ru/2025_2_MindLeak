@@ -1,0 +1,49 @@
+<div class="header">
+    <a class="header__logo">
+        <img src="/img/LogoMain.svg" alt="Логотип" class="header__logo-img" />
+        <span>MindLeak</span>
+    </a>
+
+    <div class="header__center">
+        {{> input type="search" placeholder="Поиск" name="search" class="header__search"}}
+    </div>
+
+    <div class="header__right">
+    {{#if isLoggedIn}}
+        {{> button 
+            text="Написать" 
+            key="createPost" 
+            type="button" 
+            class="header__button header__button--active"
+        }}
+        {{> button 
+            text="Выйти" 
+            key="logout" 
+            type="button" 
+            class="header__button header__button--logout"
+        }}
+        <div class="header__user" data-key="user-menu">
+            <img 
+                src="{{user.avatar}}" 
+                alt="{{user.name}}" 
+                class="header__avatar"
+                onerror="this.src='/img/defaultAvatar.jpg'">
+            <span class="header__dropdown-icon">▼</span>
+        </div>
+        {{else}}
+            {{> button 
+                text="Написать" 
+                key="createPost" 
+                type="button" 
+                class="header__button" 
+                disabled=true
+            }}
+            {{> button 
+                text="Войти" 
+                key="login" 
+                type="button" 
+                class="header__button"
+            }}
+        {{/if}}
+    </div>
+</div>

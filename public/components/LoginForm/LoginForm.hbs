@@ -1,0 +1,28 @@
+<div class="login-modal">
+    <div class="login-modal__content">
+        <img src="/img/LogoMain.svg" alt="Логотип" class="login-modal__logo" />
+        <h1>Вход в аккаунт</h1>
+        <form class="login-form__body">
+            <div class="form-group">
+                <label for="email">Почта</label>
+                {{> input type="email" placeholder="example@mail.xyz" name="email"}}
+            </div>
+
+            <div class="form-group">
+                <label for="password">Пароль</label>
+                <div class="input-wrapper">
+                    {{> input type="password" placeholder="password" name="password"}}
+                    <span class="password-toggle" aria-hidden="true">🙉</span>
+                </div>
+            </div>
+            
+            <div class="button-container">
+                {{> button text="Войти" key="login" type="submit"}}
+            </div>
+
+            <p class="login-form__footer">
+                Нет аккаунта? <a href="/registration" class="link">Регистрация</a>
+            </p>
+        </form>
+    </div>
+</div>

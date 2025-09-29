@@ -3,7 +3,7 @@ let headerTemplate = null;
 async function getHeaderTemplate() {
     if (headerTemplate) return headerTemplate;
 
-    const inputRes = await fetch('/components/Input/input.hbs');
+    const inputRes = await fetch('/components/Input/Input.hbs');
     const inputSource = await inputRes.text();
     Handlebars.registerPartial('input', Handlebars.compile(inputSource));
 

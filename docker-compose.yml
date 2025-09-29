@@ -5,5 +5,5 @@ services:
     build: ./2025_2_MindLeak_frontend
     container_name: frontend
     ports:
-      - "80:3000"    # На сервере будет доступно по http://<ip>
+      - "8080:3000"    # На сервере будет доступно по http://<ip>
     restart: always

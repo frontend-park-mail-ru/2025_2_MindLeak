@@ -104,7 +104,6 @@ export class Header {
             logoutButton.addEventListener('click', async (e) => {
                 e.preventDefault();
                 try {
-                    // запрос на выход
                     const res = await fetch('http://62.109.19.84:8090/logout', { 
                         method: 'POST',
                         credentials: 'include'

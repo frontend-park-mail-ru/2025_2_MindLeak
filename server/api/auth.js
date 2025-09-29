@@ -1,35 +1,43 @@
 'use strict';
 
-const crypto = require('crypto'); // для crypto.randomUUID()
+const crypto = require('crypto');
 
-// todo ИЗМЕНИТЬ
-const images = [
-    { src: '/273153700_118738253861831_5906416883131394354_n.jpeg', likes: 120 },
-    { src: '/272708814_1158833634855293_1743973316352152210_n.webp.jpg', likes: 250 },
-    { src: '/272464515_147005761018515_3100264353239753904_n.webp.jpg', likes: 201 },
-    { src: '/259096143_252774593424446_3292295880799640700_n.jpeg', likes: 300 },
-    { src: '/19984805_468099790230913_7469029070697660416_n.jpeg', likes: 100500 },
-    { src: '/16583858_168051673696142_846500378588479488_n.jpeg', likes: 350 }
-];
-
+/**
+ * Хранилище пользователей
+ * @type {Object<string, {name: string, email: string, password: string, avatar: string}>}
+ */
 const users = {
-  'belova@mail.ru': { name: 'A', email: 'belova@mail.ru', password: 'password' },
-  'lazutkina@mail.ru': { name: 'B', email: 'lazutkina@mail.ru', password: 'password' },
-  'tsapkov@mail.ru': { name: 'C', email: 'tsapkov@mail.ru', password: 'password' },
-  'vladimirov@mail.ru': { name: 'D', email: 'vladimirov@mail.ru', password: 'password' }
+  'belova@mail.ru': { name: 'A', email: 'belova@mail.ru', password: 'password', avatar: 'defaultAvatar.jpg' },
+  'lazutkina@mail.ru': { name: 'B', email: 'lazutkina@mail.ru', password: 'password', avatar: 'defaultAvatar.jpg' },
+  'tsapkov@mail.ru': { name: 'C', email: 'tsapkov@mail.ru', password: 'password', avatar: 'defaultAvatar.jpg' },
+  'vladimirov@mail.ru': { name: 'D', email: 'vladimirov@mail.ru', password: 'password', avatar: 'defaultAvatar.jpg' }
 };
 
+/**
+ * Хранилище сессий
+ * @type {Object<string, string>}
+ */
 const ids = {};
 
+/**
+ * Удаляет пароль из объекта пользователя для безопасного ответа
+ * @param {Object} user - Объект пользователя
+ * @returns {Object} - Безопасный объект пользователя
+ */
 function formUser(user) {
     return {
         ...user,
-        password: undefined,
-        images: user.images?.map(id => ({ ...images[id], id })) || []
+        password: undefined
     };
 }
 
 module.exports = {
+    /**
+     * Регистрация нового пользователя
+     * @param {import('express').Request} req - Объект запроса Express
+     * @param {import('express').Response} res - Объект ответа Express
+     * @returns {void}
+     */
     signup: (req, res) => {
         try{   
             const { name, email, password } = req.body;
@@ -42,22 +50,22 @@ module.exports = {
                 return res.status(400).json({ error: 'Не валидные данные пользователя' });
             }
             if (users[email]) {
-                return res.status(400).json({
+                return res.status(409).json({
                     fieldErrors: [
                         { field: 'email', message: 'Пользователь с такой почтой уже существует' }
                     ]
                 });
             }
 
-            const id = crypto.randomUUID(); // используем crypto из Node.js
+            const id = crypto.randomUUID();
             const user = { name, email, password, images: [] };
             ids[id] = email;
             users[email] = user;
 
             res.cookie('podvorot', id, {
-                expires: new Date(Date.now() + 1000 * 60 * 10), //10 min
+                expires: new Date(Date.now() + 1000 * 60 * 10),
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production' // только в продакшене
+                secure: process.env.NODE_ENV === 'production'
             });
             res.status(201).json({ id });
         } catch (err) {
@@ -69,10 +77,16 @@ module.exports = {
         }
     },
 
+    /**
+     * Авторизация пользователя
+     * Возвращает email, имя и аватар при успешной проверке
+     * @param {import('express').Request} req - Объект запроса Express
+     * @param {import('express').Response} res - Объект ответа Express
+     * @returns {void}
+     */
     login: (req, res) => {
         try {
             const { email, password } = req.body;
-
             if (!email) {
                 return res.status(400).json({
                     fieldErrors: [
@@ -80,7 +94,6 @@ module.exports = {
                     ]
                 });
             }
-
             if (!password) {
                 return res.status(400).json({
                     fieldErrors: [
@@ -88,15 +101,12 @@ module.exports = {
                     ]
                 });
             }
-
-            if (!users[email] || users[email].password !== password) {
-                return res.status(400).json({
-                    fieldErrors: [
-                    { field: 'email', message: 'Неверный E-Mail или пароль' }
-                    ]
+            const user = users[email];
+            if (!user || user.password !== password) {
+                return res.status(401).json({
+                    fieldErrors: [{ field: 'email', message: 'Неверный email или пароль' }]
                 });
             }
-
             const id = crypto.randomUUID();
             ids[id] = email;
 
@@ -106,8 +116,11 @@ module.exports = {
                 secure: process.env.NODE_ENV === 'production'
             });
 
-            return res.status(200).json({ id });
-
+            res.status(200).json({
+                email: user.email,
+                name: user.name,
+                avatar: user.avatar
+            });
         } catch (err) {
             console.error('Ошибка при входе:', err);
             return res.status(500).json({
@@ -116,6 +129,12 @@ module.exports = {
         }
     },
 
+    /**
+     * Получение данных текущего пользователя по сессии
+     * @param {import('express').Request} req - Объект запроса Express
+     * @param {import('express').Response} res - Объект ответа Express
+     * @returns {void}
+     */
     me: (req, res) => {
         const id = req.cookies['podvorot'];
         const email = ids[id];
@@ -125,6 +144,12 @@ module.exports = {
         res.json(formUser(users[email]));
     },
 
+    /**
+     * Выход из системы — удаление сессии
+     * @param {import('express').Request} req - Объект запроса Express
+     * @param {import('express').Response} res - Объект ответа Express
+     * @returns {void}
+     */
     logout: (req, res) => {
         const id = req.cookies['podvorot'];
         if (id) {
@@ -133,35 +158,4 @@ module.exports = {
         res.clearCookie('podvorot'); // удаляем кук у клиента
         res.status(200).json({ ok: true });
     }
-
-    /*app.get('/feed', (req, res) => {
-        const id = req.cookies['podvorot'];
-        const emailSession = ids[id];
-        if (!emailSession || !users[emailSession]) {
-            return res.status(401).end();
-        }
-
-        const userSessionImagesSet = new Set(users[emailSession].images || []);
-        const result = images
-            .map((img, id) => ({ ...img, id }))
-            .filter(({ id }) => !userSessionImagesSet.has(id));
-
-        res.json(result);
-    });
-
-    app.post('/like', (req, res) => {
-        const id = req.cookies['podvorot'];
-        const emailSession = ids[id];
-        if (!emailSession || !users[emailSession]) {
-            return res.status(401).end();
-        }
-
-        const { id: imageId } = req.body;
-        if (images[imageId]) {
-            images[imageId].likes++;
-            res.status(200).json({ status: 'ok' });
-        } else {
-            res.status(400).json({ error: 'Неверный ID изображения' });
-        }
-    });*/
 };

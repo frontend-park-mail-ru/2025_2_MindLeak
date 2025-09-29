@@ -1,11 +1,10 @@
 let loginTemplate = null; //кэширование 
 
 async function getLoginTemplate() {
-    if (loginTemplate) return loginTemplate; //если шаблон есть в кэше - возвращаем его
+    if (loginTemplate) return loginTemplate;
 
-    // загружаем и регистрируем partials - вложенные шаблоны
-    const inputRes = await fetch('/components/Input/Input.hbs'); //загрузка шаблона (возвращ promise)
-    const inputSource = await inputRes.text(); //из-за hbs - текст
+    const inputRes = await fetch('/components/Input/Input.hbs');
+    const inputSource = await inputRes.text();
     Handlebars.registerPartial('input', Handlebars.compile(inputSource));
 
     const buttonRes = await fetch('/components/FormButton/FormButton.hbs');
@@ -33,19 +32,16 @@ function showFieldErrors(form, errors) {
         const input = form.querySelector(`input[name="${field}"]`);
         if (!input) return;
 
-        // добав класс error к инпуту
         input.classList.add('error');
 
-        const errorEl = document.createElement('div');// элемен для  ошибки
+        const errorEl = document.createElement('div');
         errorEl.className = 'field-error';
         errorEl.textContent = message; 
 
-        // встав исп .input-wrapper
         const wrapper = input.closest('.input-wrapper');
         if (wrapper) {
             wrapper.parentNode.insertBefore(errorEl, wrapper.nextSibling);
         } else {
-             //todo
             input.parentNode.insertBefore(errorEl, input.nextSibling);
         }
         
@@ -57,7 +53,6 @@ function showGlobalError(form, message) {
     errorEl.className = 'global-error';
     errorEl.textContent = message;
 
-    //todo - переписать
     form.appendChild(errorEl);
 }
 
@@ -67,21 +62,19 @@ export class LoginForm {
         
         const html = template();
 
-
         const div = document.createElement('div');
-        div.innerHTML = html.trim(); //убрали пробелы
+        div.innerHTML = html.trim();
 
-        // обработчик пароля
         const toggle = div.querySelector('.password-toggle');
         const passwordInput = div.querySelector('input[name="password"]');
         if (toggle && passwordInput) {
             toggle.addEventListener('click', () => {
                 if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
-                toggle.textContent = '🙈'; //todo
+                toggle.textContent = '🙈';
                 } else {
                 passwordInput.type = 'password';
-                toggle.textContent = '🙉'; //todo
+                toggle.textContent = '🙉';
                 }
             });
         }
@@ -136,7 +129,6 @@ export class LoginForm {
                 console.log('Login response status:', res.status);
                 console.log('Login response headers:', res.headers);
 
-                // Проверяем content-type перед парсингом JSON
                 const contentType = res.headers.get('content-type');
                 let data;
 
@@ -150,6 +142,18 @@ export class LoginForm {
 
                 console.log('Login response data:', data);
 
+                if (res.status === 404) {
+                    showFieldErrors(form, [
+                        { field: 'email', message: 'Пользователь с таким email не зарегестрирован' }
+                    ]);
+                    return;
+                }
+                if (res.status === 401) {
+                    showFieldErrors(form, [
+                        { field: 'password', message: 'Неверный пароль' }
+                    ]);
+                    return;
+                }
                 if (!res.ok) {
                     clearErrors(form);
 
@@ -169,8 +173,6 @@ export class LoginForm {
                     return;
                 }
 
-
-
                 if (res.status === 200) {
                     console.log('Login successful!');
                     if (modal.parentNode) modal.remove();
@@ -189,7 +191,6 @@ export class LoginForm {
             signUpLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 
-                // удаляем modal (а не через div)
                 if (modal.parentNode) {
                     modal.remove();
                 }
@@ -202,7 +203,6 @@ export class LoginForm {
         });
         }
 
-        // обработчик закрытия по клику вне формы
         modal.addEventListener('click', (e) => {
             if (e.target === modal) modal.remove();
         });

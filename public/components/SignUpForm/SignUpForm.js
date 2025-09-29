@@ -49,7 +49,6 @@ function showGlobalError(form, message) {
     errorEl.className = 'global-error';
     errorEl.textContent = message;
 
-    //todo - переписать
     form.appendChild(errorEl);
 }
 
@@ -78,7 +77,6 @@ export class SignUpForm {
             });
         });
 
-
         const modal = div.firstElementChild;
 
         const form = div.querySelector('.registration-form__body');
@@ -92,11 +90,9 @@ export class SignUpForm {
             const password = formData.get('password');
             const confirmPassword = formData.get('confirmPassword');
 
-
             clearErrors(form);
 
             const errors = [];
-
 
             if (!name) {
                 errors.push({ field: 'username', message: 'Название аккаунта обязательно' });
@@ -125,7 +121,6 @@ export class SignUpForm {
             showFieldErrors(form, errors);
             if (errors.length > 0) return;
 
-            // отправка на сервер
             try {
                     const res = await fetch('http://62.109.19.84:8090/registration', {
                     method: 'POST',
@@ -134,8 +129,14 @@ export class SignUpForm {
                 });
 
                 const data = await res.json();
+                if (res.status === 409) {
+                    showFieldErrors(form, [
+                        { field: 'email', message: 'Пользователь с таким email уже зарегистрирован' }
+                    ]);
+                    return;
+                }
                 if (!res.ok) {
-                    clearErrors(form); // очищаем старые ошибки
+                    clearErrors(form);
 
                     if (data.fieldErrors && Array.isArray(data.fieldErrors)) {
                         showFieldErrors(form, data.fieldErrors);

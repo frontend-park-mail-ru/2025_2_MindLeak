@@ -1,15 +1,12 @@
 import { Header } from '/components/Header/Header.js';
-import { Button } from '/components/FormButton/FormButton.js';
-import { Input } from '/components/Input/Input.js';
 import { LoginForm } from '/components/LoginForm/LoginForm.js';
-import { SignUpForm } from '/components/SignUpForm/SignUpForm.js';
 import { PostCard } from '/components/PostCard/PostCard.js';
 import { mockPosts } from '/data/mockPosts.js';
 
 const rootElem = document.getElementById('root');
 const headerContainer = document.createElement('header');
-const menuContainer = document.createElement('aside'); // элемент aside -меню (left)
-const pageElement = document.createElement('main'); // основное место куда будем встраивать (right)
+const menuContainer = document.createElement('aside');
+const pageElement = document.createElement('main');
 rootElem.appendChild(headerContainer);
 rootElem.appendChild(menuContainer);
 rootElem.appendChild(pageElement);
@@ -19,17 +16,6 @@ rootElem.appendChild(pageElement);
     const headerEl = await header.render();
     headerContainer.appendChild(headerEl);
 })();
-
-
-async function renderLogin() {
-  const loginForm = new LoginForm();
-  return await loginForm.render();
-}
-
-async function renderSignUp() {
-  const signUpForm = new SignUpForm();
-  return await signUpForm.render();
-}
 
 const feedContainer = document.createElement('div');
 feedContainer.className = 'feed';

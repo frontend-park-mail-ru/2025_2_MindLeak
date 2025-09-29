@@ -3,7 +3,7 @@ let inputTemplate = null;
 async function getInputTemplate() {
     if (inputTemplate) return inputTemplate;
 
-    const res = await fetch('/components/Input/input.hbs');
+    const res = await fetch('/components/Input/Input.hbs');
     const source = await res.text();
     inputTemplate = Handlebars.compile(source);
     return inputTemplate;

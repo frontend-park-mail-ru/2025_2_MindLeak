@@ -3,7 +3,7 @@ let signUpTemplate = null;
 async function getSignUpTemplate() {
     if (signUpTemplate) return signUpTemplate;
 
-    const inputRes = await fetch('/components/Input/input.hbs');
+    const inputRes = await fetch('/components/Input/Input.hbs');
     const inputSource = await inputRes.text();
     Handlebars.registerPartial('input', Handlebars.compile(inputSource));
 

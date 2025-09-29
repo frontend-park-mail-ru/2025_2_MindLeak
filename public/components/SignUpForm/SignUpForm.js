@@ -153,12 +153,14 @@ export class SignUpForm {
                     return;
                 }
 
-                if (modal.parentNode) modal.remove();
-                import('/components/LoginForm/LoginForm.js').then(({ LoginForm }) => {
-                    new LoginForm().render().then(loginModal => {
-                        document.body.appendChild(loginModal);
-                    });
-                });
+                //здесь происходит автоматическая авторизация после регистрации если задана на сервере
+                if (res.ok) {
+                    // сервер автоматически авторизовал пользователя
+                    if (modal.parentNode) modal.remove();
+                    
+                    // обновляем страницу для применения нового авторизованного состояния
+                    window.location.reload();
+                }
             } catch (err) {
                 console.error('Ошибка сети:', err);
                 showGlobalError(form, 'Ошибка сети. Проверьте подключение.');

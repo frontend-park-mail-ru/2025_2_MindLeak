@@ -142,15 +142,9 @@ export class LoginForm {
 
                 console.log('Login response data:', data);
 
-                if (res.status === 404) {
+                if (res.status === 404 || res.status === 401) {
                     showFieldErrors(form, [
-                        { field: 'email', message: 'Пользователь с таким email не зарегестрирован' }
-                    ]);
-                    return;
-                }
-                if (res.status === 401) {
-                    showFieldErrors(form, [
-                        { field: 'password', message: 'Неверный пароль' }
+                        { field: 'email', message: 'Email или пароль указаны неверно' }
                     ]);
                     return;
                 }

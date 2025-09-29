@@ -1,4 +1,4 @@
-import { Header } from '/components/Header/Header.js';
+import { Header } from '/components/header/Header.js';
 import { Button } from '/components/FormButton/FormButton.js';
 import { Input } from '/components/Input/Input.js';
 import { LoginForm } from '/components/LoginForm/LoginForm.js';

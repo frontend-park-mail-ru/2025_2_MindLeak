@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   frontend:
-    build: ./2025_2_MindLeak_frontend
+    build: .
     container_name: frontend
     ports:
       - "8080:3000"    # На сервере будет доступно по http://<ip>

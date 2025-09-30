@@ -68,4 +68,21 @@ p {
 .feed-container {
     display: flex;
     flex-direction: column;
+
+.feed-error {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text-color);
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-medium);
+    text-align: center;
+    padding: 2rem;
+    background: var(--section-color);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    max-width: 400px;
+    width: 90%;
 }

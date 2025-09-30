@@ -5,6 +5,8 @@
  */
 
 import { Header } from '/components/Header/Header.js';
+import { SidebarMenu } from '/components/SidebarMenu/SidebarMenu.js';
+import { TopBloggers } from '/components/TopBloggers/TopBloggers.js';
 import { LoginForm } from '/components/LoginForm/LoginForm.js';
 import { PostCard } from '/components/PostCard/PostCard.js';
 
@@ -19,14 +21,37 @@ const rootElem = document.getElementById('root');
  * @type {HTMLElement}
  */
 const headerContainer = document.createElement('header');
+rootElem.appendChild(headerContainer);
+
+const contentContainer = document.createElement('div');
+contentContainer.className = 'content-layout'; 
+rootElem.appendChild(contentContainer);
+
+const leftMenu = document.createElement('aside');
+leftMenu.className = 'sidebar-left';
 
 /**
  * Основной контент-контейнер
  * @type {HTMLElement}
  */
 const pageElement = document.createElement('main');
-rootElem.appendChild(headerContainer);
-rootElem.appendChild(pageElement);
+pageElement.className = 'main-content'; 
+
+const rightMenu = document.createElement('aside'); 
+rightMenu.className = 'sidebar-right';
+
+/**
+ * Контейнер для отображения ленты постов
+ * @type {HTMLDivElement}
+ */
+const feedWrapper = document.createElement('div');
+feedWrapper.className = 'feed';
+
+pageElement.appendChild(feedWrapper);
+contentContainer.appendChild(leftMenu);
+contentContainer.appendChild(pageElement);
+contentContainer.appendChild(rightMenu);
+
 
 /**
  * Инициализация шапки
@@ -37,13 +62,18 @@ rootElem.appendChild(pageElement);
     headerContainer.appendChild(headerEl);
 })();
 
-/**
- * Контейнер для отображения ленты постов
- * @type {HTMLDivElement}
- */
-const feedContainer = document.createElement('div');
-feedContainer.className = 'feed';
-pageElement.appendChild(feedContainer);
+
+(async () => {
+    const sidebar = new SidebarMenu();
+    const sidebarEl = await sidebar.render();
+    leftMenu.appendChild(sidebarEl);
+})();
+
+(async () => {
+    const topBloggers = new TopBloggers();
+    const topBloggersEl = await topBloggers.render();
+    rightMenu.appendChild(topBloggersEl);
+})();
 
 /**
  * Виртуальный индекс для циклического отображения постов (прототип бесконечной ленты)
@@ -100,12 +130,12 @@ function transformPost(apiPost) {
         text: apiPost.content,
         image: apiPost.image?.trim() || '',
         tags: [
-            { key: 'tag1', icon: '/img/icons/js.svg', count: 'тег1' },
-            { key: 'tag2', icon: '/img/icons/web.svg', count: 'тег2' }
+            { key: 'tag1', icon: '/img/reactions/hot_reaction.svg', count: '52' },
+            { key: 'tag2', icon: '/img/reactions/smile_reaction.svg', count: '1,2k' }
         ],
-        commentsCount: '0',
-        repostsCount: '0',
-        viewsCount: '0'
+        commentsCount: '12',
+        repostsCount: '4',
+        viewsCount: '1,1k'
     };
 }
 
@@ -190,7 +220,7 @@ async function renderNextPosts() {
         virtualPostIndex++;
     }
 
-    feedContainer.insertBefore(fragment, sentinel);
+    feedWrapper.insertBefore(fragment, sentinel);
 }
 
 /**
@@ -212,7 +242,7 @@ async function loadMorePosts() {
  */
 const sentinel = document.createElement('div');
 sentinel.style.height = '20px';
-feedContainer.appendChild(sentinel);
+feedWrapper.appendChild(sentinel);
 
 /**
  * Наблюдатель за прокруткой. Срабатывает, когда sentinel попадает в зону видимости.

@@ -1,0 +1,20 @@
+<aside class="top-bloggers">
+    <h3 class="top-bloggers__title">Топ блогов</h3>
+
+    <div class="top-bloggers__list">
+        {{#each bloggers}}
+            <div class="top-bloggers__item">
+                {{> user-menu 
+                    name=this.name 
+                    subtitle=this.subtitle 
+                    avatar=this.avatar 
+                    isSubscribed=false
+                }}
+            </div>
+        {{/each}}
+    </div>
+
+    <button class="top-bloggers__view-all" data-key="view-all">
+        <span class="button-text">Просмотреть весь топ</span>
+    </button>
+</aside>

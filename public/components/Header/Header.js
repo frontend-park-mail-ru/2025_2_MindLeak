@@ -37,7 +37,8 @@ async function checkAuth() {
                 isLoggedIn: true,
                 user: {
                     name: userData.name,
-                    avatar: userData.avatar || '/img/defaultAvatar.jpg'
+                    avatar: userData.avatar || '/img/defaultAvatar.jpg',
+                    subtitle: userData.subtitle || 'Блог'
                 }
             };
         }
@@ -79,6 +80,7 @@ export class Header {
 
                 const popUpMenu = new PopUpMenu({
                     user: authData.user,
+                    subtitle: authData.subtitle,
                     menuItems: [
                         { key: 'bookmarks', icon: '/img/icons/note_icon.svg', text: 'Черновики' },
                         { key: 'saved', icon: '/img/icons/bookmark.svg', text: 'Закладки' },

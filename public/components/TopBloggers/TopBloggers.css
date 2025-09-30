@@ -48,16 +48,6 @@
     font-size: var(--text-base);
 }
 
-.top-bloggers__item {
-    animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 1;
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.top-bloggers__view-all.expanded .icon {
+    transform: rotate(180deg);
 }

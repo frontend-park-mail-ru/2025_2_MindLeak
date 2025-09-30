@@ -11,19 +11,21 @@
         <div class="firstRowUser">
             <div class="user-menu__name">{{name}}</div>
             
-            {{#if isLoggedIn}}
-                <button 
-                    class="user-menu__button {{#if isSubscribed}}user-menu__button--subscribed{{/if}}"
-                    data-key="toggle-subscribe">
-                    {{#if isSubscribed}}✔{{else}}Подписаться{{/if}}
-                </button>
-            {{else}}
-                <button 
-                    class="user-menu__button user-menu__button--login"
-                    data-key="open-login">
-                    Подписаться
-                </button>
-            {{/if}}
+            {{#unless hideSubscribeButton}}
+                {{#if isLoggedIn}}
+                    <button 
+                        class="user-menu__button {{#if isSubscribed}}user-menu__button--subscribed{{/if}}"
+                        data-key="toggle-subscribe">
+                        {{#if isSubscribed}}✔{{else}}Подписаться{{/if}}
+                    </button>
+                {{else}}
+                    <button 
+                        class="user-menu__button user-menu__button--login"
+                        data-key="open-login">
+                        Подписаться
+                    </button>
+                {{/if}}
+            {{/unless}}
         </div>
         <div class="user-menu__subtitle">{{subtitle}}</div>
     </div>

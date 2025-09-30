@@ -1,15 +1,35 @@
 import { Header } from '/components/Header/Header.js';
+import { SidebarMenu } from '/components/SidebarMenu/SidebarMenu.js';
+import { TopBloggers } from '/components/TopBloggers/TopBloggers.js';
 import { LoginForm } from '/components/LoginForm/LoginForm.js';
 import { PostCard } from '/components/PostCard/PostCard.js';
 import { mockPosts } from '/data/mockPosts.js';
 
 const rootElem = document.getElementById('root');
+
 const headerContainer = document.createElement('header');
-const menuContainer = document.createElement('aside');
-const pageElement = document.createElement('main');
 rootElem.appendChild(headerContainer);
-rootElem.appendChild(menuContainer);
-rootElem.appendChild(pageElement);
+
+const contentContainer = document.createElement('div'); // Добавляем контейнер для контента
+contentContainer.className = 'content-layout'; // ← как в CSS
+rootElem.appendChild(contentContainer);
+
+const leftMenu = document.createElement('aside'); // Исправляем имя переменной
+leftMenu.className = 'sidebar-left';
+
+const pageElement = document.createElement('main');
+pageElement.className = 'main-content'; // Переименовываем класс
+
+const rightMenu = document.createElement('aside'); // ← ДОБАВЬ ЭТО
+rightMenu.className = 'sidebar-right';
+
+const feedWrapper = document.createElement('div'); // ОДИН раз объявляем feedWrapper
+feedWrapper.className = 'feed';
+
+pageElement.appendChild(feedWrapper);
+contentContainer.appendChild(leftMenu);
+contentContainer.appendChild(pageElement);
+contentContainer.appendChild(rightMenu);
 
 (async () => {
     const header = new Header({ LoginForm });
@@ -17,9 +37,17 @@ rootElem.appendChild(pageElement);
     headerContainer.appendChild(headerEl);
 })();
 
-const feedContainer = document.createElement('div');
-feedContainer.className = 'feed';
-pageElement.appendChild(feedContainer);
+(async () => {
+    const sidebar = new SidebarMenu();
+    const sidebarEl = await sidebar.render();
+    leftMenu.appendChild(sidebarEl);
+})();
+
+(async () => {
+    const topBloggers = new TopBloggers();
+    const topBloggersEl = await topBloggers.render();
+    rightMenu.appendChild(topBloggersEl);
+})();
 
 let virtualPostIndex = 0;
 const POSTS_PER_LOAD = 3;
@@ -47,12 +75,12 @@ function transformPost(apiPost) {
         text: apiPost.content,
         image: apiPost.image?.trim() || '',
         tags: [
-            { key: 'tag1', icon: '/img/icons/js.svg', count: 'тег1' },
-            { key: 'tag2', icon: '/img/icons/web.svg', count: 'тег2' }
+            { key: 'tag1', icon: '/img/reactions/hot_reaction.svg', count: '52' },
+            { key: 'tag2', icon: '/img/reactions/smile_reaction.svg', count: '1,2k' }
         ],
-        commentsCount: '0',
-        repostsCount: '0',
-        viewsCount: '0'
+        commentsCount: '12',
+        repostsCount: '4',
+        viewsCount: '1,1k'
     };
 }
 
@@ -87,12 +115,12 @@ async function loadMorePosts() {
         virtualPostIndex++;
     }
 
-    feedContainer.insertBefore(fragment, sentinel);
+    feedWrapper.insertBefore(fragment, sentinel);
 }
 
 const sentinel = document.createElement('div');
 sentinel.style.height = '20px';
-feedContainer.appendChild(sentinel);
+feedWrapper.appendChild(sentinel);
 
 const observer = new IntersectionObserver((entries) => {
     if (entries[0].isIntersecting) {

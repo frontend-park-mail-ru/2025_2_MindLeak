@@ -16,19 +16,14 @@
             type="button" 
             class="header__button header__button--active"
         }}
-        {{> button 
-            text="Выйти" 
-            key="logout" 
-            type="button" 
-            class="header__button header__button--logout"
-        }}
+        
         <div class="header__user" data-key="user-menu">
             <img 
                 src="{{user.avatar}}" 
                 alt="{{user.name}}" 
                 class="header__avatar"
                 onerror="this.src='/img/defaultAvatar.jpg'">
-            <span class="header__dropdown-icon">▼</span>
+            {{> icon key="arrow-down" src="/img/icons/arrowDown_icon.svg" title="Развернуть" }}
         </div>
         {{else}}
             {{> button 

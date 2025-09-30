@@ -65,10 +65,45 @@ export class Header {
         const header = div.firstElementChild;
 
         const userMenu = header.querySelector('[data-key="user-menu"]');
-        if (userMenu) {
-            userMenu.addEventListener('click', (e) => {
+        if (userMenu && authData.isLoggedIn) {
+            userMenu.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                console.log('Выпадающее меню пользователя');
+
+                const existingMenu = document.querySelector('.popUp-menu');
+                if (existingMenu) {
+                    existingMenu.remove();
+                    return; 
+                }
+
+                const popUpMenu = new PopUpMenu({
+                    user: authData.user,
+                    menuItems: [
+                        { key: 'bookmarks', icon: '/img/icons/note_icon.svg', text: 'Черновики' },
+                        { key: 'saved', icon: '/img/icons/bookmark.svg', text: 'Закладки' },
+                        { key: 'settings', icon: '/img/icons/settings_icon.svg', text: 'Настройки' },
+                        { key: 'subscription', icon: '/img/icons/premium_icon.svg', text: 'Подписка' },
+                        { key: 'logout', icon: '/img/icons/exit_icon.svg', text: 'Выйти' }
+                    ]
+                });
+
+                const menuEl = await popUpMenu.render();
+
+                const rect = userMenu.getBoundingClientRect();
+                menuEl.style.position = 'absolute';
+                menuEl.style.top = `${rect.bottom + 10}px`;
+                menuEl.style.right = `${window.innerWidth - rect.right}px`;
+                menuEl.style.zIndex = '1000';
+
+                document.body.appendChild(menuEl);
+
+                const closeMenu = (event) => {
+                    if (!menuEl.contains(event.target) && event.target !== userMenu) {
+                        menuEl.remove();
+                        document.removeEventListener('click', closeMenu);
+                    }
+                };
+
+                document.addEventListener('click', closeMenu);
             });
         }
 
@@ -96,26 +131,6 @@ export class Header {
                 const loginForm = new this.LoginForm();
                 const modal = await loginForm.render();
                 document.body.appendChild(modal);
-            });
-        }
-
-        const logoutButton = header.querySelector('button[data-key="logout"]');
-        if (logoutButton && authData.isLoggedIn) {
-            logoutButton.addEventListener('click', async (e) => {
-                e.preventDefault();
-                try {
-                    const res = await fetch('http://62.109.19.84:8090/logout', { 
-                        method: 'POST',
-                        credentials: 'include'
-                    });
-                    if (res.ok) {
-                        window.location.reload(); 
-                    } else {
-                        console.error('Ошибка при выходе');
-                    }
-                } catch (err) {
-                    console.error('Не удалось выйти:', err);
-                }
             });
         }
 

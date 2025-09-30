@@ -5,6 +5,7 @@
     background: var(--section-color);
     border-radius: 8px;
     color: var(--text-color);
+    cursor: pointer;
 }
 
 .user-menu__avatar {

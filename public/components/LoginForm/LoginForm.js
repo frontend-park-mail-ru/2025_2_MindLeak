@@ -1,5 +1,13 @@
-let loginTemplate = null; //кэширование 
+/**
+ * Кэшированный шаблон формы входа
+ * @type {Function|null}
+ */
+let loginTemplate = null;
 
+/**
+ * Асинхронно загружает шаблон формы входа с зависимыми partials
+ * @returns {Promise<Function>} - cкомпилированный Handlebars-шаблон
+ */
 async function getLoginTemplate() {
     if (loginTemplate) return loginTemplate;
 
@@ -17,6 +25,10 @@ async function getLoginTemplate() {
     return loginTemplate;
 }
 
+/**
+ * Очищает все ошибки в форме: убирает классы ошибок и удаляет элементы с сообщениями
+ * @param {HTMLFormElement} form - форма, из которой нужно удалить ошибки
+ */
 function clearErrors(form) {
     form.querySelectorAll('.form__input').forEach(input => {
         input.classList.remove('error');
@@ -27,6 +39,11 @@ function clearErrors(form) {
     if (globalError) globalError.remove();
 }
 
+/**
+ * Отображает ошибки валидации под соответствующими полями формы
+ * @param {HTMLFormElement} form - целевая форма
+ * @param {Array<{field: string, message: string}>} errors - массив ошибок с указанием поля и сообщения
+ */
 function showFieldErrors(form, errors) {
     errors.forEach(({ field, message }) => {
         const input = form.querySelector(`input[name="${field}"]`);
@@ -48,6 +65,11 @@ function showFieldErrors(form, errors) {
     });
 }
 
+/**
+ * Отображает глобальную ошибку внизу формы
+ * @param {HTMLFormElement} form - целевая форма
+ * @param {string} message - текст ошибки
+ */
 function showGlobalError(form, message) {
     const errorEl = document.createElement('div');
     errorEl.className = 'global-error';
@@ -56,6 +78,9 @@ function showGlobalError(form, message) {
     form.appendChild(errorEl);
 }
 
+/**
+ * Класс для рендеринга и управления формой входа
+ */
 export class LoginForm {
     async render() {
         const template = await getLoginTemplate();
@@ -79,7 +104,6 @@ export class LoginForm {
             });
         }
 
-        // cохр ссылку на модальное окно
         const modal = div.firstElementChild;
 
         const form = div.querySelector('.login-form__body');

@@ -1,5 +1,13 @@
+/**
+ * Кэшированный шаблон формы регистрации
+ * @type {Function|null}
+ */
 let signUpTemplate = null;
 
+/**
+ * Асинхронно загружает шаблон формы регистрации с необходимыми partials
+ * @returns {Promise<Function>} - скомпилированный Handlebars-шаблон формы регистрации
+ */
 async function getSignUpTemplate() {
     if (signUpTemplate) return signUpTemplate;
 
@@ -17,6 +25,10 @@ async function getSignUpTemplate() {
     return signUpTemplate;
 }
 
+/**
+ * Очищает все ошибки в форме: удаляет классы ошибок и элементы сообщений
+ * @param {HTMLFormElement} form - форма, из которой нужно удалить ошибки
+ */
 function clearErrors(form) {
   form.querySelectorAll('.form__input').forEach(input => {
     input.classList.remove('error');
@@ -24,6 +36,11 @@ function clearErrors(form) {
   form.querySelectorAll('.field-error, .global-error').forEach(el => el.remove());
 }
 
+/**
+ * Отображает ошибки валидации под соответствующими полями формы
+ * @param {HTMLFormElement} form - целевая форма
+ * @param {Array<{field: string, message: string}>} errors - массив объектов с полями field и message
+ */
 function showFieldErrors(form, errors) {
   errors.forEach(({ field, message }) => {
     const input = form.querySelector(`input[name="${field}"]`);
@@ -44,6 +61,11 @@ function showFieldErrors(form, errors) {
   });
 }
 
+/**
+ * Отображает глобальную ошибку внизу формы
+ * @param {HTMLFormElement} form - целевая форма
+ * @param {string} message - текст ошибки
+ */
 function showGlobalError(form, message) {
     const errorEl = document.createElement('div');
     errorEl.className = 'global-error';
@@ -52,6 +74,9 @@ function showGlobalError(form, message) {
     form.appendChild(errorEl);
 }
 
+/**
+ * Класс для рендеринга и управления формой регистрации
+ */
 export class SignUpForm {
     async render() {
         const template = await getSignUpTemplate();
@@ -125,7 +150,8 @@ export class SignUpForm {
                     const res = await fetch('http://62.109.19.84:8090/registration', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, password })
+                    body: JSON.stringify({ name, email, password }),
+                    credentials: 'include'
                 });
 
                 const data = await res.json();
@@ -153,12 +179,10 @@ export class SignUpForm {
                     return;
                 }
 
-                if (modal.parentNode) modal.remove();
-                import('/components/LoginForm/LoginForm.js').then(({ LoginForm }) => {
-                    new LoginForm().render().then(loginModal => {
-                        document.body.appendChild(loginModal);
-                    });
-                });
+                if (res.ok) {
+                    if (modal.parentNode) modal.remove();
+                    window.location.reload();
+                }
             } catch (err) {
                 console.error('Ошибка сети:', err);
                 showGlobalError(form, 'Ошибка сети. Проверьте подключение.');

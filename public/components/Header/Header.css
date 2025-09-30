@@ -2,7 +2,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 40px;
+    padding: 20px 0;
     background-color: var(--bg-color);
 }
 
@@ -31,4 +31,9 @@
     height: 40px;
     border-radius: 50%;
     object-fit: cover;
+}
+
+.header__arrow {
+    display: flex;
+    align-items: center;
 }

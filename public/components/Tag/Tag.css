@@ -27,3 +27,14 @@
 .tag__count {
     font-weight: var(--font-weight-medium);
 }
+
+.post-card__footer .tag {
+    background: none;
+    border: none;
+}
+
+.tag[data-key="add-tag"] {
+    justify-content: center;
+    align-items: center;
+    gap: 0;
+}

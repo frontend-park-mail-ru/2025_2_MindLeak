@@ -69,6 +69,7 @@ p {
     display: flex;
     flex-direction: column;
 
+}
 .feed-error {
     position: fixed;
     top: 50%;

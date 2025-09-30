@@ -32,3 +32,8 @@
     border-radius: 50%;
     object-fit: cover;
 }
+
+.header__arrow {
+    display: flex;
+    align-items: center;
+}

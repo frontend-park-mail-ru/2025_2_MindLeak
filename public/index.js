@@ -264,12 +264,12 @@ const observer = new IntersectionObserver((entries) => {
  */
 function showFeedError(message) {
     if (sentinel.parentNode) sentinel.remove();
-    feedContainer.innerHTML = '';
+    feedWrapper.innerHTML = '';
 
     const errorEl = document.createElement('div');
     errorEl.className = 'feed-error';
     errorEl.textContent = message;
-    feedContainer.appendChild(errorEl);
+    feedWrapper.appendChild(errorEl);
 }
 
 observer.observe(sentinel);

@@ -1,3 +1,5 @@
+import { PopUpMenu } from '/components/PopUpMenu/PopUpMenu.js';
+
 let headerTemplate = null;
 
 async function getHeaderTemplate() {

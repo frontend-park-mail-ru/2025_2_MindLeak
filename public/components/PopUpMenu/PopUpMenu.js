@@ -21,12 +21,13 @@ export class PopUpMenu {
     constructor({ user, menuItems }) {
         this.user = user;
         this.menuItems = menuItems || [
-            { key: 'bookmarks', icon: '/img/icons/bookmark.svg', text: 'Черновики' },
-            { key: 'saved', icon: '/img/icons/folder.svg', text: 'Закладки' },
-            { key: 'settings', icon: '/img/icons/settings.svg', text: 'Настройки' },
-            { key: 'subscription', icon: '/img/icons/diamond.svg', text: 'Подписка' },
-            { key: 'logout', icon: '/img/icons/logout.svg', text: 'Выйти' }
+            { key: 'bookmarks', icon: '/img/icons/note_icon.svg', text: 'Черновики' },
+            { key: 'saved', icon: '/img/icons/bookmark.svg', text: 'Закладки' },
+            { key: 'settings', icon: '/img/icons/settings_icon.svg', text: 'Настройки' },
+            { key: 'subscription', icon: '/img/icons/premium_icon.svg', text: 'Подписка' },
+            { key: 'logout', icon: '/img/icons/exit_icon.svg', text: 'Выйти' }
         ];
+
     }
 
     async render() {

@@ -1,0 +1,31 @@
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 20px;
+    background-color: var(--section-color); 
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: var(--text-base);
+    color: var(--text-color);
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.menu-item:hover {
+    border: 1px solid var(--section-hover); 
+}
+
+.menu-item--active {
+    background-color: var(--section-hover);
+    color: var(--text-color);
+}
+
+.menu-item__icon {
+    width: 20px;
+    height: 20px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}

@@ -21,7 +21,7 @@ async function getHeaderTemplate() {
 
 async function checkAuth() {
     try {
-        const res = await fetch('/api/me', {
+        const res = await fetch('https://mindleak.ru/api/me', {
             method: 'GET',
             credentials: 'include'
         });

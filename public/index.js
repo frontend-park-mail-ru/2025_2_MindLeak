@@ -99,7 +99,7 @@ const POSTS_PER_LOAD = 3;
  */
 async function fetchPosts() {
     try {
-        const res = await fetch('/api/feed');
+        const res = await fetch('https://mindleak.ru/api/feed');
         if (!res.ok) throw new Error('Ошибка загрузки постов');
         return { success: true, data: await res.json() }; //200 + посты
     } catch (err) {

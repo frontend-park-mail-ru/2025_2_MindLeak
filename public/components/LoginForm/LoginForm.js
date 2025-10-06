@@ -143,7 +143,7 @@ export class LoginForm {
 
                 console.log('Sending login request to /api/login...');
 
-                const res = await fetch('/api/login', {
+                const res = await fetch('https://mindleak.ru/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',

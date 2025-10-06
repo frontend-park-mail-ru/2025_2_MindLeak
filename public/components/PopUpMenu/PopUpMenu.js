@@ -69,7 +69,7 @@ export class PopUpMenu {
 
 function handleLogout() {
     console.log('Попытка выхода...');
-    fetch('http://62.109.19.84:8090/logout', {
+    fetch('/api/logout', {
         method: 'POST',
         credentials: 'include'
     })

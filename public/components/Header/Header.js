@@ -21,7 +21,7 @@ async function getHeaderTemplate() {
 
 async function checkAuth() {
     try {
-        const res = await fetch('http://62.109.19.84:8090/me', { 
+        const res = await fetch('/api/me', {
             method: 'GET',
             credentials: 'include'
         });

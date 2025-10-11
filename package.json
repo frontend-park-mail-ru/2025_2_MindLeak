@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
+    "@types/handlebars": "^4.0.40",
     "@types/node": "^24.7.1",
     "eslint": "^9.36.0",
     "globals": "^16.4.0",

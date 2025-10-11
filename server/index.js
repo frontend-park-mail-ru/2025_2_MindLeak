@@ -11,6 +11,7 @@ const app = express();
 app.use(morgan('dev'));
 app.use(express.static(path.resolve(__dirname, '..', 'public')));
 app.use(express.static(path.resolve(__dirname, '..', 'node_modules')));
+app.use('/dist', express.static(path.resolve(__dirname, '..', 'dist')));
 
 
 app.use(bodyParser.json());

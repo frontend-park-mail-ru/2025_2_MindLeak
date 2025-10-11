@@ -5,7 +5,8 @@
     color: var(--text-color);
     margin: 0 auto 20px auto;
     width: 100%;
-    max-width: 700px;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .post-card__title {

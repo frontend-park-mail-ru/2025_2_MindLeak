@@ -223,7 +223,6 @@ export class LoginForm {
                     modal.remove();
                 }
                 
-                // ✅ Импортируем .js файл
                 // @ts-ignore
                 import('/dist/components/SignUpForm/SignUpForm.js').then(({ SignUpForm }) => {
                     new SignUpForm().render().then((newModal: HTMLElement) => {

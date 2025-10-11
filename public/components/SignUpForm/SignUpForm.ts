@@ -227,8 +227,8 @@ export class SignUpForm {
                 if (modal.parentNode) {
                     modal.remove();
                 }
-                // @ts-ignore - временно отключаем проверку TypeScript todo УБРАТЬ
 
+                // @ts-ignore - временно отключаем проверку TypeScript todo УБРАТЬ
                 import('/dist/components/LoginForm/LoginForm.js').then(({ LoginForm }) => {
                     new LoginForm().render().then((newModal: HTMLElement) => {
                         document.body.appendChild(newModal);

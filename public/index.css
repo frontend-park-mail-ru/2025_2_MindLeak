@@ -63,6 +63,28 @@ p {
     display: grid;
     grid-template-columns: 310px 1fr 310px;
     gap: 25px;
+    max-width: 1400px;
+    margin: 0 auto;
+    align-items: start;
+}
+
+.sidebar-left,
+.sidebar-right {
+    position: sticky;
+    top: 80px;
+    height: fit-content;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+}
+
+.main-content {
+    max-width: 700px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.feed {
+    width: 100%;
 }
 
 .feed-container {

@@ -1,14 +1,30 @@
 /**
  * Кэшированный шаблон формы регистрации
- * @type {Function|null}
  */
-let signUpTemplate = null;
+let signUpTemplate: HandlebarsTemplateDelegate | null = null;
+
+/**
+ * Интерфейс для ошибок валидации
+ */
+interface ValidationError {
+    field: string;
+    message: string;
+}
+
+/**
+ * Интерфейс для ответа API
+ */
+interface ApiResponse {
+    fieldErrors?: ValidationError[];
+    globalError?: string;
+    error?: string;
+}
 
 /**
  * Асинхронно загружает шаблон формы регистрации с необходимыми partials
- * @returns {Promise<Function>} - скомпилированный Handlebars-шаблон формы регистрации
+ * @returns {Promise<HandlebarsTemplateDelegate>} - скомпилированный Handlebars-шаблон формы регистрации
  */
-async function getSignUpTemplate() {
+async function getSignUpTemplate(): Promise<HandlebarsTemplateDelegate> {
     if (signUpTemplate) return signUpTemplate;
 
     const inputRes = await fetch('/components/Input/Input.hbs');
@@ -29,36 +45,36 @@ async function getSignUpTemplate() {
  * Очищает все ошибки в форме: удаляет классы ошибок и элементы сообщений
  * @param {HTMLFormElement} form - форма, из которой нужно удалить ошибки
  */
-function clearErrors(form) {
-  form.querySelectorAll('.form__input').forEach(input => {
-    input.classList.remove('error');
-  });
-  form.querySelectorAll('.field-error, .global-error').forEach(el => el.remove());
+function clearErrors(form: HTMLFormElement): void {
+    form.querySelectorAll('.form__input').forEach((input: Element) => {
+        input.classList.remove('error');
+    });
+    form.querySelectorAll('.field-error, .global-error').forEach((el: Element) => el.remove());
 }
 
 /**
  * Отображает ошибки валидации под соответствующими полями формы
  * @param {HTMLFormElement} form - целевая форма
- * @param {Array<{field: string, message: string}>} errors - массив объектов с полями field и message
+ * @param {Array<ValidationError>} errors - массив объектов с полями field и message
  */
-function showFieldErrors(form, errors) {
-  errors.forEach(({ field, message }) => {
-    const input = form.querySelector(`input[name="${field}"]`);
-    if (!input) return;
+function showFieldErrors(form: HTMLFormElement, errors: ValidationError[]): void {
+    errors.forEach(({ field, message }) => {
+        const input = form.querySelector(`input[name="${field}"]`) as HTMLInputElement;
+        if (!input) return;
 
-    input.classList.add('error');
+        input.classList.add('error');
 
-    const errorEl = document.createElement('div');
-    errorEl.className = 'field-error';
-    errorEl.textContent = message;
+        const errorEl = document.createElement('div');
+        errorEl.className = 'field-error';
+        errorEl.textContent = message;
 
-    const wrapper = input.closest('.input-wrapper');
-    if (wrapper) {
-      wrapper.parentNode.insertBefore(errorEl, wrapper.nextSibling);
-    } else {
-      input.parentNode.insertBefore(errorEl, input.nextSibling);
-    }
-  });
+        const wrapper = input.closest('.input-wrapper');
+        if (wrapper) {
+            wrapper.parentNode!.insertBefore(errorEl, wrapper.nextSibling);
+        } else {
+            input.parentNode!.insertBefore(errorEl, input.nextSibling);
+        }
+    });
 }
 
 /**
@@ -66,7 +82,7 @@ function showFieldErrors(form, errors) {
  * @param {HTMLFormElement} form - целевая форма
  * @param {string} message - текст ошибки
  */
-function showGlobalError(form, message) {
+function showGlobalError(form: HTMLFormElement, message: string): void {
     const errorEl = document.createElement('div');
     errorEl.className = 'global-error';
     errorEl.textContent = message;
@@ -78,18 +94,23 @@ function showGlobalError(form, message) {
  * Класс для рендеринга и управления формой регистрации
  */
 export class SignUpForm {
-    async render() {
+    /**
+     * Рендерит форму регистрации
+     * @returns {Promise<HTMLElement>} - DOM-элемент модального окна с формой
+     */
+    async render(): Promise<HTMLElement> {
         const template = await getSignUpTemplate();
 
-        const html = template();
+        // todo передаем пустой объект как контекст
+        const html = template({});
 
         const div = document.createElement('div');
         div.innerHTML = html.trim();
 
         const toggles = div.querySelectorAll('.password-toggle');
-        const passwordInputs = div.querySelectorAll('input[type="password"]');
+        const passwordInputs = div.querySelectorAll('input[type="password"]') as NodeListOf<HTMLInputElement>;
 
-        toggles.forEach((toggle, index) => {
+        toggles.forEach((toggle: Element, index: number) => {
             toggle.addEventListener('click', () => {
                 const input = passwordInputs[index];
                 if (input.type === 'password') {
@@ -102,22 +123,28 @@ export class SignUpForm {
             });
         });
 
-        const modal = div.firstElementChild;
+        const modal = div.firstElementChild as HTMLElement;
+        if (!modal) {
+            throw new Error('Modal element not found');
+        }
 
-        const form = div.querySelector('.registration-form__body');
+        const form = div.querySelector('.registration-form__body') as HTMLFormElement;
+        if (!form) {
+            throw new Error('Form element not found');
+        }
 
-        form.addEventListener('submit', async (e) => {
+        form.addEventListener('submit', async (e: SubmitEvent) => {
             e.preventDefault();
 
             const formData = new FormData(form);
-            const name = formData.get('username');
-            const email = formData.get('email')?.trim();
-            const password = formData.get('password');
-            const confirmPassword = formData.get('confirmPassword');
+            const name = formData.get('username') as string;
+            const email = (formData.get('email') as string)?.trim();
+            const password = formData.get('password') as string;
+            const confirmPassword = formData.get('confirmPassword') as string;
 
             clearErrors(form);
 
-            const errors = [];
+            const errors: ValidationError[] = [];
 
             if (!name) {
                 errors.push({ field: 'username', message: 'Название аккаунта обязательно' });
@@ -147,20 +174,22 @@ export class SignUpForm {
             if (errors.length > 0) return;
 
             try {
-                    const res = await fetch('https://mindleak.ru/api/registration', {
+                const res = await fetch('https://mindleak.ru/api/registration', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, email, password }),
                     credentials: 'include'
                 });
 
-                const data = await res.json();
+                const data: ApiResponse = await res.json();
+                
                 if (res.status === 409) {
                     showFieldErrors(form, [
                         { field: 'email', message: 'Пользователь с таким email уже зарегистрирован' }
                     ]);
                     return;
                 }
+                
                 if (!res.ok) {
                     clearErrors(form);
 
@@ -180,7 +209,9 @@ export class SignUpForm {
                 }
 
                 if (res.ok) {
-                    if (modal.parentNode) modal.remove();
+                    if (modal.parentNode) {
+                        modal.remove();
+                    }
                     window.location.reload();
                 }
             } catch (err) {
@@ -189,22 +220,24 @@ export class SignUpForm {
             }
         });
 
-        const loginLink = div.querySelector('.registration-form__footer .link');
+        const loginLink = div.querySelector('.registration-form__footer .link') as HTMLAnchorElement;
         if (loginLink) {
-            loginLink.addEventListener('click', (e) => {
+            loginLink.addEventListener('click', (e: Event) => {
                 e.preventDefault();
                 if (modal.parentNode) {
                     modal.remove();
                 }
-                import('/components/LoginForm/LoginForm.js').then(({ LoginForm }) => {
-                    new LoginForm().render().then(newModal => {
+
+                // @ts-ignore - временно отключаем проверку TypeScript todo УБРАТЬ
+                import('/dist/components/LoginForm/LoginForm.js').then(({ LoginForm }) => {
+                    new LoginForm().render().then((newModal: HTMLElement) => {
                         document.body.appendChild(newModal);
                     });
                 });
             });
         }
 
-        modal.addEventListener('click', (e) => {
+        modal.addEventListener('click', (e: Event) => {
             if (e.target === modal) {
                 modal.remove();
             }

@@ -2,9 +2,9 @@
     display: block;
     width: 100%;
     padding: 11px 16px;
-    background: var(--section-hover);
-    border: none;
-    border-radius: 8px;
+    background: var(--bg-color);
+    border: 1px solid var(--section-hover);
+    border-radius: 10px;
     color: var(--text-color);
     font-size: var(--text-base);
     outline: none;

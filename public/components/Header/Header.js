@@ -49,6 +49,17 @@ async function checkAuth() {
     }
 }
 
+/**
+ * Показывает форму авторизации
+ * @param {Object} LoginForm - класс формы логина
+ */
+async function showLoginForm(LoginForm) {
+    console.log('Showing login form');
+    const loginForm = new LoginForm();
+    const modal = await loginForm.render();
+    document.body.appendChild(modal);
+}
+
 export class Header {
     constructor({ LoginForm } = {}) {
         this.LoginForm = LoginForm;
@@ -112,11 +123,19 @@ export class Header {
         }
 
         const createPostButton = header.querySelector('button[data-key="createPost"]');
-        if (createPostButton && authData.isLoggedIn) { 
-            createPostButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                console.log('Create post clicked');
-            });
+        if (createPostButton) {
+            if (authData.isLoggedIn) { 
+                createPostButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    console.log('Create post clicked - user is logged in');
+                });
+            } else {
+                createPostButton.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    console.log('Create post clicked - showing login form');
+                    await showLoginForm(this.LoginForm);
+                });
+            }
         }
 
         const logoLink = header.querySelector('.header__logo');
@@ -132,9 +151,7 @@ export class Header {
             loginButton.addEventListener('click', async (e) => {
                 e.preventDefault();
                 console.log('Login button clicked');
-                const loginForm = new this.LoginForm();
-                const modal = await loginForm.render();
-                document.body.appendChild(modal);
+                await showLoginForm(this.LoginForm);
             });
         }
 
@@ -142,4 +159,4 @@ export class Header {
     }
 }
 
-export { checkAuth };
+export { checkAuth, showLoginForm };

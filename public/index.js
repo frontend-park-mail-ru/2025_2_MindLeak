@@ -5,10 +5,10 @@
  */
 
 import { Header } from '/components/Header/Header.js';
-import { SidebarMenu } from '/components/SidebarMenu/SidebarMenu.js';
-import { TopBloggers } from '/components/TopBloggers/TopBloggers.js';
+import { SidebarMenu } from '/dist/components/SidebarMenu/SidebarMenu.js';
+import { TopBloggers } from '/dist/components/TopBloggers/TopBloggers.js';
 import { LoginForm } from '/dist/components/LoginForm/LoginForm.js'; //перешли на ts -> теперь там скомпил js лежат
-import { PostCard } from '/components/PostCard/PostCard.js';
+import { PostCard } from '/dist/components/PostCard/PostCard.js';
 
 /**
  * Корневой элемент приложения

@@ -14,20 +14,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
 
 html {
-    --primary-color: #6C5CE7;
+    --primary-color: #0E7AF6;
     --primary-hover: #41378B;
     --primary-active: #2B255C;
-    --primary-disabled: #4A4E69;
+    --primary-disabled: #6B6B6B;
 
-    --bg-color: #0D1B2A;
-    --accent-color: #6C5CE7;
+    --bg-color: #19191B;
+    --accent-color: #0E7AF6;
     
-    --section-color: #282A39;
-    --section-hover: #4A4E69;
+    --section-color: #2F2F2F;
+    --section-hover: #6B6B6B;
 
-    --text-color: #ffffff;
-    --text-darker: #4A4E69;
-    --text-lighter: #778DA9;
+    --text-color: #E0E1DD;
+    --text-darker: #6B6B6B;
+    --text-lighter: #A1A1A1;
     --text-failure: #FF0000;
     --font-weight-regular: 300;
     --font-weight-medium: 500;
@@ -42,7 +42,7 @@ html {
     --text-2xl: 1.3333rem;    /* 24px */
     --text-3xl: 1.7778rem;    /* 32px */
 
-    --border-color: #dddddd;
+    --border-color: #E0E1DD;
     --border-failure: #FF0000;
 }
 

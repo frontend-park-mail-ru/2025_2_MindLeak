@@ -1,48 +1,6 @@
-/**
- * Кэшированный шаблон карточки поста
- */
-let postCardTemplate: Handlebars.TemplateDelegate | null = null;
+let postCardTemplate = null;
 
-/**
- * Интерфейс для пользователя
- */
-interface User {
-    name: string;
-    subtitle: string;
-    avatar: string;
-    isSubscribed: boolean;
-}
-
-/**
- * Интерфейс для тега
- */
-interface Tag {
-    key: string;
-    icon: string;
-    count: string;
-}
-
-/**
- * Интерфейс для свойств PostCard
- */
-interface PostCardProps {
-    user?: User;
-    title?: string;
-    text?: string;
-    link?: string;
-    linkText?: string;
-    image?: string | null;
-    tags?: Tag[];
-    commentsCount?: number;
-    repostsCount?: number;
-    viewsCount?: number;
-}
-
-/**
- * Асинхронно загружает шаблон карточки поста с зависимыми partials
- * @returns {Promise<Handlebars.TemplateDelegate>} - скомпилированный Handlebars-шаблон карточки поста
- */
-async function getPostCardTemplate(): Promise<Handlebars.TemplateDelegate> {
+async function getPostCardTemplate() {
     if (postCardTemplate) return postCardTemplate;
 
     const userMenuRes = await fetch('/components/UserMenu/UserMenu.hbs');
@@ -63,36 +21,19 @@ async function getPostCardTemplate(): Promise<Handlebars.TemplateDelegate> {
     return postCardTemplate;
 }
 
-/**
- * Класс для рендеринга карточки поста
- */
 export class PostCard {
-    private user: User;
-    private title: string;
-    private text: string;
-    private link: string;
-    private linkText: string;
-    private image: string | null;
-    private tags: Tag[];
-    private commentsCount: number;
-    private repostsCount: number;
-    private viewsCount: number;
-
     constructor({
-        user = { name: 'Аккаунт', subtitle: 'тема', avatar: '/img/LogoMain.svg', isSubscribed: false },
+        user = { name: 'Аккаунт', subtitle: 'тема', avatar: null, isSubscribed: false },
         title = 'Большой заголовок поста',
         text = 'Текст поста поменьше',
         link = '',
         linkText = 'ссылка',
         image = null,
-        tags = [
-            { key: 'tag1', icon: '/img/reactions/hot_reaction.svg', count: '52' },
-            { key: 'tag2', icon: '/img/reactions/smile_reaction.svg', count: '1,2k' }
-        ],
+        tags = ['тег1', 'тег2', 'тег3'],
         commentsCount = 123,
         repostsCount = 42,
         viewsCount = 42
-    }: PostCardProps) {
+    }) {
         this.user = user;
         this.title = title;
         this.text = text;
@@ -105,11 +46,7 @@ export class PostCard {
         this.viewsCount = viewsCount;
     }
 
-    /**
-     * Рендерит карточку поста
-     * @returns {Promise<HTMLElement>} - DOM-элемент карточки поста
-     */
-    async render(): Promise<HTMLElement> {
+    async render() {
         const MAX_TITLE_LENGTH = 60;
         const MAX_TEXT_LENGTH = 200;
 
@@ -141,20 +78,16 @@ export class PostCard {
 
         const div = document.createElement('div');
         div.innerHTML = html.trim();
-        const postCard = div.firstElementChild as HTMLElement;
-        
-        if (!postCard) {
-            throw new Error('Post card element not found');
-        }
+        const postCard = div.firstElementChild;
 
         // === Обработчик для текста ===
-        const toggleTextBtn = postCard.querySelector('[data-key="toggle-text"]') as HTMLElement;
-        const textPreview = postCard.querySelector('.post-card__text-preview') as HTMLElement;
-        const textFull = postCard.querySelector('.post-card__text-full') as HTMLElement;
+        const toggleTextBtn = postCard.querySelector('[data-key="toggle-text"]');
+        const textPreview = postCard.querySelector('.post-card__text-preview');
+        const textFull = postCard.querySelector('.post-card__text-full');
 
         if (toggleTextBtn && textPreview && textFull) {
             let isExpanded = false;
-            toggleTextBtn.addEventListener('click', (e: Event) => {
+            toggleTextBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 isExpanded = !isExpanded;
                 textPreview.hidden = isExpanded;
@@ -164,8 +97,8 @@ export class PostCard {
         }
 
         // === Обработчик для заголовка (опционально) ===
-        const titleEl = postCard.querySelector('.post-card__title') as HTMLElement;
-        if (titleTruncated && titleEl) {
+        const titleEl = postCard.querySelector('.post-card__title');
+        if (titleTruncated) {
             let isTitleExpanded = false;
             titleEl.style.cursor = 'pointer';
             titleEl.title = 'Кликните, чтобы увидеть весь заголовок';

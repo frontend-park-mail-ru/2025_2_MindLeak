@@ -1,24 +1,65 @@
 /**
- * @file index.js
+ * @file index.ts
  * @description Точка входа приложения. Инициализирует компоненты: Header, ленту постов с бесконечной прокруткой.
- * Загружает посты и отображает их в виде бесконечнй ленты. Обрабатывает ошибки сети и пустые ответы.
+ * Загружает посты и отображает их в виде бесконечной ленты. Обрабатывает ошибки сети и пустые ответы.
  */
 
-import { Header } from '/dist/components/Header/Header.js';
-import { SidebarMenu } from '/dist/components/SidebarMenu/SidebarMenu.js';
-import { TopBloggers } from '/dist/components/TopBloggers/TopBloggers.js';
-import { LoginForm } from '/dist/components/LoginForm/LoginForm.js'; //перешли на ts -> теперь там скомпил js лежат
-import { PostCard } from '/dist/components/PostCard/PostCard.js';
+import { Header } from './components/Header/Header.js';
+import { SidebarMenu } from './components/SidebarMenu/SidebarMenu.js';
+import { TopBloggers } from './components/TopBloggers/TopBloggers.js';
+import { LoginForm } from './components/LoginForm/LoginForm.js';
+import { PostCard } from './components/PostCard/PostCard.js';
+
+/**
+ * Интерфейс для поста из API
+ */
+interface ApiPost {
+    author_name?: string;
+    author_avatar?: string;
+    title?: string;
+    content?: string;
+    image?: string;
+}
+
+/**
+ * Интерфейс для преобразованного поста (должен совпадать с PostCardProps)
+ */
+interface TransformedPost {
+    user: {
+        name: string;
+        subtitle: string;
+        avatar: string;
+        isSubscribed: boolean;
+    };
+    title: string;
+    text: string;
+    image: string;
+    tags: string[];
+    commentsCount: number;
+    repostsCount: number;
+    viewsCount: number;
+}
+
+/**
+ * Интерфейс для результата загрузки постов
+ */
+interface FetchPostsResult {
+    success: boolean;
+    data?: ApiPost[];
+    error?: string;
+}
 
 /**
  * Корневой элемент приложения
- * @type {HTMLElement}
  */
-const rootElem = document.getElementById('root');
+const rootElem = document.getElementById('root') as HTMLElement;
+
+if (!rootElem) {
+    throw new Error('Root element not found');
+}
 
 /**
  * Контейнер для шапки
- * @type {HTMLElement}
  */
 const headerContainer = document.createElement('header');
 rootElem.appendChild(headerContainer);
@@ -32,7 +73,6 @@ leftMenu.className = 'sidebar-left';
 
 /**
  * Основной контент-контейнер
- * @type {HTMLElement}
  */
 const pageElement = document.createElement('main');
 pageElement.className = 'main-content'; 
@@ -42,7 +82,6 @@ rightMenu.className = 'sidebar-right';
 
 /**
  * Контейнер для отображения ленты постов
- * @type {HTMLDivElement}
  */
 const feedWrapper = document.createElement('div');
 feedWrapper.className = 'feed';
@@ -52,24 +91,28 @@ contentContainer.appendChild(leftMenu);
 contentContainer.appendChild(pageElement);
 contentContainer.appendChild(rightMenu);
 
-
 /**
  * Инициализация шапки
  */
-(async () => {
+(async (): Promise<void> => {
     const header = new Header({ LoginForm });
     const headerEl = await header.render();
     headerContainer.appendChild(headerEl);
 })();
 
-
-(async () => {
+/**
+ * Инициализация бокового меню
+ */
+(async (): Promise<void> => {
     const sidebar = new SidebarMenu();
     const sidebarEl = await sidebar.render();
     leftMenu.appendChild(sidebarEl);
 })();
 
-(async () => {
+/**
+ * Инициализация топа блогеров
+ */
+(async (): Promise<void> => {
     const topBloggers = new TopBloggers();
     const topBloggersEl = await topBloggers.render();
     rightMenu.appendChild(topBloggersEl);
@@ -77,48 +120,38 @@ contentContainer.appendChild(rightMenu);
 
 /**
  * Виртуальный индекс для циклического отображения постов (прототип бесконечной ленты)
- * @type {number}
  */
-let virtualPostIndex = 0;
+let virtualPostIndex: number = 0;
 
 /**
  * Количество постов, загружаемых за один раз
- * @constant
- * @type {number}
  */
-const POSTS_PER_LOAD = 3;
+const POSTS_PER_LOAD: number = 3;
 
 /**
  * Выполняет запрос к API для получения ленты постов
- * @async
- * @returns {Promise<{success: boolean, data?: Array<Object>, error?: string}>}
- *   Объект результата:
- *   success: true при успешном ответе, false при ошибке
- *   data: массив постов (если success === true)
- *   error: сообщение об ошибке (если success === false)
+ * @returns {Promise<FetchPostsResult>} Объект результата загрузки
  */
-async function fetchPosts() {
+async function fetchPosts(): Promise<FetchPostsResult> {
     try {
         const res = await fetch('https://mindleak.ru/api/feed');
         if (!res.ok) throw new Error('Ошибка загрузки постов');
-        return { success: true, data: await res.json() }; //200 + посты
+        return { success: true, data: await res.json() };
     } catch (err) {
         console.error('Не удалось загрузить посты:', err);
-        return { success: false, error: 'Ошибка соединения с интернетом 😭' }; 
+        return { 
+            success: false, 
+            error: 'Ошибка соединения с интернетом 😭' 
+        }; 
     }
 }
 
 /**
  * Преобразует пост из формата API в формат, понятный компоненту PostCard
- * @param {Object} apiPost - Пост в формате API
- * @param {string} [apiPost.author_name] - Имя автора
- * @param {string} [apiPost.author_avatar] - URL аватара автора
- * @param {string} [apiPost.title] - Заголовок поста
- * @param {string} [apiPost.content] - Текст поста
- * @param {string} [apiPost.image] - URL изображения
- * @returns {Object} Пост в формате UI-компонента
+ * @param {ApiPost} apiPost - Пост в формате API
+ * @returns {TransformedPost} Пост в формате UI-компонента
  */
-function transformPost(apiPost) {
+function transformPost(apiPost: ApiPost): TransformedPost {
     return {
         user: {
             name: apiPost.author_name || 'Аноним',
@@ -126,77 +159,70 @@ function transformPost(apiPost) {
             avatar: apiPost.author_avatar || '/img/LogoMain.svg',
             isSubscribed: false
         },
-        title: apiPost.title,
-        text: apiPost.content,
+        title: apiPost.title || '',
+        text: apiPost.content || '',
         image: apiPost.image?.trim() || '',
-        tags: [
-            { key: 'tag1', icon: '/img/reactions/hot_reaction.svg', count: '52' },
-            { key: 'tag2', icon: '/img/reactions/smile_reaction.svg', count: '1,2k' }
-        ],
-        commentsCount: '12',
-        repostsCount: '4',
-        viewsCount: '1,1k'
+        tags: ['технологии', 'программирование'],
+        commentsCount: 12,
+        repostsCount: 4,
+        viewsCount: 1100
     };
 }
 
 /**
  * Рендерит один пост через компонент PostCard
- * @async
- * @param {Object} postData - данные поста в формате UI
+ * @param {TransformedPost} postData - данные поста в формате UI
  * @returns {Promise<HTMLElement>} - отрендеренный DOM-элемент поста
  */
-async function renderPost(postData) {
+async function renderPost(postData: TransformedPost): Promise<HTMLElement> {
     const postCard = new PostCard(postData);
     return await postCard.render();
 }
 
 /**
  * Массив всех загруженных постов
- * @type {Array<Object>}
  */
-let allPosts = [];
+let allPosts: TransformedPost[] = [];
 
 /**
  * Флаг: завершена ли загрузка данных с сервера
- * @type {boolean}
  */
-let isDataLoaded = false;
+let isDataLoaded: boolean = false;
 
 /**
  * Флаг: идёт ли сейчас загрузка данных (для предотвращения дублирующих запросов)
- * @type {boolean}
  */
-let isLoadingData = false;
+let isLoadingData: boolean = false;
 
 /**
  * Сообщение об ошибке, если загрузка не удалась
- * @type {string|null}
  */
-let loadError = null;
+let loadError: string | null = null;
 
 /**
  * Загружает данные с сервера один раз.
  * При ошибке сохраняет сообщение и отображает его.
- * @async
- * @returns {Promise<void>}
  */
-async function loadData() {
+async function loadData(): Promise<void> {
     if (isDataLoaded || isLoadingData) return;
 
     isLoadingData = true;
     try {
         const result = await fetchPosts();
         if (!result.success) {
-            loadError = result.error;
+            loadError = result.error || 'Неизвестная ошибка';
             showFeedError(loadError);
             return;
         }
-        allPosts = result.data.map(transformPost);
-        isDataLoaded = true;
+        
+        if (result.data) {
+            allPosts = result.data.map(transformPost);
+            isDataLoaded = true;
 
-        if (allPosts.length === 0) {
-            observer.unobserve(sentinel);
-            showFeedError('Нет доступных постов');
+            if (allPosts.length === 0) {
+                observer.unobserve(sentinel);
+                showFeedError('Нет доступных постов');
+            }
         }
     } finally {
         isLoadingData = false;
@@ -205,10 +231,8 @@ async function loadData() {
 
 /**
  * Рендерит следующую порцию постов.
- * @async
- * @returns {Promise<void>}
  */
-async function renderNextPosts() {
+async function renderNextPosts(): Promise<void> {
     if (loadError || !isDataLoaded || allPosts.length === 0) return;
 
     const fragment = document.createDocumentFragment();
@@ -226,19 +250,16 @@ async function renderNextPosts() {
 /**
  * Основная функция подгрузки постов. Гарантирует, что данные загружены, а затем рендерит следующую порцию.
  * Вызывается при первом рендере и при прокрутке до конца ленты.
- * @async
- * @returns {Promise<void>}
  */
-async function loadMorePosts() {
+async function loadMorePosts(): Promise<void> {
     await loadData();
     if (isDataLoaded && !loadError && allPosts.length > 0) {
-        renderNextPosts();
+        await renderNextPosts();
     }
 }
 
 /**
  * Элемент-сенсор для Intersection Observer
- * @type {HTMLDivElement}
  */
 const sentinel = document.createElement('div');
 sentinel.style.height = '20px';
@@ -246,9 +267,8 @@ feedWrapper.appendChild(sentinel);
 
 /**
  * Наблюдатель за прокруткой. Срабатывает, когда sentinel попадает в зону видимости.
- * @type {IntersectionObserver}
  */
-const observer = new IntersectionObserver((entries) => {
+const observer = new IntersectionObserver((entries: IntersectionObserverEntry[]) => {
     if (entries[0].isIntersecting) {
         loadMorePosts();
     }
@@ -260,9 +280,8 @@ const observer = new IntersectionObserver((entries) => {
  * Отображает сообщение об ошибке в контейнере ленты.
  * Удаляет sentinel и очищает контейнер.
  * @param {string} message - Текст ошибки для отображения
- * @returns {void}
  */
-function showFeedError(message) {
+function showFeedError(message: string): void {
     if (sentinel.parentNode) sentinel.remove();
     feedWrapper.innerHTML = '';
 

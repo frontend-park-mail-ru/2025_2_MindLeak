@@ -1,6 +1,8 @@
 import { PopUpMenu } from '../PopUpMenu/PopUpMenu.js';
 
 let headerTemplate: Handlebars.TemplateDelegate | null = null;
+let isTemplateLoading: boolean = false;
+let templateLoadPromise: Promise<Handlebars.TemplateDelegate> | null = null;
 
 /**
  * Интерфейс для пользователя
@@ -28,23 +30,57 @@ interface HeaderProps {
 
 /**
  * Асинхронно загружает шаблон header с зависимыми partials
- * @returns {Promise<Handlebars.TemplateDelegate>} - скомпилированный Handlebars-шаблон header
+ * Гарантирует однократную загрузку даже при множественных вызовах
  */
 async function getHeaderTemplate(): Promise<Handlebars.TemplateDelegate> {
+    // Если шаблон уже загружен, возвращаем его
     if (headerTemplate) return headerTemplate;
+    
+    // Если загрузка уже идет, ждем её завершения
+    if (templateLoadPromise) return templateLoadPromise;
+    
+    // Начинаем новую загрузку
+    isTemplateLoading = true;
+    templateLoadPromise = (async (): Promise<Handlebars.TemplateDelegate> => {
+        try {
+            // Загружаем все необходимые partials
+            const [inputRes, buttonRes, iconRes, headerRes] = await Promise.all([
+                fetch('/components/Input/Input.hbs'),
+                fetch('/components/FormButton/FormButton.hbs'),
+                fetch('/components/Icon/Icon.hbs'), // Добавьте этот partial если его нет
+                fetch('/components/Header/Header.hbs')
+            ]);
 
-    const inputRes = await fetch('/components/Input/Input.hbs');
-    const inputSource = await inputRes.text();
-    Handlebars.registerPartial('input', Handlebars.compile(inputSource));
+            // Регистрируем partials
+            if (!Handlebars.partials['input']) {
+                const inputSource = await inputRes.text();
+                Handlebars.registerPartial('input', Handlebars.compile(inputSource));
+            }
+            
+            if (!Handlebars.partials['button']) {
+                const buttonSource = await buttonRes.text();
+                Handlebars.registerPartial('button', Handlebars.compile(buttonSource));
+            }
+            
+            if (!Handlebars.partials['icon']) {
+                const iconSource = await iconRes.text();
+                Handlebars.registerPartial('icon', Handlebars.compile(iconSource));
+            }
 
-    const buttonRes = await fetch('/components/FormButton/FormButton.hbs');
-    const buttonSource = await buttonRes.text();
-    Handlebars.registerPartial('button', Handlebars.compile(buttonSource));
+            // Компилируем основной шаблон
+            const source = await headerRes.text();
+            headerTemplate = Handlebars.compile(source);
+            return headerTemplate;
+            
+        } catch (error) {
+            // Сбрасываем состояние при ошибке
+            templateLoadPromise = null;
+            isTemplateLoading = false;
+            throw error;
+        }
+    })();
 
-    const res = await fetch('/components/Header/Header.hbs');
-    const source = await res.text();
-    headerTemplate = Handlebars.compile(source);
-    return headerTemplate;
+    return templateLoadPromise;
 }
 
 /**

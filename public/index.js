@@ -4,7 +4,7 @@
  * Загружает посты и отображает их в виде бесконечнй ленты. Обрабатывает ошибки сети и пустые ответы.
  */
 
-import { Header } from '/components/Header/Header.js';
+import { Header } from '/dist/components/Header/Header.js';
 import { SidebarMenu } from '/dist/components/SidebarMenu/SidebarMenu.js';
 import { TopBloggers } from '/dist/components/TopBloggers/TopBloggers.js';
 import { LoginForm } from '/dist/components/LoginForm/LoginForm.js'; //перешли на ts -> теперь там скомпил js лежат

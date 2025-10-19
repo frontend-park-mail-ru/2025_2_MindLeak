@@ -1,8 +1,36 @@
-import { PopUpMenu } from '/components/PopUpMenu/PopUpMenu.js';
+import { PopUpMenu } from '../PopUpMenu/PopUpMenu.js';
 
-let headerTemplate = null;
+let headerTemplate: Handlebars.TemplateDelegate | null = null;
 
-async function getHeaderTemplate() {
+/**
+ * Интерфейс для пользователя
+ */
+interface User {
+    name: string;
+    avatar: string;
+    subtitle?: string;
+}
+
+/**
+ * Интерфейс для данных аутентификации
+ */
+interface AuthData {
+    isLoggedIn: boolean;
+    user: User | null;
+}
+
+/**
+ * Интерфейс для свойств Header
+ */
+interface HeaderProps {
+    LoginForm?: any; // Замените на конкретный тип формы логина, если есть
+}
+
+/**
+ * Асинхронно загружает шаблон header с зависимыми partials
+ * @returns {Promise<Handlebars.TemplateDelegate>} - скомпилированный Handlebars-шаблон header
+ */
+async function getHeaderTemplate(): Promise<Handlebars.TemplateDelegate> {
     if (headerTemplate) return headerTemplate;
 
     const inputRes = await fetch('/components/Input/Input.hbs');
@@ -19,7 +47,11 @@ async function getHeaderTemplate() {
     return headerTemplate;
 }
 
-async function checkAuth() {
+/**
+ * Проверяет статус аутентификации пользователя
+ * @returns {Promise<AuthData>} - данные аутентификации
+ */
+async function checkAuth(): Promise<AuthData> {
     try {
         const res = await fetch('https://mindleak.ru/api/me', {
             method: 'GET',
@@ -51,21 +83,30 @@ async function checkAuth() {
 
 /**
  * Показывает форму авторизации
- * @param {Object} LoginForm - класс формы логина
+ * @param {any} LoginForm - класс формы логина
  */
-async function showLoginForm(LoginForm) {
+async function showLoginForm(LoginForm: any): Promise<void> {
     console.log('Showing login form');
     const loginForm = new LoginForm();
     const modal = await loginForm.render();
     document.body.appendChild(modal);
 }
 
+/**
+ * Класс для рендеринга header
+ */
 export class Header {
-    constructor({ LoginForm } = {}) {
+    private LoginForm?: any;
+
+    constructor({ LoginForm }: HeaderProps = {}) {
         this.LoginForm = LoginForm;
     }
 
-    async render() {
+    /**
+     * Рендерит header
+     * @returns {Promise<HTMLElement>} - DOM-элемент header
+     */
+    async render(): Promise<HTMLElement> {
         const template = await getHeaderTemplate();
         const authData = await checkAuth(); 
 
@@ -76,11 +117,15 @@ export class Header {
 
         const div = document.createElement('div');
         div.innerHTML = html.trim();
-        const header = div.firstElementChild;
+        const header = div.firstElementChild as HTMLElement;
+        
+        if (!header) {
+            throw new Error('Header element not found');
+        }
 
-        const userMenu = header.querySelector('[data-key="user-menu"]');
-        if (userMenu && authData.isLoggedIn) {
-            userMenu.addEventListener('click', async (e) => {
+        const userMenu = header.querySelector('[data-key="user-menu"]') as HTMLElement;
+        if (userMenu && authData.isLoggedIn && authData.user) {
+            userMenu.addEventListener('click', async (e: Event) => {
                 e.stopPropagation();
 
                 const existingMenu = document.querySelector('.popUp-menu');
@@ -90,8 +135,7 @@ export class Header {
                 }
 
                 const popUpMenu = new PopUpMenu({
-                    user: authData.user,
-                    subtitle: authData.subtitle,
+                    user: authData.user!,
                     menuItems: [
                         { key: 'bookmarks', icon: '/img/icons/note_icon.svg', text: 'Черновики' },
                         { key: 'saved', icon: '/img/icons/bookmark.svg', text: 'Закладки' },
@@ -111,8 +155,9 @@ export class Header {
 
                 document.body.appendChild(menuEl);
 
-                const closeMenu = (event) => {
-                    if (!menuEl.contains(event.target) && event.target !== userMenu) {
+                const closeMenu = (event: Event) => {
+                    const target = event.target as Node;
+                    if (!menuEl.contains(target) && target !== userMenu) {
                         menuEl.remove();
                         document.removeEventListener('click', closeMenu);
                     }
@@ -122,36 +167,40 @@ export class Header {
             });
         }
 
-        const createPostButton = header.querySelector('button[data-key="createPost"]');
+        const createPostButton = header.querySelector('button[data-key="createPost"]') as HTMLButtonElement;
         if (createPostButton) {
             if (authData.isLoggedIn) { 
-                createPostButton.addEventListener('click', (e) => {
+                createPostButton.addEventListener('click', (e: Event) => {
                     e.preventDefault();
                     console.log('Create post clicked - user is logged in');
                 });
             } else {
-                createPostButton.addEventListener('click', async (e) => {
+                createPostButton.addEventListener('click', async (e: Event) => {
                     e.preventDefault();
                     console.log('Create post clicked - showing login form');
-                    await showLoginForm(this.LoginForm);
+                    if (this.LoginForm) {
+                        await showLoginForm(this.LoginForm);
+                    }
                 });
             }
         }
 
-        const logoLink = header.querySelector('.header__logo');
+        const logoLink = header.querySelector('.header__logo') as HTMLAnchorElement;
         if (logoLink && !authData.isLoggedIn) {
-            logoLink.addEventListener('click', (e) => {
+            logoLink.addEventListener('click', (e: Event) => {
                 e.preventDefault();
                 console.log('Logo clicked - go to home');
             });
         }
 
-        const loginButton = header.querySelector('button[data-key="login"]');
+        const loginButton = header.querySelector('button[data-key="login"]') as HTMLButtonElement;
         if (loginButton && !authData.isLoggedIn) {
-            loginButton.addEventListener('click', async (e) => {
+            loginButton.addEventListener('click', async (e: Event) => {
                 e.preventDefault();
                 console.log('Login button clicked');
-                await showLoginForm(this.LoginForm);
+                if (this.LoginForm) {
+                    await showLoginForm(this.LoginForm);
+                }
             });
         }
 
@@ -160,3 +209,4 @@ export class Header {
 }
 
 export { checkAuth, showLoginForm };
+export type { User, AuthData, HeaderProps };

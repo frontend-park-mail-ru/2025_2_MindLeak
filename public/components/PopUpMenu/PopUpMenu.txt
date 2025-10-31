@@ -1,4 +1,4 @@
-let popUpMenuTemplate = null;
+/*let popUpMenuTemplate = null;
 
 async function getPopUpMenuTemplate() {
     if (popUpMenuTemplate) return popUpMenuTemplate;
@@ -86,4 +86,4 @@ function handleLogout() {
         console.error('Сеть недоступна:', err);
         alert('Не удалось выйти. Проверьте подключение.');
     });
-}
+}*/

@@ -1,11 +1,5 @@
-/**
- * Кэшированный шаблон карточки поста
- */
 let postCardTemplate: Handlebars.TemplateDelegate | null = null;
 
-/**
- * Интерфейс для пользователя
- */
 interface User {
     name: string;
     subtitle: string;
@@ -13,10 +7,7 @@ interface User {
     isSubscribed: boolean;
 }
 
-/**
- * Интерфейс для свойств PostCard
- */
-interface PostCardProps {
+export interface PostCardProps {
     user?: User;
     title?: string;
     text?: string;
@@ -29,10 +20,6 @@ interface PostCardProps {
     viewsCount?: number;
 }
 
-/**
- * Асинхронно загружает шаблон карточки поста с зависимыми partials
- * @returns {Promise<Handlebars.TemplateDelegate>} - скомпилированный Handlebars-шаблон карточки поста
- */
 async function getPostCardTemplate(): Promise<Handlebars.TemplateDelegate> {
     if (postCardTemplate) return postCardTemplate;
 
@@ -54,9 +41,6 @@ async function getPostCardTemplate(): Promise<Handlebars.TemplateDelegate> {
     return postCardTemplate;
 }
 
-/**
- * Класс для рендеринга карточки поста
- */
 export class PostCard {
     private user: User;
     private title: string;
@@ -93,20 +77,14 @@ export class PostCard {
         this.viewsCount = viewsCount;
     }
 
-    /**
-     * Рендерит карточку поста
-     * @returns {Promise<HTMLElement>} - DOM-элемент карточки поста
-     */
     async render(): Promise<HTMLElement> {
         const MAX_TITLE_LENGTH = 60;
         const MAX_TEXT_LENGTH = 200;
 
-        // Обрезаем заголовок
         const titleTruncated = this.title.length > MAX_TITLE_LENGTH
             ? this.title.substring(0, MAX_TITLE_LENGTH)
             : null;
 
-        // Обрезаем текст
         const textTruncated = this.text.length > MAX_TEXT_LENGTH
             ? this.text.substring(0, MAX_TEXT_LENGTH)
             : null;
@@ -135,7 +113,6 @@ export class PostCard {
             throw new Error('Post card element not found');
         }
 
-        // === Обработчик для текста ===
         const toggleTextBtn = postCard.querySelector('[data-key="toggle-text"]') as HTMLElement;
         const textPreview = postCard.querySelector('.post-card__text-preview') as HTMLElement;
         const textFull = postCard.querySelector('.post-card__text-full') as HTMLElement;
@@ -151,7 +128,6 @@ export class PostCard {
             });
         }
 
-        // === Обработчик для заголовка (опционально) ===
         const titleEl = postCard.querySelector('.post-card__title') as HTMLElement;
         if (titleTruncated && titleEl) {
             let isTitleExpanded = false;

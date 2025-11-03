@@ -1,38 +1,24 @@
-/**
- * Кэшированный шаблон popup меню
- */
+import { dispatcher } from '../../dispatcher/dispatcher';
+
 let popUpMenuTemplate: Handlebars.TemplateDelegate | null = null;
 
-/**
- * Интерфейс для элемента меню
- */
 interface MenuItem {
     key: string;
     icon: string;
     text: string;
 }
 
-/**
- * Интерфейс для пользователя
- */
 interface User {
     name: string;
     avatar: string;
     subtitle?: string;
 }
 
-/**
- * Интерфейс для свойств PopUpMenu
- */
 interface PopUpMenuProps {
     user: User;
     menuItems?: MenuItem[];
 }
 
-/**
- * Асинхронно загружает шаблон popup меню с зависимыми partials
- * @returns {Promise<Handlebars.TemplateDelegate>} - скомпилированный Handlebars-шаблон popup меню
- */
 async function getPopUpMenuTemplate(): Promise<Handlebars.TemplateDelegate> {
     if (popUpMenuTemplate) return popUpMenuTemplate;
 
@@ -50,33 +36,16 @@ async function getPopUpMenuTemplate(): Promise<Handlebars.TemplateDelegate> {
     return popUpMenuTemplate;
 }
 
-/**
- * Обрабатывает выход пользователя
- */
-function handleLogout(): void {
-    console.log('Попытка выхода...');
-    fetch('https://mindleak.ru/api/logout', {
-        method: 'POST',
-        credentials: 'include'
-    })
-    .then(res => {
-        if (res.ok) {
-            console.log('Выход успешен!');
-            window.location.reload();
-        } else {
-            console.error('Ошибка при выходе:', res.status);
-            alert('Не удалось выйти');
-        }
-    })
-    .catch(err => {
-        console.error('Сеть недоступна:', err);
-        alert('Не удалось выйти. Проверьте подключение.');
-    });
+async function handleLogout(): Promise<void> {
+    console.log('Попытка выхода через Flux...');
+    try {
+        dispatcher.dispatch('LOGOUT_REQUEST');
+        
+    } catch (err) {
+        console.error('Ошибка при выходе:', err);
+    }
 }
 
-/**
- * Класс для рендеринга popup меню
- */
 export class PopUpMenu {
     private user: User;
     private menuItems: MenuItem[];
@@ -92,10 +61,6 @@ export class PopUpMenu {
         ];
     }
 
-    /**
-     * Рендерит popup меню
-     * @returns {Promise<HTMLElement>} - DOM-элемент popup меню
-     */
     async render(): Promise<HTMLElement> {
         const template = await getPopUpMenuTemplate();
         const html = template({

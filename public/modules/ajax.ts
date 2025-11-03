@@ -75,7 +75,7 @@ class Ajax {
     }
 
     async logout(): Promise<ApiResponse> {
-        return this.post('/logout');
+        return this.get('/logout');
     }
 
     async getFeed(): Promise<ApiResponse> {

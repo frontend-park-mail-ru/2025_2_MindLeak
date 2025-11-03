@@ -76,7 +76,8 @@ export class PostsView {
                 name: apiPost.author_name || 'Аноним',
                 subtitle: 'Блог',
                 avatar: apiPost.author_avatar || '/img/LogoMain.svg',
-                isSubscribed: false
+                isSubscribed: false,
+                id: apiPost.author_id
             },
             title: apiPost.title || '',
             text: apiPost.content || '',

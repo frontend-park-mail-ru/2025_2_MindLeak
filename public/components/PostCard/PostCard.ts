@@ -5,6 +5,7 @@ interface User {
     subtitle: string;
     avatar: string | null;
     isSubscribed: boolean;
+    id?: number;
 }
 
 export interface PostCardProps {
@@ -113,6 +114,8 @@ export class PostCard {
             throw new Error('Post card element not found');
         }
 
+        this.setupAuthorClickHandlers(postCard);
+
         const toggleTextBtn = postCard.querySelector('[data-key="toggle-text"]') as HTMLElement;
         const textPreview = postCard.querySelector('.post-card__text-preview') as HTMLElement;
         const textFull = postCard.querySelector('.post-card__text-full') as HTMLElement;
@@ -147,5 +150,59 @@ export class PostCard {
         }
 
         return postCard;
+    }
+
+    private setupAuthorClickHandlers(postCard: HTMLElement): void {
+        const authorAvatar = postCard.querySelector('.user-menu__avatar') as HTMLElement;
+        const authorName = postCard.querySelector('.user-menu__name') as HTMLElement;
+        const authorSubtitle = postCard.querySelector('.user-menu__subtitle') as HTMLElement;
+        const subscribeButton = postCard.querySelector('.user-menu__button') as HTMLElement;
+
+        const navigateToProfile = (e: Event) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log(`[PostCard] Переход в профиль автора: ${this.user.name}`, this.user.id);
+            
+            let profileUrl = '/profile';
+            if (this.user.id) {
+                profileUrl += `?id=${this.user.id}`;
+            }
+            
+            window.history.pushState({}, '', profileUrl);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+        };
+
+        if (authorAvatar) {
+            authorAvatar.style.cursor = 'pointer';
+            authorAvatar.addEventListener('click', navigateToProfile);
+        }
+
+        if (authorName) {
+            authorName.style.cursor = 'pointer';
+            authorName.addEventListener('click', navigateToProfile);
+        }
+
+        if (authorSubtitle) {
+            authorSubtitle.style.cursor = 'pointer';
+            authorSubtitle.addEventListener('click', navigateToProfile);
+        }
+
+        const userMenuBlock = postCard.querySelector('.user-menu') as HTMLElement;
+        if (userMenuBlock) {
+            userMenuBlock.style.cursor = 'pointer';
+            userMenuBlock.addEventListener('click', (e: Event) => {
+                if (subscribeButton && subscribeButton.contains(e.target as Node)) {
+                    return;
+                }
+                navigateToProfile(e);
+            });
+        }
+
+        if (subscribeButton) {
+            subscribeButton.addEventListener('click', (e: Event) => {
+                e.stopPropagation();
+            });
+        }
     }
 }

@@ -1,0 +1,93 @@
+<div class="profile">
+    {{#if profile}}
+        <div class="profile__header">
+            <div class="profile__cover">
+                <img src="{{profile.cover}}" alt="Обложка профиля" class="profile__cover-image">
+            </div>
+            
+            <div class="profile__info-section">
+                <div class="profile__avatar-container">
+                    <img src="{{profile.avatar}}" alt="Аватар" class="profile__avatar">
+                </div>
+                
+                <div class="profile__main-info">
+                    <h1 class="profile__name">{{profile.name}}</h1>
+                    
+                    <div class="profile__description">
+                        {{#if profile.description}}
+                            <p class="profile__description-text">{{profile.description}}</p>
+                            <button class="profile__edit-btn">Изменить</button>
+                        {{else}}
+                            <p class="profile__description-placeholder">Вы можете добавить описание профиля</p>
+                        {{/if}}
+                    </div>
+                    
+                    <div class="profile__stats">
+                        <div class="profile__stat">
+                            <span class="profile__stat-number">{{profile.subscribersCount}}</span>
+                            <span class="profile__stat-label">Подписчики</span>
+                        </div>
+                        <div class="profile__stat">
+                            <span class="profile__stat-number">{{profile.subscriptionsCount}}</span>
+                            <span class="profile__stat-label">Подписки</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="profile__content">
+            <div class="profile__tabs">
+                <button class="profile__tab {{#if (eq activeTab 'posts')}}profile__tab--active{{/if}}" 
+                        data-tab="posts">
+                    Посты
+                </button>
+                <button class="profile__tab {{#if (eq activeTab 'comments')}}profile__tab--active{{/if}}" 
+                        data-tab="comments">
+                    Комментарии
+                </button>
+            </div>
+            
+            <div class="profile__tab-content">
+                {{#if (eq activeTab 'posts')}}
+                    <div class="profile__posts">
+                        {{#if posts.length}}
+                            {{#each posts}}
+                                {{> post-card 
+                                    user=this.user
+                                    title=this.title
+                                    text=this.content
+                                    image=this.image
+                                    commentsCount=this.commentsCount
+                                    repostsCount=this.repostsCount
+                                    viewsCount=this.viewsCount
+                                }}
+                            {{/each}}
+                        {{else}}
+                            <div class="profile__empty">
+                                Здесь пока нет постов
+                            </div>
+                        {{/if}}
+                    </div>
+                {{else}}
+                    <div class="profile__comments">
+                        {{#if comments.length}}
+                            {{!показываем комментарии}}
+                            {{!#each comments}}
+                                {{!> comment-card ...}}
+                            {{!/each}}
+                        {{else}}
+                            <div class="profile__empty">
+                                Здесь пока нет комментариев
+                            </div>
+                        {{/if}}
+                    </div>
+                {{/if}}
+            </div>
+        </div>
+    {{else if isLoading}}
+        <div class="profile__loading">Загрузка профиля...</div>
+    {{else if error}}
+        <div class="profile__error">{{error}}</div>
+    {{/if}}
+</div>

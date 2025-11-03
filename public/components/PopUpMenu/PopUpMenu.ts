@@ -40,7 +40,6 @@ async function handleLogout(): Promise<void> {
     console.log('Попытка выхода через Flux...');
     try {
         dispatcher.dispatch('LOGOUT_REQUEST');
-        
     } catch (err) {
         console.error('Ошибка при выходе:', err);
     }
@@ -74,6 +73,22 @@ export class PopUpMenu {
         
         if (!popUpMenu) {
             throw new Error('Popup menu element not found');
+        }
+
+        const userMenuBlock = popUpMenu.querySelector('.user-menu') as HTMLElement;
+        if (userMenuBlock) {
+            userMenuBlock.style.cursor = 'pointer';
+            userMenuBlock.addEventListener('click', (e: Event) => {
+                e.preventDefault();
+                console.log('[PopUpMenu] Клик по пользователю - переход в профиль');
+                
+                if (popUpMenu.parentNode) {
+                    popUpMenu.remove();
+                }
+                
+                window.history.pushState({}, '', '/profile');
+                window.dispatchEvent(new PopStateEvent('popstate'));
+            });
         }
 
         const menuItems = popUpMenu.querySelectorAll('.menu-item');

@@ -1,8 +1,8 @@
 import { PopUpMenu } from '../PopUpMenu/PopUpMenu';
 import { loginStore } from '../../stores/storeLogin';
-import { loginActions } from '../../actions/actionLogin';
 import { dispatcher } from '../../dispatcher/dispatcher';
 import { LoginFormView } from '../../views/viewLogin';
+import { router } from '../../router/router';
 
 let headerTemplate: Handlebars.TemplateDelegate | null = null;
 let isTemplateLoading: boolean = false;
@@ -12,15 +12,6 @@ interface User {
     name: string;
     avatar: string;
     subtitle?: string;
-}
-
-interface AuthData {
-    isLoggedIn: boolean;
-    user: User | null;
-}
-
-
-interface HeaderProps {
 }
 
 async function getHeaderTemplate(): Promise<Handlebars.TemplateDelegate> {
@@ -79,7 +70,6 @@ export class Header {
 
     private init(): void {
         loginStore.addListener(this.boundStoreHandler);
-        //me
         dispatcher.dispatch('LOGIN_CHECK_REQUEST');
     }
 
@@ -117,6 +107,15 @@ export class Header {
         if (!this.headerElement) return;
 
         const authState = loginStore.getState();
+
+        const logo = this.headerElement.querySelector('[data-key="logo"]') as HTMLElement;
+        if (logo) {
+            logo.addEventListener('click', (e: Event) => {
+                e.preventDefault();
+                console.log('Logo clicked - navigating to home');
+                this.navigateToHome();
+            });
+        }
 
         const userMenu = this.headerElement.querySelector('[data-key="user-menu"]') as HTMLElement;
         if (userMenu && authState.isLoggedIn && authState.user) {
@@ -185,6 +184,11 @@ export class Header {
                 await this.showLoginForm();
             });
         }
+    }
+
+    private navigateToHome(): void {
+        console.log('Navigating to home page');
+        router.navigate('/');
     }
 
     private async showLoginForm(): Promise<void> {

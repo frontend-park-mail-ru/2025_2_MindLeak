@@ -71,32 +71,56 @@ export class Router {
         const normalizedPath = path === '/' ? '/' : `/${path.replace(/^\/+/, '')}`;
 
         if (updateHistory) {
-        window.history.pushState(null, '', normalizedPath);
+            window.history.pushState({}, '', normalizedPath);
         }
 
         const route = this.findRoute(normalizedPath);
         
         if (route) {
-        await this.renderView(route);
+            await this.renderView(route, normalizedPath);
         } else {
-        await this.show404();
+            await this.show404();
         }
     }
 
     private findRoute(path: string): Route | null {
+        console.log(`[Router] Finding route for: ${path}`);
+        
         const exactMatch = this.routes.find(route => route.path === path);
-        if (exactMatch) return exactMatch;
+        if (exactMatch) {
+            console.log(`[Router] Exact match found: ${exactMatch.path}`);
+            return exactMatch;
+        }
 
         for (const route of this.routes) {
-        if (route.path.includes(':')) {
-            const routeRegex = this.pathToRegex(route.path);
-            if (routeRegex.test(path)) {
-            return route;
+            if (route.path.includes(':')) {
+                const routeRegex = this.pathToRegex(route.path);
+                const match = path.match(routeRegex);
+                
+                if (match) {
+                    console.log(`[Router] Pattern match found: ${route.path} for ${path}`);
+                    return route;
+                }
             }
         }
-        }
 
+        console.log(`[Router] No route found for: ${path}`);
         return null;
+    }
+
+    private extractParams(routePath: string, actualPath: string): any {
+        const params: any = {};
+        const routeParts = routePath.split('/');
+        const actualParts = actualPath.split('/');
+        
+        for (let i = 0; i < routeParts.length; i++) {
+            if (routeParts[i].startsWith(':')) {
+                const paramName = routeParts[i].slice(1);
+                params[paramName] = actualParts[i];
+            }
+        }
+        
+        return params;
     }
 
     private pathToRegex(path: string): RegExp {
@@ -104,36 +128,40 @@ export class Router {
         return new RegExp(`^${pattern}$`);
     }
 
-    private async renderView(route: Route): Promise<void> {
+
+    private async renderView(route: Route, path?: string): Promise<void> {
         if (this.currentView && typeof this.currentView.destroy === 'function') {
-        this.currentView.destroy();
+            this.currentView.destroy();
         }
 
         if (route.title) {
-        document.title = route.title;
+            document.title = route.title;
         }
 
         try {
-        const ViewClass = route.view;
-        this.currentView = new ViewClass();
-        
-        const content = document.getElementById('root');
-        if (content) {
-            content.innerHTML = '';
+            const ViewClass = route.view;
             
-            if (typeof this.currentView.render === 'function') {
-            const element = await this.currentView.render();
-            content.appendChild(element);
-            } else if (typeof this.currentView === 'function') {
-            const element = await this.currentView();
-            content.appendChild(element);
+            // извлек параметры если есть
+            let params = {};
+            if (path && route.path.includes(':')) {
+                params = this.extractParams(route.path, path);
             }
-        }
+            
+            const content = document.getElementById('root');
+            if (content) {
+                this.currentView = new ViewClass(content, params);
+                content.innerHTML = '';
+                
+                if (typeof this.currentView.render === 'function') {
+                    const element = await this.currentView.render();
+                    content.appendChild(element);
+                }
+            }
 
-        console.log(`Rendered view for route: ${route.path}`);
+            console.log(`Rendered view for route: ${route.path}`, params);
         } catch (error) {
-        console.error('Error rendering view:', error);
-        await this.show404();
+            console.error('Error rendering view:', error);
+            await this.show404();
         }
     }
 

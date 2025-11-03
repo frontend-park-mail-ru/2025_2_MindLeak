@@ -32,6 +32,13 @@ class API {
             case 'POSTS_LOAD_REQUEST':
                 this.loadPosts();
                 break;
+
+            case 'PROFILE_LOAD_REQUEST':
+                this.loadProfile(payload.userId);
+                break;
+            case 'PROFILE_UPDATE_DESCRIPTION_REQUEST':
+                this.updateProfileDescription(payload.description);
+                break;
         }
     }
 
@@ -80,7 +87,7 @@ class API {
                     this.sendAction('USER_LOGIN_FAIL', { error: 'No user data in response' });
                 }
                 break;
-            case STATUS.unauthorized: //todo
+            case STATUS.unauthorized:
             case STATUS.badRequest:
             case STATUS.notFound:
                 this.sendAction('USER_LOGIN_FAIL', { 
@@ -135,8 +142,14 @@ class API {
 
         switch (response.status) {
             case STATUS.ok:
+                case STATUS.ok:
                 if (response.data) {
-                    this.sendAction('POSTS_LOAD_SUCCESS', { posts: response.data });
+                    const postsWithAuthorId = response.data.map((post: any) => ({
+                        ...post,
+                        author_id: post.author_id || post.authorId || null
+                    }));
+                    
+                    this.sendAction('POSTS_LOAD_SUCCESS', { posts: postsWithAuthorId });
                 } else {
                     this.sendAction('POSTS_LOAD_FAIL', { error: 'No posts data' });
                 }
@@ -153,6 +166,83 @@ class API {
             default:
                 this.sendAction('POSTS_LOAD_FAIL', { 
                     error: response.message || 'Ошибка загрузки постов' 
+                });
+        }
+    }
+
+    private async loadProfile(userId?: number): Promise<void> {
+        // URL С QUERY ПАРАМЕТРОМ (так сказал БЭК)
+        let url = '/profile'; // свой профиль по умолчанию
+        
+        if (userId) {
+            url = `/user?id=${userId}`; // чужой профиль
+        }
+        
+        const response = await ajax.get(url);
+        switch (response.status) {
+            case STATUS.ok:
+                if (response.data) {
+                    const profileData = {
+                        id: response.data.id,
+                        name: response.data.name,
+                        email: response.data.email,
+                        avatar: response.data.avatar || '/img/defaultAvatar.jpg',
+                        cover: response.data.cover || '/img/defaultCover.jpg',
+                        description: response.data.description,
+                        subscribersCount: response.data.subscribers_count || 0,
+                        subscriptionsCount: response.data.subscriptions_count || 0,
+                        postsCount: response.data.posts_count || 0,
+                        isSubscribed: response.data.is_subscribed || false
+                    };
+
+                    const posts = response.data.posts || [];
+                    
+                    this.sendAction('PROFILE_LOAD_SUCCESS', {
+                        profile: profileData,
+                        posts: posts
+                    });
+                } else {
+                    this.sendAction('PROFILE_LOAD_FAIL', { 
+                        error: 'No profile data' 
+                    });
+                }
+                break;
+            case STATUS.notFound:
+                this.sendAction('PROFILE_LOAD_FAIL', { 
+                    error: 'Профиль не найден' 
+                });
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('PROFILE_LOAD_FAIL', { 
+                    error: 'Not authenticated' 
+                });
+                break;
+            default:
+                this.sendAction('PROFILE_LOAD_FAIL', { 
+                    error: response.message || 'Ошибка загрузки профиля' 
+                });
+        }
+    }
+
+    private async updateProfileDescription(description: string): Promise<void> {
+        const response = await ajax.post('/profile', { description });
+        
+        switch (response.status) {
+            case STATUS.ok:
+                this.sendAction('PROFILE_UPDATE_DESCRIPTION_SUCCESS', { 
+                    description: description 
+                });
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('PROFILE_UPDATE_DESCRIPTION_FAIL', { 
+                    error: 'Not authenticated' 
+                });
+                break;
+            default:
+                this.sendAction('PROFILE_UPDATE_DESCRIPTION_FAIL', { 
+                    error: response.message || 'Ошибка обновления описания' 
                 });
         }
     }

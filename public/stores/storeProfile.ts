@@ -5,8 +5,8 @@ export interface ProfileData {
     id: number;
     name: string;
     email: string;
-    avatar: string;
-    cover: string;
+    avatar_url: string;
+    cover_url: string;
     description: string;
     subscribersCount: number;
     subscriptionsCount: number;

@@ -200,8 +200,8 @@ class API {
                         id: response.data.id,
                         name: response.data.name,
                         email: response.data.email,
-                        avatar: response.data.avatar || '/img/defaultAvatar.jpg',
-                        cover: response.data.cover || '/img/defaultCover.jpg',
+                        avatar_url: response.data.avatar_url,
+                        cover_url: response.data.cover_url,
                         description: response.data.description,
                         subscribersCount: response.data.subscribers_count || 0,
                         subscriptionsCount: response.data.subscriptions_count || 0,
@@ -268,16 +268,16 @@ class API {
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
-                    // Преобразуем данные API в формат store
+
                     const settingsData = {
                         phone: response.data.phone || '',
                         country: response.data.country || 'Россия',
                         language: response.data.language || 'Русский',
                         sex: response.data.sex || 'other',
                         date_of_birth: response.data.date_of_birth || '',
-                        cover: response.data.cover || '/img/defaultCover.jpg',
+                        cover_url: response.data.cover_url,
                         name: response.data.name || '',
-                        avatar_url: response.data.avatar_url || '/img/defaultAvatar.jpg',
+                        avatar_url: response.data.avatar_url,
                         email: response.data.email || '',
                         created_at: response.data.created_at || ''
                     };
@@ -310,9 +310,9 @@ class API {
                         language: response.data.language || 'Русский',
                         sex: response.data.sex || 'other',
                         date_of_birth: response.data.date_of_birth || '',
-                        cover: response.data.cover || '/img/defaultCover.jpg',
+                        cover_url: response.data.cover_url,
                         name: response.data.name || '',
-                        avatar_url: response.data.avatar_url || '/img/defaultAvatar.jpg',
+                        avatar_url: response.data.avatar_url,
                         email: response.data.email || '',
                         created_at: response.data.created_at || ''
                     };

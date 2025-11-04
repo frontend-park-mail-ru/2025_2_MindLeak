@@ -45,7 +45,7 @@
 }
 
 .delete-account-modal__cancel {
-    background-color: var(--text-color);
+    background-color: var(--primary-color);
     color: white;
     border: none;
     border-radius: 8px;

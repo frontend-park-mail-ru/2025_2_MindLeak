@@ -39,6 +39,20 @@ class API {
             case 'PROFILE_UPDATE_DESCRIPTION_REQUEST':
                 this.updateProfileDescription(payload.description);
                 break;
+
+            case 'SETTINGS_ACCOUNT_LOAD_REQUEST':
+                this.loadSettingsAccount();
+                break;
+            case 'SETTINGS_ACCOUNT_UPDATE_REQUEST':
+                this.updateSettingsAccount(payload.settings);
+                break;
+
+            case 'EDIT_PROFILE_UPDATE_REQUEST':
+                this.updateSettingsAccount(payload.settings);
+                break;
+            case 'ACCOUNT_DELETE_REQUEST':
+                this.deleteAccount();
+                break;
         }
     }
 
@@ -246,6 +260,97 @@ class API {
                 });
         }
     }
+
+    //Сведения об аккаунте
+    private async loadSettingsAccount(): Promise<void> {
+        const response = await ajax.get('/profile');
+        
+        switch (response.status) {
+            case STATUS.ok:
+                if (response.data) {
+                    // Преобразуем данные API в формат store
+                    const settingsData = {
+                        phone: response.data.phone || '',
+                        country: response.data.country || 'Россия',
+                        language: response.data.language || 'Русский',
+                        sex: response.data.sex || 'other',
+                        date_of_birth: response.data.date_of_birth || '',
+                        cover: response.data.cover || '/img/defaultCover.jpg',
+                        name: response.data.name || '',
+                        avatar_url: response.data.avatar_url || '/img/defaultAvatar.jpg',
+                        email: response.data.email || '',
+                        created_at: response.data.created_at || ''
+                    };
+                    this.sendAction('SETTINGS_ACCOUNT_LOAD_SUCCESS', { settings: settingsData });
+                } else {
+                    this.sendAction('SETTINGS_ACCOUNT_LOAD_FAIL', { error: 'No settings data' });
+                }
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('SETTINGS_ACCOUNT_LOAD_FAIL', { error: 'Not authenticated' });
+                break;
+            default:
+                this.sendAction('SETTINGS_ACCOUNT_LOAD_FAIL', { 
+                    error: response.message || 'Ошибка загрузки настроек' 
+                });
+        }
+    }
+
+    private async updateSettingsAccount(settings: any): Promise<void> {
+        const response = await ajax.put('/profile', settings);
+        
+        switch (response.status) {
+            case STATUS.ok:
+                if (response.data) {
+
+                    const updatedSettings = {
+                        phone: response.data.phone || '',
+                        country: response.data.country || 'Россия',
+                        language: response.data.language || 'Русский',
+                        sex: response.data.sex || 'other',
+                        date_of_birth: response.data.date_of_birth || '',
+                        cover: response.data.cover || '/img/defaultCover.jpg',
+                        name: response.data.name || '',
+                        avatar_url: response.data.avatar_url || '/img/defaultAvatar.jpg',
+                        email: response.data.email || '',
+                        created_at: response.data.created_at || ''
+                    };
+                    this.sendAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS', { settings: updatedSettings });
+                } else {
+                    this.sendAction('SETTINGS_ACCOUNT_UPDATE_FAIL', { error: 'No updated data' });
+                }
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('SETTINGS_ACCOUNT_UPDATE_FAIL', { error: 'Not authenticated' });
+                break;
+            default:
+                this.sendAction('SETTINGS_ACCOUNT_UPDATE_FAIL', { 
+                    error: response.message || 'Ошибка обновления настроек' 
+                });
+        }
+    }
+
+    private async deleteAccount(): Promise<void> {
+        const response = await ajax.deleteAccount();
+        
+        switch (response.status) {
+            case STATUS.ok:
+                this.sendAction('ACCOUNT_DELETE_SUCCESS');
+                this.sendAction('USER_LOGOUT');
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('ACCOUNT_DELETE_FAIL', { error: 'Not authenticated' });
+                break;
+            default:
+                this.sendAction('ACCOUNT_DELETE_FAIL', { 
+                    error: response.message || 'Ошибка удаления аккаунта' 
+                });
+        }
+    }
+    
 }
 
 // cозд и экспорт единственный экземпляр

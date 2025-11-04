@@ -62,6 +62,20 @@ class Ajax {
         });
     }
 
+    async put(url: string, body?: any): Promise<ApiResponse> {
+        return this.request(url, {
+            method: 'PUT',
+            body: body ? JSON.stringify(body) : undefined
+        });
+    }
+
+    async delete(url: string, body?: any): Promise<ApiResponse> {
+        return this.request(url, {
+            method: 'DELETE',
+            body: body ? JSON.stringify(body) : undefined
+        });
+    }
+
     async getMe(): Promise<ApiResponse> {
         return this.get('/me');
     }
@@ -80,6 +94,10 @@ class Ajax {
 
     async getFeed(): Promise<ApiResponse> {
         return this.get('/feed');
+    }
+
+    async deleteAccount(): Promise<ApiResponse> {
+        return this.delete('/profile/delete');
     }
 }
 

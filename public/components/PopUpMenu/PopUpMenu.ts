@@ -103,8 +103,22 @@ export class PopUpMenu {
                     popUpMenu.remove();
                 }
 
-                if (key === 'logout') {
-                    handleLogout();
+                switch (key) {
+                    case 'logout':
+                        handleLogout();
+                        break;
+                    case 'settings':
+                        console.log('[PopUpMenu] Переход в настройки');
+                        window.history.pushState({}, '', '/settings');
+                        window.dispatchEvent(new PopStateEvent('popstate'));
+                        break;
+                    case 'profile':
+                        console.log('[PopUpMenu] Переход в профиль');
+                        window.history.pushState({}, '', '/profile');
+                        window.dispatchEvent(new PopStateEvent('popstate'));
+                        break;
+                    default:
+                        console.log(`[PopUpMenu] Обработка пункта: ${key}`);
                 }
             });
         });

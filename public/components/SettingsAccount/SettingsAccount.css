@@ -141,6 +141,17 @@
     border-color: #dc3545;
 }
 
+.avatar-error,
+.cover-error {
+    color: #dc3545;
+    font-size: var(--text-sm);
+    margin-top: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background-color: #fee;
+    border: 1px solid #fcc;
+}
+
 .form-hint {
     display: block;
     margin-top: 4px;

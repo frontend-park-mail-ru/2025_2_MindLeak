@@ -31,7 +31,6 @@ export class SettingsAccountView {
         settingsAccountStore.addListener(this.boundStoreHandler);
         loginStore.addListener(this.boundLoginStoreHandler);
         
-        // загружаем данные настроек учетной записи
         dispatcher.dispatch('SETTINGS_ACCOUNT_LOAD_REQUEST');
         
         await this.renderFullPage();
@@ -43,31 +42,26 @@ export class SettingsAccountView {
 
         this.pageWrapper = document.createElement('div');
         
-        // Header
         const headerContainer = document.createElement('header');
         const headerEl = await this.headerInstance.render(headerContainer);
         headerContainer.appendChild(headerEl);
         this.pageWrapper.appendChild(headerContainer);
 
-        // Основной контент
         const contentContainer = document.createElement('div');
         contentContainer.className = 'content-layout';
         
-        // Левое меню
         const leftMenu = document.createElement('aside');
         leftMenu.className = 'sidebar-left';
         this.sidebarMenu = new SidebarMenu();
         const sidebarElement = await this.sidebarMenu.render();
         leftMenu.appendChild(sidebarElement);
 
-        // Центральная область с настройками учетной записи
         const mainContent = document.createElement('main');
         mainContent.className = 'main-content';
         
         const accountContent = await this.renderAccountContent();
         mainContent.appendChild(accountContent);
 
-        // Правое меню
         const rightMenu = document.createElement('aside');
         rightMenu.className = 'sidebar-right';
         this.topBloggers = new TopBloggers();
@@ -97,13 +91,11 @@ export class SettingsAccountView {
     }
 
     private attachEventListeners(container: HTMLElement): void {
-        
         const form = container.querySelector('.settings-account__form') as HTMLFormElement;
         if (form) {
             form.addEventListener('submit', this.boundFormSubmitHandler);
         }
 
-        
         const deleteButton = container.querySelector('.settings-account__delete-button') as HTMLButtonElement;
         if (deleteButton) {
             deleteButton.addEventListener('click', () => {
@@ -111,7 +103,6 @@ export class SettingsAccountView {
             });
         }
 
-        
         const changeAvatarBtn = container.querySelector('#change-avatar-btn') as HTMLButtonElement;
         const deleteAvatarBtn = container.querySelector('#delete-avatar-btn') as HTMLButtonElement;
         const avatarUpload = container.querySelector('#avatar-upload') as HTMLInputElement;
@@ -163,15 +154,15 @@ export class SettingsAccountView {
 
         const file = input.files[0];
         
-        // Проверка формата
+        this.clearAvatarError();
+
         if (!file.type.startsWith('image/jpeg')) {
-            alert('Пожалуйста, выберите файл в формате JPEG (JPG)');
+            this.showAvatarError('Пожалуйста, выберите файл в формате JPEG (JPG)');
             return;
         }
 
-        // Проверка размера (например, максимум 5MB)
         if (file.size > 5 * 1024 * 1024) {
-            alert('Размер файла не должен превышать 5MB');
+            this.showAvatarError('Размер файла не должен превышать 5MB');
             return;
         }
 
@@ -181,6 +172,7 @@ export class SettingsAccountView {
     }
 
     private handleAvatarDelete(): void {
+        this.clearAvatarError();
         dispatcher.dispatch('AVATAR_DELETE_REQUEST');
     }
 
@@ -190,13 +182,15 @@ export class SettingsAccountView {
 
         const file = input.files[0];
         
+        this.clearCoverError();
+
         if (!file.type.startsWith('image/jpeg')) {
-            alert('Пожалуйста, выберите файл в формате JPEG (JPG)');
+            this.showCoverError('Пожалуйста, выберите файл в формате JPEG (JPG)');
             return;
         }
 
-        if (file.size > 10 * 1024 * 1024) {
-            alert('Размер файла не должен превышать 10MB');
+        if (file.size > 5 * 1024 * 1024) {
+            this.showCoverError('Размер файла не должен превышать 10MB');
             return;
         }
 
@@ -206,7 +200,52 @@ export class SettingsAccountView {
     }
 
     private handleCoverDelete(): void {
+        this.clearCoverError();
         dispatcher.dispatch('COVER_DELETE_REQUEST');
+    }
+
+    private showAvatarError(message: string): void {
+        this.clearAvatarError();
+        
+        const avatarField = this.pageWrapper?.querySelector('.settings-account__field:nth-child(1)');
+        if (avatarField) {
+            const errorEl = document.createElement('div');
+            errorEl.className = 'field-error';
+            errorEl.textContent = message;
+            avatarField.appendChild(errorEl);
+        }
+    }
+
+    private showCoverError(message: string): void {
+        this.clearCoverError();
+        
+        const coverField = this.pageWrapper?.querySelector('.settings-account__field:nth-child(2)');
+        if (coverField) {
+            const errorEl = document.createElement('div');
+            errorEl.className = 'field-error';
+            errorEl.textContent = message;
+            coverField.appendChild(errorEl);
+        }
+    }
+
+    private clearAvatarError(): void {
+        const avatarField = this.pageWrapper?.querySelector('.settings-account__field:nth-child(1)');
+        if (avatarField) {
+            const existingError = avatarField.querySelector('.field-error');
+            if (existingError) {
+                existingError.remove();
+            }
+        }
+    }
+
+    private clearCoverError(): void {
+        const coverField = this.pageWrapper?.querySelector('.settings-account__field:nth-child(2)');
+        if (coverField) {
+            const existingError = coverField.querySelector('.field-error');
+            if (existingError) {
+                existingError.remove();
+            }
+        }
     }
 
     private async handleFormSubmit(e: SubmitEvent): Promise<void> {

@@ -97,19 +97,116 @@ export class SettingsAccountView {
     }
 
     private attachEventListeners(container: HTMLElement): void {
-        // Обработчик отправки формы
+        
         const form = container.querySelector('.settings-account__form') as HTMLFormElement;
         if (form) {
             form.addEventListener('submit', this.boundFormSubmitHandler);
         }
 
-        // Обработчик кнопки удаления
+        
         const deleteButton = container.querySelector('.settings-account__delete-button') as HTMLButtonElement;
         if (deleteButton) {
             deleteButton.addEventListener('click', () => {
                 this.openDeleteModal();
             });
         }
+
+        
+        const changeAvatarBtn = container.querySelector('#change-avatar-btn') as HTMLButtonElement;
+        const deleteAvatarBtn = container.querySelector('#delete-avatar-btn') as HTMLButtonElement;
+        const avatarUpload = container.querySelector('#avatar-upload') as HTMLInputElement;
+
+        if (changeAvatarBtn && avatarUpload) {
+            changeAvatarBtn.addEventListener('click', () => {
+                avatarUpload.click();
+            });
+        }
+
+        if (avatarUpload) {
+            avatarUpload.addEventListener('change', (e) => {
+                this.handleAvatarUpload(e);
+            });
+        }
+
+        if (deleteAvatarBtn) {
+            deleteAvatarBtn.addEventListener('click', () => {
+                this.handleAvatarDelete();
+            });
+        }
+
+        const changeCoverBtn = container.querySelector('#change-cover-btn') as HTMLButtonElement;
+        const deleteCoverBtn = container.querySelector('#delete-cover-btn') as HTMLButtonElement;
+        const coverUpload = container.querySelector('#cover-upload') as HTMLInputElement;
+
+        if (changeCoverBtn && coverUpload) {
+            changeCoverBtn.addEventListener('click', () => {
+                coverUpload.click();
+            });
+        }
+
+        if (coverUpload) {
+            coverUpload.addEventListener('change', (e) => {
+                this.handleCoverUpload(e);
+            });
+        }
+
+        if (deleteCoverBtn) {
+            deleteCoverBtn.addEventListener('click', () => {
+                this.handleCoverDelete();
+            });
+        }
+    }
+
+    private async handleAvatarUpload(e: Event): Promise<void> {
+        const input = e.target as HTMLInputElement;
+        if (!input.files || input.files.length === 0) return;
+
+        const file = input.files[0];
+        
+        // Проверка формата
+        if (!file.type.startsWith('image/jpeg')) {
+            alert('Пожалуйста, выберите файл в формате JPEG (JPG)');
+            return;
+        }
+
+        // Проверка размера (например, максимум 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Размер файла не должен превышать 5MB');
+            return;
+        }
+
+        dispatcher.dispatch('AVATAR_UPLOAD_REQUEST', { file });
+
+        input.value = '';
+    }
+
+    private handleAvatarDelete(): void {
+        dispatcher.dispatch('AVATAR_DELETE_REQUEST');
+    }
+
+    private async handleCoverUpload(e: Event): Promise<void> {
+        const input = e.target as HTMLInputElement;
+        if (!input.files || input.files.length === 0) return;
+
+        const file = input.files[0];
+        
+        if (!file.type.startsWith('image/jpeg')) {
+            alert('Пожалуйста, выберите файл в формате JPEG (JPG)');
+            return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+            alert('Размер файла не должен превышать 10MB');
+            return;
+        }
+
+        dispatcher.dispatch('COVER_UPLOAD_REQUEST', { file });
+
+        input.value = '';
+    }
+
+    private handleCoverDelete(): void {
+        dispatcher.dispatch('COVER_DELETE_REQUEST');
     }
 
     private async handleFormSubmit(e: SubmitEvent): Promise<void> {
@@ -123,20 +220,16 @@ export class SettingsAccountView {
         const formData = new FormData(form);
         const currentState = settingsAccountStore.getState();
 
-        // Собираем данные формы
         const updatedData: any = {};
 
-        // Обязательные поля
         const name = (formData.get('name') as string)?.trim();
         if (name) updatedData.name = name;
 
-        // Пароль - отправляем только если указан
         const password = (formData.get('password') as string)?.trim();
         if (password) {
             updatedData.password = password;
         }
 
-        // Необязательные поля
         const phone = (formData.get('phone') as string)?.trim();
         const country = (formData.get('country') as string)?.trim();
         const language = formData.get('language') as string;
@@ -151,24 +244,21 @@ export class SettingsAccountView {
 
         console.log('Updating profile with:', updatedData);
 
-        // Валидация
         const errors = this.validateForm(updatedData);
         if (errors.length > 0) {
             this.showFieldErrors(form, errors);
             return;
         }
 
-        // Передаем текущие настройки вместе с обновленными данными
         dispatcher.dispatch('SETTINGS_ACCOUNT_UPDATE_REQUEST', { 
             settings: updatedData,
-            currentSettings: currentState.settings // передаем текущие настройки для сохранения email и created_at
+            currentSettings: currentState.settings
         });
     }
 
     private validateForm(data: any): Array<{ field: string; message: string }> {
         const errors: Array<{ field: string; message: string }> = [];
 
-        // Обязательные поля
         if (!data.name || data.name.trim().length < 4) {
             errors.push({ field: 'name', message: 'Имя должно быть не менее 4 символов' });
         }
@@ -260,7 +350,6 @@ export class SettingsAccountView {
             console.error('Settings account error:', state.error);
         }
         
-        // перерисовываем компонент при изменении состояния
         this.updateAccountContent();
     }
 

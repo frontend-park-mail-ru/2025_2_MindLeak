@@ -1,7 +1,6 @@
 import { ajax } from '../modules/ajax';
 import { dispatcher } from '../dispatcher/dispatcher';
 
-
 const STATUS = {
     ok: 200,
     noMoreContent: 204,
@@ -49,6 +48,19 @@ class API {
 
             case 'ACCOUNT_DELETE_REQUEST':
                 this.deleteAccount();
+                break;
+
+            case 'AVATAR_UPLOAD_REQUEST':
+                this.uploadAvatar(payload.file);
+                break;
+            case 'AVATAR_DELETE_REQUEST':
+                this.deleteAvatar();
+                break;
+            case 'COVER_UPLOAD_REQUEST':
+                this.uploadCover(payload.file);
+                break;
+            case 'COVER_DELETE_REQUEST':
+                this.deleteCover();
                 break;
         }
     }
@@ -122,7 +134,6 @@ class API {
         }
     }
 
-
     private async signUp(name: string, email: string, password: string): Promise<void> {
         const response = await ajax.register({ name, email, password });
 
@@ -153,7 +164,6 @@ class API {
 
         switch (response.status) {
             case STATUS.ok:
-                case STATUS.ok:
                 if (response.data) {
                     const postsWithAuthorId = response.data.map((post: any) => ({
                         ...post,
@@ -182,11 +192,10 @@ class API {
     }
 
     private async loadProfile(userId?: number): Promise<void> {
-        // URL С QUERY ПАРАМЕТРОМ (так сказал БЭК)
-        let url = '/profile'; // свой профиль по умолчанию
+        let url = '/profile';
         
         if (userId) {
-            url = `/user?id=${userId}`; // чужой профиль
+            url = `/user?id=${userId}`;
         }
         
         const response = await ajax.get(url);
@@ -265,7 +274,6 @@ class API {
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
-
                     const settingsData = {
                         phone: response.data.phone || '',
                         country: response.data.country || 'Россия',
@@ -300,9 +308,7 @@ class API {
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
-
                     this.sendAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS');
-                    // Перезагружаем данные аккаунта для получения полной информации
                     this.loadSettingsAccount();
                 } else {
                     this.sendAction('SETTINGS_ACCOUNT_UPDATE_FAIL', { error: 'No updated data' });
@@ -337,7 +343,98 @@ class API {
                 });
         }
     }
-    
+
+    private async uploadAvatar(file: File): Promise<void> {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await ajax.uploadAvatar(formData);
+
+        switch (response.status) {
+            case STATUS.ok:
+                this.sendAction('AVATAR_UPLOAD_SUCCESS');
+                this.loadSettingsAccount();
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('AVATAR_UPLOAD_FAIL', { error: 'Not authenticated' });
+                break;
+            case STATUS.badRequest:
+                this.sendAction('AVATAR_UPLOAD_FAIL', { 
+                    error: response.data?.error || 'Неверный формат файла' 
+                });
+                break;
+            default:
+                this.sendAction('AVATAR_UPLOAD_FAIL', { 
+                    error: response.message || 'Ошибка загрузки аватара' 
+                });
+        }
+    }
+
+    private async deleteAvatar(): Promise<void> {
+        const response = await ajax.deleteAvatar();
+
+        switch (response.status) {
+            case STATUS.ok:
+                this.sendAction('AVATAR_DELETE_SUCCESS');
+                this.loadSettingsAccount();
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('AVATAR_DELETE_FAIL', { error: 'Not authenticated' });
+                break;
+            default:
+                this.sendAction('AVATAR_DELETE_FAIL', { 
+                    error: response.message || 'Ошибка удаления аватара' 
+                });
+        }
+    }
+
+    private async uploadCover(file: File): Promise<void> {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await ajax.uploadCover(formData);
+
+        switch (response.status) {
+            case STATUS.ok:
+                this.sendAction('COVER_UPLOAD_SUCCESS');
+                this.loadSettingsAccount();
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('COVER_UPLOAD_FAIL', { error: 'Not authenticated' });
+                break;
+            case STATUS.badRequest:
+                this.sendAction('COVER_UPLOAD_FAIL', { 
+                    error: response.data?.error || 'Неверный формат файла' 
+                });
+                break;
+            default:
+                this.sendAction('COVER_UPLOAD_FAIL', { 
+                    error: response.message || 'Ошибка загрузки обложки' 
+                });
+        }
+    }
+
+    private async deleteCover(): Promise<void> {
+        const response = await ajax.deleteCover();
+
+        switch (response.status) {
+            case STATUS.ok:
+                this.sendAction('COVER_DELETE_SUCCESS');
+                this.loadSettingsAccount();
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('COVER_DELETE_FAIL', { error: 'Not authenticated' });
+                break;
+            default:
+                this.sendAction('COVER_DELETE_FAIL', { 
+                    error: response.message || 'Ошибка удаления обложки' 
+                });
+        }
+    }
 }
 
 // cозд и экспорт единственный экземпляр

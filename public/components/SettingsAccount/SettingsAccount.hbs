@@ -7,6 +7,51 @@
         <div class="settings-account__content">
             <form class="settings-account__form">
                 <div class="settings-account__section">
+                    
+                    <div class="settings-account__field">
+                        <label class="settings-account__label">Изменить фото профиля</label>
+                        <div class="avatar-section">
+                            <div class="avatar-preview">
+                                {{#if userData.avatar_url}}
+                                    <img src="{{userData.avatar_url}}" alt="Аватар" class="avatar-image">
+                                {{else}}
+                                    <div class="avatar-placeholder">Нет фото</div>
+                                {{/if}}
+                            </div>
+                            <div class="avatar-actions">
+                                <input type="file" id="avatar-upload" accept=".jpg,.jpeg" style="display: none;">
+                                <button type="button" class="avatar-change-btn" id="change-avatar-btn">
+                                    Изменить
+                                </button>
+                                <button type="button" class="avatar-delete-btn" id="delete-avatar-btn">
+                                    Удалить
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-account__field">
+                        <label class="settings-account__label">Изменить обложку профиля</label>
+                        <div class="cover-section">
+                            <div class="cover-preview">
+                                {{#if userData.cover_url}}
+                                    <img src="{{userData.cover_url}}" alt="Обложка" class="cover-image">
+                                {{else}}
+                                    <div class="cover-placeholder">Нет обложки</div>
+                                {{/if}}
+                            </div>
+                            <div class="cover-actions">
+                                <input type="file" id="cover-upload" accept=".jpg,.jpeg" style="display: none;">
+                                <button type="button" class="cover-change-btn" id="change-cover-btn">
+                                    Изменить
+                                </button>
+                                <button type="button" class="cover-delete-btn" id="delete-cover-btn">
+                                    Удалить
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="settings-account__field">
                         <label class="settings-account__label" for="name">Имя пользователя *</label>
                         {{> input type="text" value=name name="name" placeholder="Введите имя"}}

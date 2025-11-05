@@ -11,6 +11,8 @@ interface SettingsAccountProps {
         sex: string;
         date_of_birth: string;
         age?: number;
+        avatar_url?: string;
+        cover_url?: string;
     };
     isLoading?: boolean;
     error?: string | null;
@@ -19,7 +21,6 @@ interface SettingsAccountProps {
 async function getSettingsAccountTemplate(): Promise<Handlebars.TemplateDelegate> {
     if (settingsAccountTemplate) return settingsAccountTemplate;
 
-    // Загружаем partials для input
     const inputRes = await fetch('/components/Input/Input.hbs');
     const inputSource = await inputRes.text();
     Handlebars.registerPartial('input', Handlebars.compile(inputSource));
@@ -27,7 +28,6 @@ async function getSettingsAccountTemplate(): Promise<Handlebars.TemplateDelegate
     const res = await fetch('/components/SettingsAccount/SettingsAccount.hbs');
     const source = await res.text();
     
-    // хелпер для сравнения в hbs
     Handlebars.registerHelper('eq', function(a, b) {
         return a === b;
     });
@@ -48,9 +48,9 @@ export class SettingsAccount {
         
         const formattedData = this.formatUserData(this.props.userData);
         
-        // Добавляем состояние загрузки и ошибки
         const templateData = {
             ...formattedData,
+            userData: this.props.userData,
             isLoading: this.props.isLoading || false,
             error: this.props.error || null
         };

@@ -58,6 +58,89 @@
     border-bottom: none;
 }
 
+.avatar-section,
+.cover-section {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 16px 0;
+}
+
+.avatar-preview,
+.cover-preview {
+    flex-shrink: 0;
+}
+
+.avatar-image {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border-color);
+}
+
+.cover-image {
+    width: 120px;
+    height: 80px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 2px solid var(--border-color);
+}
+
+.avatar-placeholder,
+.cover-placeholder {
+    width: 80px;
+    height: 80px;
+    border: 2px dashed var(--border-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-light);
+    font-size: var(--text-xs);
+    text-align: center;
+}
+
+.cover-placeholder {
+    width: 120px;
+    height: 80px;
+    border-radius: 8px;
+}
+
+.avatar-actions,
+.cover-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.avatar-change-btn,
+.cover-change-btn,
+.avatar-delete-btn,
+.cover-delete-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    transition: all 0.3s ease;
+}
+
+.avatar-change-btn:hover,
+.cover-change-btn:hover {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.avatar-delete-btn:hover,
+.cover-delete-btn:hover {
+    background-color: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
 .form-hint {
     display: block;
     margin-top: 4px;

@@ -8,8 +8,8 @@ export interface ProfileData {
     avatar_url: string;
     cover_url: string;
     description: string;
-    subscribersCount: number;
-    subscriptionsCount: number;
+    subscribers: number;
+    subscriptions: number;
     postsCount: number;
     isSubscribed: boolean;
 }
@@ -21,6 +21,7 @@ export interface ProfileState {
     activeTab: 'posts' | 'comments';
     isLoading: boolean;
     error: string | null;
+    isEditingDescription: boolean;
 }
 
 class ProfileStore extends BaseStore<ProfileState> {
@@ -31,7 +32,8 @@ class ProfileStore extends BaseStore<ProfileState> {
             comments: [],
             activeTab: 'posts',
             isLoading: false,
-            error: null
+            error: null,
+            isEditingDescription: false
         });
     }
 
@@ -65,6 +67,18 @@ class ProfileStore extends BaseStore<ProfileState> {
             });
         });
 
+        this.registerAction('PROFILE_START_EDIT_DESCRIPTION', () => {
+            this.setState({
+                isEditingDescription: true
+            });
+        });
+
+        this.registerAction('PROFILE_CANCEL_EDIT_DESCRIPTION', () => {
+            this.setState({
+                isEditingDescription: false
+            });
+        });
+
         this.registerAction('PROFILE_UPDATE_DESCRIPTION_REQUEST', () => {
             this.setState({
                 isLoading: true,
@@ -80,6 +94,7 @@ class ProfileStore extends BaseStore<ProfileState> {
                         description: payload.description
                     },
                     isLoading: false,
+                    isEditingDescription: false,
                     error: null
                 });
             }

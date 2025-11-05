@@ -6,6 +6,7 @@ interface ProfileProps {
     activeTab: 'posts' | 'comments';
     isLoading: boolean;
     error: string | null;
+    isEditingDescription?: boolean;
 }
 
 async function getProfileTemplate(): Promise<Handlebars.TemplateDelegate> {
@@ -15,6 +16,12 @@ async function getProfileTemplate(): Promise<Handlebars.TemplateDelegate> {
     if (postCardRes.ok) {
         const postCardSource = await postCardRes.text();
         Handlebars.registerPartial('post-card', Handlebars.compile(postCardSource));
+    }
+
+    const inputRes = await fetch('/components/Input/Input.hbs');
+    if (inputRes.ok) {
+        const inputSource = await inputRes.text();
+        Handlebars.registerPartial('input', Handlebars.compile(inputSource));
     }
 
     Handlebars.registerHelper('eq', (a, b) => a === b);

@@ -209,8 +209,8 @@ class API {
                         avatar_url: response.data.avatar_url,
                         cover_url: response.data.cover_url,
                         description: response.data.description,
-                        subscribersCount: response.data.subscribers_count || 0,
-                        subscriptionsCount: response.data.subscriptions_count || 0,
+                        subscribers: response.data.subscribers || 0,
+                        subscriptions: response.data.subscriptions || 0,
                         postsCount: response.data.posts_count || 0,
                         isSubscribed: response.data.is_subscribed || false
                     };
@@ -245,8 +245,32 @@ class API {
         }
     }
 
+
     private async updateProfileDescription(description: string): Promise<void> {
-        const response = await ajax.post('/profile', { description });
+
+        const currentProfileResponse = await ajax.get('/profile');
+        
+        if (currentProfileResponse.status !== STATUS.ok || !currentProfileResponse.data) {
+            this.sendAction('PROFILE_UPDATE_DESCRIPTION_FAIL', { 
+                error: 'Не удалось загрузить текущие данные профиля' 
+            });
+            return;
+        }
+        
+        const currentData = currentProfileResponse.data;
+        
+        const updateData = {
+            phone: currentData.phone || '',
+            country: currentData.country || 'Россия',
+            language: currentData.language || 'Русский',
+            sex: currentData.sex || 'other',
+            date_of_birth: currentData.date_of_birth || '',
+            name: currentData.name || '',
+            email: currentData.email || '',
+            description: description
+        };
+        
+        const response = await ajax.put('/profile', updateData);
         
         switch (response.status) {
             case STATUS.ok:
@@ -266,7 +290,6 @@ class API {
                 });
         }
     }
-
     //Сведения об аккаунте
     private async loadSettingsAccount(): Promise<void> {
         const response = await ajax.get('/profile');

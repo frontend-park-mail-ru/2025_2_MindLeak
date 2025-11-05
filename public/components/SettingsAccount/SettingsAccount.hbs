@@ -1,65 +1,85 @@
 <div class="settings-account">
     <div class="settings-account__container">
         <div class="settings-account__header">
-            <h1 class="settings-account__title">Сведения об учетной записи</h1>
+            <h1 class="settings-account__title">Редактирование учетной записи</h1>
         </div>
         
         <div class="settings-account__content">
-            <div class="settings-account__section">
-                <div class="settings-account__field">
-                    <label class="settings-account__label">Имя пользователя</label>
-                    <div class="settings-account__value">{{name}}</div>
+            <form class="settings-account__form">
+                <div class="settings-account__section">
+                    <div class="settings-account__field">
+                        <label class="settings-account__label" for="name">Имя пользователя *</label>
+                        {{> input type="text" value=name name="name" placeholder="Введите имя"}}
+                    </div>
+                    
+                    <div class="settings-account__field">
+                        <label class="settings-account__label" for="phone">Телефон</label>
+                        {{> input type="tel" value=phone name="phone" placeholder="+7 (XXX) XXX-XX-XX"}}
+                    </div>
+                    
+                    <div class="settings-account__field">
+                        <label class="settings-account__label" for="email">Адрес электронной почты</label>
+                        <div class="settings-account__value">{{email}}</div>
+                        <small class="form-hint">Email нельзя изменить</small>
+                    </div>
+                    
+                    <div class="settings-account__field">
+                        <label class="settings-account__label" for="password">Пароль</label>
+                        {{> input type="password" name="password" placeholder="Введите новый пароль"}}
+                        <small class="form-hint">Оставьте пустым, если не хотите менять пароль</small>
+                    </div>
+                    
+                    <div class="settings-account__field">
+                        <label class="settings-account__label" for="country">Страна</label>
+                        {{> input type="text" value=country name="country" placeholder="Страна"}}
+                    </div>
+                    
+                    <div class="settings-account__field">
+                        <label class="settings-account__label" for="language">Язык</label>
+                        <select name="language" class="form__input">
+                            <option value="Русский" {{#if (eq language "Русский")}}selected{{/if}}>Русский</option>
+                            <option value="English" {{#if (eq language "English")}}selected{{/if}}>English</option>
+                        </select>
+                    </div>
+                    
+                    <div class="settings-account__field">
+                        <label class="settings-account__label" for="sex">Пол</label>
+                        <select name="sex" class="form__input">
+                            <option value="male" {{#if (eq sex "male")}}selected{{/if}}>Мужской</option>
+                            <option value="female" {{#if (eq sex "female")}}selected{{/if}}>Женский</option>
+                            <option value="other" {{#if (eq sex "other")}}selected{{/if}}>Другой</option>
+                        </select>
+                    </div>
+                    
+                    <div class="settings-account__field">
+                        <label class="settings-account__label" for="date_of_birth">Дата рождения</label>
+                        {{> input type="date" value=date_of_birth name="date_of_birth"}}
+                    </div>
+                    
+                    <div class="settings-account__field">
+                        <label class="settings-account__label">Дата создания учетной записи</label>
+                        <div class="settings-account__value">{{created_at}}</div>
+                    </div>
+                    
+                    <div class="settings-account__field">
+                        <label class="settings-account__label">Возраст</label>
+                        <div class="settings-account__value">{{age}}</div>
+                    </div>
                 </div>
-                
-                <div class="settings-account__field">
-                    <label class="settings-account__label">Телефон</label>
-                    <div class="settings-account__value">{{phone}}</div>
-                </div>
-                
-                <div class="settings-account__field">
-                    <label class="settings-account__label">Адрес электронной почты</label>
-                    <div class="settings-account__value">{{email}}</div>
-                </div>
-                
-                <div class="settings-account__field">
-                    <label class="settings-account__label">Дата создания учетной записи</label>
-                    <div class="settings-account__value">{{created_at}}</div>
-                </div>
-                
-                <div class="settings-account__field">
-                    <label class="settings-account__label">Страна</label>
-                    <div class="settings-account__value">{{country}}</div>
-                </div>
-                
-                <div class="settings-account__field">
-                    <label class="settings-account__label">Языки</label>
-                    <div class="settings-account__value">{{language}}</div>
-                </div>
-                
-                <div class="settings-account__field">
-                    <label class="settings-account__label">Пол</label>
-                    <div class="settings-account__value">{{sex}}</div>
-                </div>
-                
-                <div class="settings-account__field">
-                    <label class="settings-account__label">Дата рождения</label>
-                    <div class="settings-account__value">{{date_of_birth}}</div>
-                </div>
-                
-                <div class="settings-account__field">
-                    <label class="settings-account__label">Возраст</label>
-                    <div class="settings-account__value">{{age}}</div>
-                </div>
-            </div>
 
-            <div class="settings-account__actions">
-                <button class="settings-account__edit-button" type="button">
-                    Изменить данные
-                </button>
-                <button class="settings-account__delete-button" type="button">
-                    Удалить аккаунт
-                </button>
-            </div>
+                {{#if error}}
+                    <div class="global-error">{{error}}</div>
+                {{/if}}
+
+                <div class="settings-account__actions">
+                    <button class="settings-account__save-button" type="submit" {{#if isLoading}}disabled{{/if}}>
+                        {{#if isLoading}}Сохранение...{{else}}Сохранить изменения{{/if}}
+                    </button>
+                    <button class="settings-account__delete-button" type="button">
+                        Удалить аккаунт
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

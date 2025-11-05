@@ -32,61 +32,56 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
     }
 
     protected registerActions(): void {
-        this.registerAction('SETTINGS_ACCOUNT_LOAD_REQUEST', () => {
-            this.setState({
-                isLoading: true,
-                error: null
-            });
+    this.registerAction('SETTINGS_ACCOUNT_LOAD_REQUEST', () => {
+        this.setState({
+            isLoading: true,
+            error: null
         });
+    });
 
-        this.registerAction('SETTINGS_ACCOUNT_LOAD_SUCCESS', (payload: { settings: SettingsAccountData }) => {
+    this.registerAction('SETTINGS_ACCOUNT_LOAD_SUCCESS', (payload: { settings: SettingsAccountData }) => {
+        const settingsWithAge = {
+            ...payload.settings,
+            age: this.calculateAge(payload.settings.date_of_birth)
+        };
 
-            const settingsWithAge = {
-                ...payload.settings,
-                age: this.calculateAge(payload.settings.date_of_birth)
-            };
-
-            this.setState({
-                settings: settingsWithAge,
-                isLoading: false,
-                error: null
-            });
+        this.setState({
+            settings: settingsWithAge,
+            isLoading: false,
+            error: null
         });
+    });
 
-        this.registerAction('SETTINGS_ACCOUNT_LOAD_FAIL', (payload: { error: string }) => {
-            this.setState({
-                isLoading: false,
-                error: payload.error
-            });
+    this.registerAction('SETTINGS_ACCOUNT_LOAD_FAIL', (payload: { error: string }) => {
+        this.setState({
+            isLoading: false,
+            error: payload.error
         });
+    });
 
-        this.registerAction('SETTINGS_ACCOUNT_UPDATE_REQUEST', () => {
-            this.setState({
-                isUpdating: true,
-                error: null
-            });
+    this.registerAction('SETTINGS_ACCOUNT_UPDATE_REQUEST', () => {
+        this.setState({
+            isUpdating: true,
+            error: null
         });
+    });
 
-        this.registerAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS', (payload: { settings: SettingsAccountData }) => {
-            const settingsWithAge = {
-                ...payload.settings,
-                age: this.calculateAge(payload.settings.date_of_birth)
-            };
-
-            this.setState({
-                settings: settingsWithAge,
-                isUpdating: false,
-                error: null
-            });
+    this.registerAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS', () => {
+        // Просто сбрасываем состояние загрузки
+        // Данные будут обновлены через SETTINGS_ACCOUNT_LOAD_SUCCESS
+        this.setState({
+            isUpdating: false,
+            error: null
         });
+    });
 
-        this.registerAction('SETTINGS_ACCOUNT_UPDATE_FAIL', (payload: { error: string }) => {
-            this.setState({
-                isUpdating: false,
-                error: payload.error
-            });
+    this.registerAction('SETTINGS_ACCOUNT_UPDATE_FAIL', (payload: { error: string }) => {
+        this.setState({
+            isUpdating: false,
+            error: payload.error
         });
-    }
+    });    
+}
 
     private calculateAge(dateOfBirth: string): number | undefined {
         if (!dateOfBirth) return undefined;

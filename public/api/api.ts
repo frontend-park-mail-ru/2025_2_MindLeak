@@ -47,9 +47,6 @@ class API {
                 this.updateSettingsAccount(payload.settings);
                 break;
 
-            case 'EDIT_PROFILE_UPDATE_REQUEST':
-                this.updateSettingsAccount(payload.settings);
-                break;
             case 'ACCOUNT_DELETE_REQUEST':
                 this.deleteAccount();
                 break;
@@ -304,19 +301,9 @@ class API {
             case STATUS.ok:
                 if (response.data) {
 
-                    const updatedSettings = {
-                        phone: response.data.phone || '',
-                        country: response.data.country || 'Россия',
-                        language: response.data.language || 'Русский',
-                        sex: response.data.sex || 'other',
-                        date_of_birth: response.data.date_of_birth || '',
-                        cover_url: response.data.cover_url,
-                        name: response.data.name || '',
-                        avatar_url: response.data.avatar_url,
-                        email: response.data.email || '',
-                        created_at: response.data.created_at || ''
-                    };
-                    this.sendAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS', { settings: updatedSettings });
+                    this.sendAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS');
+                    // Перезагружаем данные аккаунта для получения полной информации
+                    this.loadSettingsAccount();
                 } else {
                     this.sendAction('SETTINGS_ACCOUNT_UPDATE_FAIL', { error: 'No updated data' });
                 }

@@ -58,6 +58,14 @@
     border-bottom: none;
 }
 
+.form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: var(--text-xs);
+    color: var(--text-light);
+    font-style: italic;
+}
+
 .settings-account__actions {
     margin-top: 32px;
     padding-top: 24px;
@@ -69,7 +77,7 @@
     align-items: center;
 }
 
-.settings-account__edit-button {
+.settings-account__save-button {
     background-color: var(--primary-color);
     color: white;
     border: none;
@@ -82,11 +90,11 @@
     width: 200px;
 }
 
-.settings-account__edit-button:hover {
+.settings-account__save-button:hover:not(:disabled) {
     background-color: var(--primary-dark);
 }
 
-.settings-account__edit-button:disabled {
+.settings-account__save-button:disabled {
     background-color: var(--text-lighter);
     cursor: not-allowed;
 }
@@ -114,4 +122,24 @@
     border-color: var(--text-lighter);
     color: white;
     cursor: not-allowed;
+}
+
+.global-error {
+    background-color: #fee;
+    color: #c33;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #fcc;
+    margin: 16px 0;
+    text-align: center;
+}
+
+.field-error {
+    color: #dc3545;
+    font-size: var(--text-sm);
+    margin-top: 4px;
+}
+
+.form__input.error {
+    border-color: #dc3545;
 }

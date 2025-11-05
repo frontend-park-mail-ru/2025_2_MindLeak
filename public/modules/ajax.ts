@@ -8,29 +8,35 @@ export interface ApiResponse {
 }
 
 class Ajax {
+    /*
+    todo РАССКОМИТИТЬ ДЛЯ ДЕПЛОЯ
     private getCookie(name: string): string | null {
         const value = `; ${document.cookie}`;
         const parts = value.split(`; ${name}=`);
         if (parts.length === 2) return parts.pop()!.split(";").shift() || null;
         return null;
-    }
+    }*/
 
     private async request(url: string, options: RequestInit = {}): Promise<ApiResponse> {
         try {
             const fullUrl = `${BASE_URL}${url}`;
             console.log(`AJAX Making request to: ${fullUrl}`, options);
 
+            /*
+            todo РАССКОМИТИТЬ ДЛЯ ДЕПЛОЯ
             // Получаем CSRF токен из куки
             const csrfToken = this.getCookie('csrf_token');
             console.log('CSRF Token from cookie:', csrfToken);
             
-            // Базовые заголовки
+            // Базовые заголовки*/
             const headers: Record<string, string> = {};
             
             if (!(options.body instanceof FormData)) {
                 headers['Content-Type'] = 'application/json';
             }
             
+            /*
+            todo РАССКОМИТИТЬ ДЛЯ ДЕПЛОЯ
             // Добавляем CSRF токен для всех не-GET запросов
             if (options.method && options.method !== 'GET' && options.method !== 'HEAD') {
                 if (csrfToken) {
@@ -38,7 +44,7 @@ class Ajax {
                     console.log('Adding CSRF token to headers');
                 }
                 console.warn('No CSRF token found for non-GET request');
-            }
+            }*/
 
             const response = await fetch(fullUrl, {
                 headers: {

@@ -28,12 +28,13 @@ export class SettingsAccountView {
     }
 
     async render(): Promise<HTMLElement> {
+        await this.renderFullPage();
+        
         settingsAccountStore.addListener(this.boundStoreHandler);
         loginStore.addListener(this.boundLoginStoreHandler);
         
         dispatcher.dispatch('SETTINGS_ACCOUNT_LOAD_REQUEST');
         
-        await this.renderFullPage();
         return this.pageWrapper!;
     }
 
@@ -404,6 +405,7 @@ export class SettingsAccountView {
             
             const newContent = await this.renderAccountContent();
             mainContent.appendChild(newContent);
+            console.log('SettingsAccount content UPDATED');
         }
     }
 

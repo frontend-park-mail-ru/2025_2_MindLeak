@@ -35,6 +35,8 @@ export class ProfileView {
     }
 
     async render(): Promise<HTMLElement> {
+        await this.renderFullPage();
+        
         profileStore.addListener(this.boundStoreHandler);
         loginStore.addListener(this.boundLoginStoreHandler);
         
@@ -42,8 +44,6 @@ export class ProfileView {
             userId: this.userId 
         });
 
-        await this.renderFullPage();
-        
         return this.pageWrapper!;
     }
 
@@ -110,11 +110,13 @@ export class ProfileView {
     }
 
     private handleStoreChange(): void {
+        console.log('Store changed:', profileStore.getState());
         const mainContent = this.container.querySelector('.main-content');
         if (mainContent) {
             this.renderProfileContent().then(newContent => {
                 mainContent.innerHTML = '';
                 mainContent.appendChild(newContent);
+                console.log('Profile content UPDATED');
             });
         }
     }

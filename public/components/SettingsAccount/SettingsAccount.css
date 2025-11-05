@@ -58,6 +58,108 @@
     border-bottom: none;
 }
 
+.avatar-section,
+.cover-section {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 16px 0;
+}
+
+.avatar-preview,
+.cover-preview {
+    flex-shrink: 0;
+}
+
+.avatar-image {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border-color);
+}
+
+.cover-image {
+    width: 120px;
+    height: 80px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 2px solid var(--border-color);
+}
+
+.avatar-placeholder,
+.cover-placeholder {
+    width: 80px;
+    height: 80px;
+    border: 2px dashed var(--border-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-light);
+    font-size: var(--text-xs);
+    text-align: center;
+}
+
+.cover-placeholder {
+    width: 120px;
+    height: 80px;
+    border-radius: 8px;
+}
+
+.avatar-actions,
+.cover-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.avatar-change-btn,
+.cover-change-btn,
+.avatar-delete-btn,
+.cover-delete-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    transition: all 0.3s ease;
+}
+
+.avatar-change-btn:hover,
+.cover-change-btn:hover {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.avatar-delete-btn:hover,
+.cover-delete-btn:hover {
+    background-color: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+.avatar-error,
+.cover-error {
+    color: #dc3545;
+    font-size: var(--text-sm);
+    margin-top: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background-color: #fee;
+    border: 1px solid #fcc;
+}
+
+.form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: var(--text-xs);
+    color: var(--text-light);
+    font-style: italic;
+}
+
 .settings-account__actions {
     margin-top: 32px;
     padding-top: 24px;
@@ -69,7 +171,7 @@
     align-items: center;
 }
 
-.settings-account__edit-button {
+.settings-account__save-button {
     background-color: var(--primary-color);
     color: white;
     border: none;
@@ -82,11 +184,11 @@
     width: 200px;
 }
 
-.settings-account__edit-button:hover {
+.settings-account__save-button:hover:not(:disabled) {
     background-color: var(--primary-dark);
 }
 
-.settings-account__edit-button:disabled {
+.settings-account__save-button:disabled {
     background-color: var(--text-lighter);
     cursor: not-allowed;
 }
@@ -114,4 +216,24 @@
     border-color: var(--text-lighter);
     color: white;
     cursor: not-allowed;
+}
+
+.global-error {
+    background-color: #fee;
+    color: #c33;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #fcc;
+    margin: 16px 0;
+    text-align: center;
+}
+
+.field-error {
+    color: #dc3545;
+    font-size: var(--text-sm);
+    margin-top: 4px;
+}
+
+.form__input.error {
+    border-color: #dc3545;
 }

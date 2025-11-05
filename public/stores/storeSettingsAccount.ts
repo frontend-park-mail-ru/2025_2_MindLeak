@@ -6,7 +6,7 @@ export interface SettingsAccountData {
     language: string;
     sex: 'male' | 'female' | 'other';
     date_of_birth: string;
-    cover: string;
+    cover_url: string;
     name: string;
     avatar_url: string;
     email: string;
@@ -19,6 +19,8 @@ export interface SettingsAccountState {
     isLoading: boolean;
     error: string | null;
     isUpdating: boolean;
+    isUploadingAvatar: boolean;
+    isUploadingCover: boolean;
 }
 
 class SettingsAccountStore extends BaseStore<SettingsAccountState> {
@@ -27,7 +29,9 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
             settings: null,
             isLoading: false,
             error: null,
-            isUpdating: false
+            isUpdating: false,
+            isUploadingAvatar: false,
+            isUploadingCover: false
         });
     }
 
@@ -40,7 +44,6 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
         });
 
         this.registerAction('SETTINGS_ACCOUNT_LOAD_SUCCESS', (payload: { settings: SettingsAccountData }) => {
-
             const settingsWithAge = {
                 ...payload.settings,
                 age: this.calculateAge(payload.settings.date_of_birth)
@@ -67,14 +70,8 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
             });
         });
 
-        this.registerAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS', (payload: { settings: SettingsAccountData }) => {
-            const settingsWithAge = {
-                ...payload.settings,
-                age: this.calculateAge(payload.settings.date_of_birth)
-            };
-
+        this.registerAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS', () => {
             this.setState({
-                settings: settingsWithAge,
                 isUpdating: false,
                 error: null
             });
@@ -83,6 +80,90 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
         this.registerAction('SETTINGS_ACCOUNT_UPDATE_FAIL', (payload: { error: string }) => {
             this.setState({
                 isUpdating: false,
+                error: payload.error
+            });
+        });
+
+        this.registerAction('AVATAR_UPLOAD_REQUEST', () => {
+            this.setState({
+                isUploadingAvatar: true,
+                error: null
+            });
+        });
+
+        this.registerAction('AVATAR_UPLOAD_SUCCESS', () => {
+            this.setState({
+                isUploadingAvatar: false,
+                error: null
+            });
+        });
+
+        this.registerAction('AVATAR_UPLOAD_FAIL', (payload: { error: string }) => {
+            this.setState({
+                isUploadingAvatar: false,
+                error: payload.error
+            });
+        });
+
+        this.registerAction('AVATAR_DELETE_REQUEST', () => {
+            this.setState({
+                isUploadingAvatar: true,
+                error: null
+            });
+        });
+
+        this.registerAction('AVATAR_DELETE_SUCCESS', () => {
+            this.setState({
+                isUploadingAvatar: false,
+                error: null
+            });
+        });
+
+        this.registerAction('AVATAR_DELETE_FAIL', (payload: { error: string }) => {
+            this.setState({
+                isUploadingAvatar: false,
+                error: payload.error
+            });
+        });
+
+        this.registerAction('COVER_UPLOAD_REQUEST', () => {
+            this.setState({
+                isUploadingCover: true,
+                error: null
+            });
+        });
+
+        this.registerAction('COVER_UPLOAD_SUCCESS', () => {
+            this.setState({
+                isUploadingCover: false,
+                error: null
+            });
+        });
+
+        this.registerAction('COVER_UPLOAD_FAIL', (payload: { error: string }) => {
+            this.setState({
+                isUploadingCover: false,
+                error: payload.error
+            });
+        });
+
+        this.registerAction('COVER_DELETE_REQUEST', () => {
+            this.setState({
+                isUploadingCover: true,
+                error: null
+            });
+        });
+
+        this.registerAction('COVER_DELETE_SUCCESS', () => {
+            this.setState({
+                isUploadingCover: false,
+                error: null
+            });
+        });
+
+        this.registerAction('COVER_DELETE_FAIL', (payload: { error: string }) => {
+            this.setState({
+                isUploadingCover: false,
                 error: payload.error
             });
         });

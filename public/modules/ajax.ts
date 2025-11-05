@@ -13,9 +13,16 @@ class Ajax {
             const fullUrl = `${BASE_URL}${url}`;
             console.log(`AJAX Making request to: ${fullUrl}`, options);
 
+            //браузер сам установит multipart/form-data
+            const headers: Record<string, string> = {};
+            
+            if (!(options.body instanceof FormData)) {
+                headers['Content-Type'] = 'application/json';
+            }
+
             const response = await fetch(fullUrl, {
                 headers: {
-                    'Content-Type': 'application/json',
+                    ...headers,
                     ...options.headers,
                 },
                 credentials: 'include', //куки
@@ -98,6 +105,32 @@ class Ajax {
 
     async deleteAccount(): Promise<ApiResponse> {
         return this.delete('/profile/delete');
+    }
+
+    async uploadAvatar(formData: FormData): Promise<ApiResponse> {
+        return this.request('/uploads/avatar', {
+            method: 'POST',
+            body: formData
+        });
+    }
+
+    async deleteAvatar(): Promise<ApiResponse> {
+        return this.request('/delete/avatar', {
+            method: 'DELETE'
+        });
+    }
+
+    async uploadCover(formData: FormData): Promise<ApiResponse> {
+        return this.request('/uploads/cover', {
+            method: 'POST',
+            body: formData
+        });
+    }
+
+    async deleteCover(): Promise<ApiResponse> {
+        return this.request('/delete/cover', {
+            method: 'DELETE'
+        });
     }
 }
 

@@ -2,33 +2,46 @@
     {{#if profile}}
         <div class="profile__header">
             <div class="profile__cover">
-                <img src="{{profile.cover}}" alt="Обложка профиля" class="profile__cover-image">
+                <img src="{{profile.cover_url}}" alt="Обложка профиля" class="profile__cover-image">
             </div>
             
             <div class="profile__info-section">
                 <div class="profile__avatar-container">
-                    <img src="{{profile.avatar}}" alt="Аватар" class="profile__avatar">
+                    <img src="{{profile.avatar_url}}" alt="Аватар" class="profile__avatar">
                 </div>
                 
                 <div class="profile__main-info">
                     <h1 class="profile__name">{{profile.name}}</h1>
                     
                     <div class="profile__description">
-                        {{#if profile.description}}
-                            <p class="profile__description-text">{{profile.description}}</p>
-                            <button class="profile__edit-btn">Изменить</button>
+                        {{#if isEditingDescription}}
+                            {{> input 
+                                type="text" 
+                                placeholder="Введите описание профиля" 
+                                name="description"
+                                value=profile.description
+                                maxlength="200"
+                            }}
+                            <div class="profile__description-hint">
+                                Нажмите Enter или кликните вне поля для сохранения
+                            </div>
                         {{else}}
-                            <p class="profile__description-placeholder">Вы можете добавить описание профиля</p>
+                            {{#if profile.description}}
+                                <p class="profile__description-text">{{profile.description}}</p>
+                                <button class="profile__edit-btn">Изменить</button>
+                            {{else}}
+                                <p class="profile__description-placeholder">Вы можете добавить описание профиля</p>
+                            {{/if}}
                         {{/if}}
                     </div>
                     
                     <div class="profile__stats">
                         <div class="profile__stat">
-                            <span class="profile__stat-number">{{profile.subscribersCount}}</span>
+                            <span class="profile__stat-number">{{profile.subscribers}}</span>
                             <span class="profile__stat-label">Подписчики</span>
                         </div>
                         <div class="profile__stat">
-                            <span class="profile__stat-number">{{profile.subscriptionsCount}}</span>
+                            <span class="profile__stat-number">{{profile.subscriptions}}</span>
                             <span class="profile__stat-label">Подписки</span>
                         </div>
                     </div>

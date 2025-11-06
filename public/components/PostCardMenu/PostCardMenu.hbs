@@ -1,0 +1,7 @@
+<div class="post-card-menu" data-menu-id="{{menuId}}">
+    <div class="post-card-menu__items">
+        {{#each menuItems}}
+            {{> menu-item key=this.key icon=this.icon text=this.text}}
+        {{/each}}
+    </div>
+</div>

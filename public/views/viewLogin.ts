@@ -33,7 +33,7 @@ export class LoginFormView {
             form.parentNode?.replaceChild(newForm, form);
             
             newForm.addEventListener('submit', this.handleSubmit.bind(this));
-            this.setupPasswordToggle(newForm); // ← ТЕПЕРЬ ЭТОТ МЕТОД СУЩЕСТВУЕТ
+            this.setupPasswordToggle(newForm);
         }
 
         const signUpLink = this.formElement.querySelector('.login-form__footer .link') as HTMLAnchorElement;

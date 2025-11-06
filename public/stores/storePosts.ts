@@ -1,10 +1,14 @@
 import { BaseStore } from './store';
+import { dispatcher } from '../dispatcher/dispatcher';
+
 
 //Интерфейс поста
 export interface Post {
     id?: string;
-    author_name?: string;
-    author_avatar?: string;
+    authorId?: number;
+    authorName?: string;
+    authorAvatar?: string;
+    theme?: string;
     title?: string;
     content?: string;
     image?: string;
@@ -19,6 +23,7 @@ export interface PostsState {
     isLoading: boolean;
     error: string | null;
     hasMore: boolean;
+    currentFilter: string;
 }
 
 class PostsStore extends BaseStore<PostsState> {
@@ -27,7 +32,8 @@ class PostsStore extends BaseStore<PostsState> {
             posts: [],
             isLoading: false,
             error: null,
-            hasMore: true
+            hasMore: true,
+            currentFilter: 'fresh'
         });
     }
 
@@ -59,6 +65,27 @@ class PostsStore extends BaseStore<PostsState> {
                 posts: [],
                 error: null
             });
+        });
+
+        this.registerAction('POSTS_SET_FILTER', (payload: { filter: string }) => {
+            // Очищаем старые посты при смене фильтра
+            this.setState({
+                posts: [],
+                currentFilter: payload.filter,
+                hasMore: true,
+                error: null,
+                isLoading: false
+            });
+            // И сразу запрашиваем новые
+            dispatcher.dispatch('POSTS_LOAD_REQUEST', { filter: payload.filter });
+        });
+
+        this.registerAction('POSTS_RELOAD_AFTER_CREATE', () => {
+            dispatcher.dispatch('POSTS_LOAD_REQUEST', { filter: this.state.currentFilter });
+        });
+
+        this.registerAction('POSTS_RELOAD_AFTER_DELETE', () => {
+            dispatcher.dispatch('POSTS_LOAD_REQUEST', { filter: this.state.currentFilter });
         });
     }
 }

@@ -125,13 +125,25 @@ class Ajax {
         return this.get('/logout');
     }
 
-    async getFeed(): Promise<ApiResponse> {
-        return this.get('/feed');
+    getFeed(filter?: string): Promise<any> {
+        const url = filter ? `/feed?filter=${encodeURIComponent(filter)}` : '/feed';
+        return this.get(url);
+    }
+
+    async createPost(postData: { title: string; content: string; theme?: string }): Promise<ApiResponse> {
+        return this.post('/posts', postData);
+    }
+
+    async deletePost(url: string): Promise<ApiResponse> {
+        return this.request(url, { method: 'DELETE' });
     }
 
     async deleteAccount(): Promise<ApiResponse> {
         return this.delete('/profile/delete');
     }
+
+    async editPost(postId: string, postData: { title: string; content: string; theme?: string }): Promise<ApiResponse> {
+        return this.put(`/posts/${postId}`, postData);
 
     async uploadAvatar(formData: FormData): Promise<ApiResponse> {
         return this.request('/uploads/avatar', {
@@ -157,6 +169,7 @@ class Ajax {
         return this.request('/delete/cover', {
             method: 'DELETE'
         });
+
     }
 }
 

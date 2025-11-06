@@ -3,6 +3,7 @@ import { dispatcher } from '../dispatcher/dispatcher';
 
 //Интерфейс пользователя
 export interface User {
+    id: number;
     name: string;
     avatar: string;
     subtitle?: string;

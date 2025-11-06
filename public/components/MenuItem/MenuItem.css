@@ -14,8 +14,9 @@
     border: 1px solid var(--section-color); 
 }
 
-.menu-item:hover {
+.menu-item--hover {
     border: 1px solid var(--section-hover); 
+    background-color: var(--section-hover);
 }
 
 .menu-item--active {

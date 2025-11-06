@@ -1,17 +1,20 @@
-import { PostCard } from '../components/PostCard/PostCard';
+import { PostCard, PostCardProps } from '../components/PostCard/PostCard';
 import { dispatcher } from '../dispatcher/dispatcher';
-import { postsStore } from '../stores/storePosts';
+import { postsStore, Post } from '../stores/storePosts';
+import { loginStore } from '../stores/storeLogin';
 
 export class PostsView {
     private feedWrapper: HTMLElement | null = null;
     private sentinel: HTMLElement | null = null;
     private observer: IntersectionObserver | null = null;
     private virtualPostIndex: number = 0;
-    private allPosts: any[] = [];
+    private allPosts: Post[] = [];
     private boundStoreHandler: () => void;
+    private currentFilter: string = 'fresh';
 
     constructor() {
         this.boundStoreHandler = this.handleStoreChange.bind(this);
+        this.handlePostAction = this.handlePostAction.bind(this);
         this.initStoreListener();
     }
 
@@ -20,7 +23,7 @@ export class PostsView {
     }
 
     public async init(feedWrapper?: HTMLElement): Promise<void> {
-        if (feedWrapper) {
+       if (feedWrapper) {
             this.feedWrapper = feedWrapper;
         } else {
             this.feedWrapper = document.getElementById('feed-wrapper');
@@ -31,8 +34,6 @@ export class PostsView {
         }
 
         this.setupInfiniteScroll();
-       
-        dispatcher.dispatch('POSTS_LOAD_REQUEST');
     }
 
     private setupInfiniteScroll(): void {
@@ -59,33 +60,52 @@ export class PostsView {
 
     private handleStoreChange(): void {
         const state = postsStore.getState();
-        
+
+        // Сброс при смене фильтра
+        if (this.currentFilter !== state.currentFilter) {
+            this.currentFilter = state.currentFilter;
+            this.virtualPostIndex = 0;
+            
+            if (this.feedWrapper) {
+                this.feedWrapper.innerHTML = '';
+                if (this.sentinel) {
+                    this.feedWrapper.appendChild(this.sentinel);
+                }
+            }
+        }
+
         if (state.posts.length > 0) {
-            this.allPosts = state.posts;
+            this.allPosts = [...state.posts];
             this.renderNextPosts();
         }
-        
+
         if (state.error) {
             this.showError(state.error);
         }
     }
 
-    private transformPost(apiPost: any): any {
+    private transformPost(apiPost: Post): PostCardProps {
+        const authState = loginStore.getState();
+        const currentUserId = authState.user?.id; // ← теперь есть id!
+        const isOwnPost = !!currentUserId && currentUserId === apiPost.authorId;
+
         return {
+            postId: apiPost.id || '',
+            authorId: apiPost.authorId,
             user: {
-                name: apiPost.author_name || 'Аноним',
-                subtitle: 'Блог',
-                avatar: apiPost.author_avatar || '/img/LogoMain.svg',
+                name: apiPost.authorName || 'Аноним',
+                subtitle: apiPost.theme || 'Блог',
+                avatar: apiPost.authorAvatar || '/img/defaultAvatar.jpg',
                 isSubscribed: false,
-                id: apiPost.author_id
+                id: apiPost.authorId
             },
             title: apiPost.title || '',
             text: apiPost.content || '',
-            image: apiPost.image?.trim() || '',
-            tags: ['технологии', 'программирование'],
-            commentsCount: 12,
-            repostsCount: 4,
-            viewsCount: 1100
+            tags: Array.isArray(apiPost.tags) ? apiPost.tags : [],
+            commentsCount: apiPost.commentsCount || 0,
+            repostsCount: apiPost.repostsCount || 0,
+            viewsCount: apiPost.viewsCount || 0,
+            isOwnPost: isOwnPost
         };
     }
 
@@ -104,7 +124,10 @@ export class PostsView {
             const postData = this.transformPost(apiPost);
             
             try {
-                const postCard = new PostCard(postData);
+                const postCard = new PostCard({
+                    ...postData,
+                    onMenuAction: (action) => this.handlePostAction(action, apiPost.id)
+                });
                 const postElement = await postCard.render();
                 fragment.appendChild(postElement);
             } catch (error) {
@@ -139,5 +162,26 @@ export class PostsView {
         }
         this.feedWrapper = null;
         this.sentinel = null;
+    }
+
+    private handlePostAction(action: string, postId?: string): void {
+        if (!postId) return;
+
+        switch (action) {
+            case 'edit':
+                dispatcher.dispatch('POST_EDIT_REQUEST', { postId });
+                break;
+            case 'delete':
+                if (confirm('Вы уверены, что хотите удалить пост?')) {
+                    dispatcher.dispatch('POST_DELETE_REQUEST', { postId });
+                }
+                break;
+            case 'hide':
+                dispatcher.dispatch('POST_HIDE_REQUEST', { postId });
+                break;
+            case 'report':
+                dispatcher.dispatch('POST_REPORT_REQUEST', { postId });
+                break;
+        }
     }
 }

@@ -2,7 +2,7 @@
     background-color: var(--section-color);
     width: 310px;
     border-radius: 10px;
-    padding: 20px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -12,7 +12,7 @@
 .sidebar-menu__items {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 0px;
 }
 
 .sidebar-menu .menu-item--active {
@@ -21,7 +21,7 @@
 }
 
 .sidebar-menu .menu-item:hover {
-    background-color: var(--section-color);
+    background-color: var(--section-hover);
     border: 1px solid var(--section-hover);
 }
 

@@ -1,19 +1,58 @@
+/**
+ * @file Компонент шапки сайта (Header)
+ * @module components/Header
+ */
+
 import { PopUpMenu } from '../PopUpMenu/PopUpMenu';
 import { loginStore } from '../../stores/storeLogin';
 import { dispatcher } from '../../dispatcher/dispatcher';
 import { LoginFormView } from '../../views/viewLogin';
 import { router } from '../../router/router';
+import { CreatePostFormView } from '../../views/viewCreatePostForm';
 
+/**
+ * Кэшированный экземпляр скомпилированного Handlebars-шаблона для Header.
+ * Обеспечивает однократную загрузку и компиляцию шаблона.
+ * @type {Handlebars.TemplateDelegate | null}
+ */
 let headerTemplate: Handlebars.TemplateDelegate | null = null;
+
+/**
+ * Флаг, указывающий, идёт ли в данный момент загрузка шаблона.
+ * Используется для предотвращения параллельных запросов.
+ * @type {boolean}
+ */
 let isTemplateLoading: boolean = false;
+
+/**
+ * Обещание, представляющее текущую или завершённую загрузку шаблона.
+ * Позволяет множественным вызовам `getHeaderTemplate()` ожидать один и тот же результат.
+ * @type {Promise<Handlebars.TemplateDelegate> | null}
+ */
 let templateLoadPromise: Promise<Handlebars.TemplateDelegate> | null = null;
 
+/**
+ * Интерфейс, описывающий структуру данных авторизованного пользователя,
+ * используемую в шаблоне Header.
+ */
 interface User {
+    /** Имя пользователя */
     name: string;
+    /** URL аватара пользователя */
     avatar: string;
+    /** Дополнительный текст под именем (например, "Блог") */
     subtitle?: string;
 }
 
+/**
+ * Асинхронно загружает, компилирует и кэширует Handlebars-шаблон Header,
+ * а также регистрирует необходимые partial-компоненты (input, button, icon).
+ *
+ * Гарантирует, что шаблон загружается только один раз, даже при множественных вызовах.
+ *
+ * @returns {Promise<Handlebars.TemplateDelegate>} Скомпилированный шаблон Header.
+ * @throws {Error} Если не удаётся загрузить или обработать один из шаблонов.
+ */
 async function getHeaderTemplate(): Promise<Handlebars.TemplateDelegate> {
     if (headerTemplate) return headerTemplate;
     
@@ -58,21 +97,60 @@ async function getHeaderTemplate(): Promise<Handlebars.TemplateDelegate> {
     return templateLoadPromise;
 }
 
+/**
+ * Компонент шапки сайта (Header).
+ * Отображает логотип, кнопки навигации, меню пользователя и кнопку создания поста.
+ * Реагирует на изменения состояния авторизации через {@link loginStore}.
+ */
 export class Header {
+    /**
+     * Корневой DOM-элемент отрендеренного Header.
+     * @type {HTMLElement | null}
+     */
     private headerElement: HTMLElement | null = null;
+
+    /**
+     * Привязанный обработчик изменений состояния {@link loginStore}.
+     * Необходим для корректного удаления слушателя при уничтожении компонента.
+     * @type {() => void}
+     */
     private boundStoreHandler: () => void;
+
+    /**
+     * Контейнер, в который был вставлен Header при последнем рендере.
+     * Используется для повторного рендера при изменении состояния авторизации.
+     * @type {HTMLElement | null}
+     */
     private container: HTMLElement | null = null;
 
+    /**
+     * Создаёт экземпляр Header и инициализирует подписку на изменения авторизации.
+     */
     constructor() {
         this.boundStoreHandler = this.handleStoreChange.bind(this);
         this.init();
     }
 
+    /**
+     * Инициализирует компонент: подписывается на изменения в {@link loginStore}
+     * и запрашивает проверку текущего состояния авторизации.
+     * @private
+     */
     private init(): void {
         loginStore.addListener(this.boundStoreHandler);
         dispatcher.dispatch('LOGIN_CHECK_REQUEST');
     }
 
+    /**
+     * Рендерит Header и возвращает его DOM-элемент.
+     *
+     * Если передан контейнер, сохраняет его для последующих обновлений.
+     * При повторном вызове удаляет предыдущий экземпляр Header из DOM.
+     *
+     * @param {HTMLElement} [container] - Контейнер, в который будет вставлен Header.
+     * @returns {Promise<HTMLElement>} Корневой DOM-элемент Header.
+     * @throws {Error} Если шаблон не содержит валидного HTML-элемента.
+     */
     async render(container?: HTMLElement): Promise<HTMLElement> {
         if (container) {
             this.container = container;
@@ -103,6 +181,14 @@ export class Header {
         return this.headerElement;
     }
 
+    /**
+     * Настраивает обработчики пользовательских событий для элементов Header:
+     * - клик по логотипу → переход на главную страницу,
+     * - клик по аватару → открытие меню пользователя,
+     * - клик по кнопке "Написать пост" → открытие формы создания поста или формы входа,
+     * - клик по кнопке "Войти" → открытие формы входа.
+     * @private
+     */
     private setupEventHandlers(): void {
         if (!this.headerElement) return;
 
@@ -112,7 +198,6 @@ export class Header {
         if (logo) {
             logo.addEventListener('click', (e: Event) => {
                 e.preventDefault();
-                console.log('Logo clicked - navigating to home');
                 this.navigateToHome();
             });
         }
@@ -163,14 +248,15 @@ export class Header {
         const createPostButton = this.headerElement.querySelector('button[data-key="createPost"]') as HTMLButtonElement;
         if (createPostButton) {
             if (authState.isLoggedIn) { 
-                createPostButton.addEventListener('click', (e: Event) => {
+                createPostButton.addEventListener('click', async (e: Event) => {
                     e.preventDefault();
-                    console.log('Create post clicked - user is logged in');
+                    const createPostForm = new CreatePostFormView();
+                    const formElement = await createPostForm.render();
+                    document.body.appendChild(formElement);
                 });
             } else {
                 createPostButton.addEventListener('click', async (e: Event) => {
                     e.preventDefault();
-                    console.log('Create post clicked - showing login form');
                     await this.showLoginForm();
                 });
             }
@@ -180,32 +266,47 @@ export class Header {
         if (loginButton && !authState.isLoggedIn) {
             loginButton.addEventListener('click', async (e: Event) => {
                 e.preventDefault();
-                console.log('Login button clicked');
                 await this.showLoginForm();
             });
         }
     }
 
+    /**
+     * Выполняет навигацию на главную страницу с помощью роутера.
+     * @private
+     */
     private navigateToHome(): void {
-        console.log('Navigating to home page');
         router.navigate('/');
     }
 
+    /**
+     * Отображает модальное окно формы входа.
+     * @private
+     */
     private async showLoginForm(): Promise<void> {
         const loginView = new LoginFormView();
         const modal = await loginView.render();
         document.body.appendChild(modal);
     }
 
+    /**
+     * Обработчик изменений состояния {@link loginStore}.
+     * Автоматически перерисовывает Header при изменении авторизации
+     * (например, после входа или выхода из системы).
+     * @private
+     */
     private async handleStoreChange(): Promise<void>  {
-        console.log('Auth state changed - updating header');
-        
         if (this.container && this.headerElement) {
             const newHeader = await this.render();
             this.container.appendChild(newHeader);
         }
     }
 
+    /**
+     * Очищает ресурсы компонента:
+     * - удаляет слушатель изменений из {@link loginStore},
+     * - удаляет Header из DOM.
+     */
     destroy(): void {
         loginStore.removeListener(this.boundStoreHandler);
         if (this.headerElement && this.headerElement.parentNode) {

@@ -7,6 +7,7 @@
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
+    position: relative;
 }
 
 .post-card__title {
@@ -64,4 +65,25 @@
     font-size: var(--text-base);
     color: var(--accent-color);
     cursor: pointer;
+}
+
+.post-card__menu-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.post-card__menu-icon circle {
+    fill: var(--text-color);
+    transition: fill 0.2s ease;
+}
+
+.post-card__menu-button:hover .post-card__menu-icon circle,
+.post-card__menu-button:active .post-card__menu-icon circle {
+    fill: var(--accent-color);
 }

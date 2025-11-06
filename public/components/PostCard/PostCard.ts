@@ -1,6 +1,10 @@
+import { PostCardMenu } from '../PostCardMenu/PostCardMenu';
+import { dispatcher } from '../../dispatcher/dispatcher';
+
+
 let postCardTemplate: Handlebars.TemplateDelegate | null = null;
 
-interface User {
+export interface PostAuthor {
     name: string;
     subtitle: string;
     avatar: string | null;
@@ -9,32 +13,41 @@ interface User {
 }
 
 export interface PostCardProps {
-    user?: User;
+    postId: string;
+    authorId?: number;
+    user?: PostAuthor;
     title?: string;
     text?: string;
     link?: string;
     linkText?: string;
-    image?: string | null;
     tags?: string[];
     commentsCount?: number;
     repostsCount?: number;
     viewsCount?: number;
+    isOwnPost: boolean;
+    onMenuAction?: (action: string) => void;
 }
 
 async function getPostCardTemplate(): Promise<Handlebars.TemplateDelegate> {
     if (postCardTemplate) return postCardTemplate;
 
-    const userMenuRes = await fetch('/components/UserMenu/UserMenu.hbs');
-    const userMenuSource = await userMenuRes.text();
-    Handlebars.registerPartial('user-menu', Handlebars.compile(userMenuSource));
+    const partials = [
+        { name: 'user-menu', path: '/components/UserMenu/UserMenu.hbs' },
+        { name: 'tag', path: '/components/Tag/Tag.hbs' },
+        { name: 'icon', path: '/components/Icon/Icon.hbs' },
+        { name: 'menu-item', path: '/components/MenuItem/MenuItem.hbs' },
+        { name: 'post-card-menu', path: '/components/PostCardMenu/PostCardMenu.hbs' }
+    ];
 
-    const tagRes = await fetch('/components/Tag/Tag.hbs');
-    const tagSource = await tagRes.text();
-    Handlebars.registerPartial('tag', Handlebars.compile(tagSource));
-
-    const iconRes = await fetch('/components/Icon/Icon.hbs');
-    const iconSource = await iconRes.text();
-    Handlebars.registerPartial('icon', Handlebars.compile(iconSource));
+    await Promise.all(
+        partials.map(async (p) => {
+            if (!Handlebars.partials[p.name]) {
+                const res = await fetch(p.path);
+                const src = await res.text();
+                Handlebars.registerPartial(p.name, Handlebars.compile(src));
+            }
+        })
+    );
 
     const res = await fetch('/components/PostCard/PostCard.hbs');
     const source = await res.text();
@@ -43,67 +56,86 @@ async function getPostCardTemplate(): Promise<Handlebars.TemplateDelegate> {
 }
 
 export class PostCard {
-    private user: User;
+    private postId: string; // ← добавили!
+    private user: PostAuthor;
     private title: string;
     private text: string;
     private link: string;
     private linkText: string;
-    private image: string | null;
     private tags: string[];
     private commentsCount: number;
     private repostsCount: number;
     private viewsCount: number;
+    private menuId: string;
+    private isOwnPost: boolean;
+    private onMenuAction?: (action: string) => void;
 
-    constructor({
-        user = { name: 'Аккаунт', subtitle: 'тема', avatar: null, isSubscribed: false },
-        title = 'Большой заголовок поста',
-        text = 'Текст поста поменьше',
-        link = '',
-        linkText = 'ссылка',
-        image = null,
-        tags = ['тег1', 'тег2', 'тег3'],
-        commentsCount = 123,
-        repostsCount = 42,
-        viewsCount = 42
-    }: PostCardProps) {
+    constructor(props: PostCardProps) {
+        // Сохраняем postId
+        this.postId = props.postId;
+
+        const {
+            user = { name: 'Аккаунт', subtitle: 'тема', avatar: null, isSubscribed: false },
+            title = 'Большой заголовок поста',
+            text = 'Текст поста поменьше',
+            link = '',
+            linkText = 'ссылка',
+            tags = ['тег1', 'тег2', 'тег3'],
+            commentsCount = 123,
+            repostsCount = 42,
+            viewsCount = 42,
+            isOwnPost = false
+        } = props;
+
         this.user = user;
         this.title = title;
         this.text = text;
         this.link = link;
         this.linkText = linkText;
-        this.image = image;
         this.tags = tags;
         this.commentsCount = commentsCount;
         this.repostsCount = repostsCount;
         this.viewsCount = viewsCount;
+        this.menuId = `post-card-menu-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        this.isOwnPost = isOwnPost;
+        this.onMenuAction = props.onMenuAction;
     }
 
     async render(): Promise<HTMLElement> {
-        const MAX_TITLE_LENGTH = 60;
         const MAX_TEXT_LENGTH = 200;
-
-        const titleTruncated = this.title.length > MAX_TITLE_LENGTH
-            ? this.title.substring(0, MAX_TITLE_LENGTH)
-            : null;
 
         const textTruncated = this.text.length > MAX_TEXT_LENGTH
             ? this.text.substring(0, MAX_TEXT_LENGTH)
             : null;
 
+        let menuItems = [
+            { key: 'hide', text: 'Скрыть' },
+            { key: 'report', text: 'Пожаловаться' }
+        ];
+                
+        if (this.isOwnPost) {
+            menuItems = [
+                { key: 'edit', text: 'Редактировать' },
+                { key: 'delete', text: 'Удалить' },
+                ...menuItems
+            ];
+        }
+
         const template = await getPostCardTemplate();
         const html = template({
             user: this.user,
-            title: this.title,
-            titleTruncated: titleTruncated,
+            title: this.title,          
+            titleTruncated: null,
             text: this.text,
             textTruncated: textTruncated,
             link: this.link,
             linkText: this.linkText,
-            image: this.image,
             tags: this.tags,
             commentsCount: this.commentsCount,
             repostsCount: this.repostsCount,
-            viewsCount: this.viewsCount
+            viewsCount: this.viewsCount,
+            menuId: this.menuId,
+            menuItems: menuItems 
         });
 
         const div = document.createElement('div');
@@ -116,6 +148,7 @@ export class PostCard {
 
         this.setupAuthorClickHandlers(postCard);
 
+        // Обработка текста (оставляем раскрытие текста)
         const toggleTextBtn = postCard.querySelector('[data-key="toggle-text"]') as HTMLElement;
         const textPreview = postCard.querySelector('.post-card__text-preview') as HTMLElement;
         const textFull = postCard.querySelector('.post-card__text-full') as HTMLElement;
@@ -132,22 +165,42 @@ export class PostCard {
         }
 
         const titleEl = postCard.querySelector('.post-card__title') as HTMLElement;
-        if (titleTruncated && titleEl) {
-            let isTitleExpanded = false;
+        if (titleEl) {
             titleEl.style.cursor = 'pointer';
-            titleEl.title = 'Кликните, чтобы увидеть весь заголовок';
+            titleEl.title = 'Открыть пост';
 
-            titleEl.addEventListener('click', () => {
-                isTitleExpanded = !isTitleExpanded;
-                if (isTitleExpanded) {
-                    titleEl.textContent = this.title;
-                    titleEl.title = 'Кликните, чтобы свернуть';
-                } else {
-                    titleEl.innerHTML = `${this.title.substring(0, MAX_TITLE_LENGTH)}...`;
-                    titleEl.title = 'Кликните, чтобы увидеть весь заголовок';
-                }
+            titleEl.addEventListener('click', (e: Event) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const postUrl = `/post/${this.postId}`;
+                window.history.pushState({}, '', postUrl);
+                window.dispatchEvent(new PopStateEvent('popstate'));
             });
         }
+
+        // Меню действий
+        const menuButton = postCard.querySelector('.post-card__menu-button') as HTMLElement;
+        const menuPopup = postCard.querySelector('.post-card-menu') as HTMLElement;
+
+        if (menuButton && menuPopup) {
+            new PostCardMenu(menuButton, menuPopup);
+        }
+
+        const menuItemsElements = postCard.querySelectorAll('.post-card-menu [data-key]');
+        menuItemsElements.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const key = item.getAttribute('data-key');
+                if (key) {
+                    if (key === 'edit') {
+                        dispatcher.dispatch('POST_EDIT_REQUEST', { postId: this.postId });
+                    } else {
+                        this.onMenuAction?.(key);
+                    }
+                }
+            });
+        });
 
         return postCard;
     }

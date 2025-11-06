@@ -18,8 +18,6 @@
 .top-bloggers__list {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    margin-bottom: 20px;
 }
 
 .top-bloggers__item {
@@ -30,6 +28,7 @@
 .top-bloggers .user-menu {
     display: flex;
     align-items: center;
+    cursor: pointer;
 }
 
 .top-bloggers .user-menu__subtitle {

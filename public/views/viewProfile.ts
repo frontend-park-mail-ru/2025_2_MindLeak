@@ -1,18 +1,17 @@
 import { Profile } from '../components/Profile/Profile';
-import { SidebarMenu } from '../components/SidebarMenu/SidebarMenu';
 import { TopBloggers } from '../components/TopBloggers/TopBloggers';
 import { Header } from '../components/Header/Header';
 import { profileStore } from '../stores/storeProfile';
 import { dispatcher } from '../dispatcher/dispatcher';
 import { loginStore } from '../stores/storeLogin';
 import { router } from '../router/router';
+import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
 
 export class ProfileView {
     private container: HTMLElement;
     private userId?: number;
     private boundStoreHandler: () => void;
     private boundLoginStoreHandler: () => void;
-    private sidebarMenu: SidebarMenu | null = null;
     private topBloggers: TopBloggers | null = null;
     private headerInstance: Header;
     private pageWrapper: HTMLElement | null = null;
@@ -46,7 +45,6 @@ export class ProfileView {
         
         return this.pageWrapper!;
 
-        
     }
 
     private async renderFullPage(): Promise<void> {
@@ -60,21 +58,53 @@ export class ProfileView {
         headerContainer.appendChild(headerEl);
         this.pageWrapper.appendChild(headerContainer);
 
-        // Основной контент с grid-разметкой как в HomeView
+        // Основной контент
         const contentContainer = document.createElement('div');
         contentContainer.className = 'content-layout';
         
-        // Левое меню
+        // Левое меню — ДВА сайдбара
         const leftMenu = document.createElement('aside');
         leftMenu.className = 'sidebar-left';
-        this.sidebarMenu = new SidebarMenu();
-        const sidebarElement = await this.sidebarMenu.render();
-        leftMenu.appendChild(sidebarElement);
+
+        // Сохраняем ссылки на DOM-элементы сайдбаров
+        let sidebarEl1: HTMLElement | null = null;
+        let sidebarEl2: HTMLElement | null = null;
+
+        // Функция для сброса активности
+        const deactivateAll = (sidebarEl: HTMLElement) => {
+            sidebarEl.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('menu-item--active');
+            });
+        };
+
+        // левое меню
+        const sidebar1 = new SidebarMenu(
+            MAIN_MENU_ITEMS,
+            'fresh',
+            (key) => {
+                if (sidebarEl2) deactivateAll(sidebarEl2);
+                dispatcher.dispatch('POSTS_SET_FILTER', { filter: key });
+            }
+        );
+        sidebarEl1 = await sidebar1.render();
+
+        // Нижнее меню
+        const sidebar2 = new SidebarMenu(
+            SECONDARY_MENU_ITEMS,
+            '',
+            (key) => {
+                if (sidebarEl1) deactivateAll(sidebarEl1);
+                dispatcher.dispatch('POSTS_SET_FILTER', { filter: key });
+            }
+        );
+        sidebarEl2 = await sidebar2.render();
+
+        leftMenu.appendChild(sidebarEl1);
+        leftMenu.appendChild(sidebarEl2);
 
         // Центральная область с профилем
         const mainContent = document.createElement('main');
         mainContent.className = 'main-content';
-        
         const profileContent = await this.renderProfileContent();
         mainContent.appendChild(profileContent);
 
@@ -91,7 +121,7 @@ export class ProfileView {
         
         this.pageWrapper.appendChild(contentContainer);
         this.container.appendChild(this.pageWrapper);
-    }   
+    }
 
     private async renderProfileContent(): Promise<HTMLElement> {
         const state = profileStore.getState();

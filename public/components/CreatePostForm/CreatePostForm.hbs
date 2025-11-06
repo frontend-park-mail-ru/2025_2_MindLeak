@@ -1,0 +1,123 @@
+<div class="create-post-form__overlay" data-key="overlay">
+    <div class="create-post-form create-post-form--modal">
+        <button type="button" class="create-post-form__close" data-key="close-button" aria-label="Закрыть">
+            &times;
+        </button>
+        <div class="create-post-form__header">
+            {{> user-menu 
+                name=this.name 
+                subtitle=this.subtitle 
+                avatar=this.avatar 
+                isSubscribed=false
+                hideSubscribeButton=true
+            }}
+            
+            {{> menu-item
+                key="select-theme"
+                text="Выбрать тему"
+                extraClass="create-post-form__theme-button"
+                dataKey="select-theme"
+            }}
+        </div>
+
+        <form class="create-post-form__content" data-key="create-post-form">
+            {{> input 
+                type="text"
+                name="title"
+                placeholder="Введите заголовок поста..."
+                extraClass="create-post-form__title-input"
+            }}
+            
+            <div class="create-post-form__text-container">
+                <textarea 
+                    class="create-post-form__text-input" 
+                    placeholder="Введите текст поста..." 
+                    name="content"
+                    data-key="post-content"
+                ></textarea>
+
+                <div class="create-post-form__char-counter" data-key="char-counter">
+                    Осталось символов: <span class="char-counter__number">5000</span>
+                </div>
+            </div>
+
+            <div class="create-post-form__actions">
+                <div class="create-post-form__left-actions">
+                    {{> icon
+                        src="/img/icons/add-file_icon.svg"
+                        className="create-post-form__action-icon"
+                        key="add-image"
+                        title="Добавить изображение"
+                    }}
+                    {{> icon
+                        src="/img/icons/note_icon.svg"
+                        className="create-post-form__action-icon"
+                        key="change-text"
+                        title="Изменить текст"
+                    }}
+                    
+                    <!-- Блок иконок редактирования ПЕРЕМЕЩЕН ВНУТРЬ left-actions -->
+                    <div class="text-edit-icons" data-key="text-edit-icons">
+                        {{> icon
+                            src="/img/icons/fontUp.svg"
+                            className="text-edit-icon"
+                            key="fontUp"
+                            title="Увеличение шрифта"
+                        }}
+                        {{> icon
+                            src="/img/icons/fontDown.svg"
+                            className="text-edit-icon"
+                            key="fontDown"
+                            title="Уменьшение шрифта"
+                        }}
+                        {{> icon
+                            src="/img/icons/B.svg"
+                            className="text-edit-icon"
+                            key="bold"
+                            title="Жирный"
+                        }}
+                        {{> icon
+                            src="/img/icons/I.svg"
+                            className="text-edit-icon"
+                            key="italic"
+                            title="Курсив"
+                        }}
+                        {{> icon
+                            src="/img/icons/U.svg"
+                            className="text-edit-icon"
+                            key="underline"
+                            title="Подчёркнутый"
+                        }}
+                        {{> icon
+                            src="/img/icons/S.svg"
+                            className="text-edit-icon"
+                            key="crossed"
+                            title="Зачеркнутый"
+                        }}
+                        {{> icon
+                            src="/img/icons/under.svg"
+                            className="text-edit-icon"
+                            key="addLink"
+                            title="Добавить ссылку"
+                        }}
+                        {{> icon
+                            src="/img/icons/listItem.svg"
+                            className="text-edit-icon"
+                            key="addListItem"
+                            title="Добавить пункт списка"
+                        }}
+                    </div>
+                </div>
+
+                <div class="create-post-form__right-actions">
+                    {{> form-button 
+                        type="submit" 
+                        text="Опубликовать" 
+                        class="create-post-form__submit-button"
+                        key="submit-post"
+                    }}
+                </div>
+            </div>
+        </form>
+    </div>
+</div>

@@ -11,10 +11,10 @@
     <div class="header__right">
     {{#if isLoggedIn}}
         {{> button 
-            text="Написать" 
+            text="Создать" 
             key="createPost" 
             type="button" 
-            class="header__button header__button--active"
+            class="header__button createPost_button"
         }}
         
         <div class="header__user" data-key="user-menu">
@@ -27,10 +27,10 @@
         </div>
         {{else}}
             {{> button 
-                text="Написать" 
+                text="Создать" 
                 key="createPost" 
                 type="button" 
-                class="header__button " 
+                class="header__button createPost_button" 
             }}
             {{> button 
                 text="Войти" 

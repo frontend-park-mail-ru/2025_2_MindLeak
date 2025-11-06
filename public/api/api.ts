@@ -1,7 +1,6 @@
 import { ajax } from '../modules/ajax';
 import { dispatcher } from '../dispatcher/dispatcher';
 
-
 const STATUS = {
     ok: 200,
     noMoreContent: 204,
@@ -28,30 +27,40 @@ class API {
             case 'SIGNUP_REQUEST':
                 this.signUp(payload.name, payload.email, payload.password);
                 break;
-
             case 'POSTS_LOAD_REQUEST':
-                this.loadPosts();
+                this.loadPosts(payload?.filter);
                 break;
-
+            case 'POST_LOAD_REQUEST':
+                this.loadPost(payload.postId);
+                break;
             case 'PROFILE_LOAD_REQUEST':
                 this.loadProfile(payload.userId);
                 break;
             case 'PROFILE_UPDATE_DESCRIPTION_REQUEST':
                 this.updateProfileDescription(payload.description);
                 break;
-
             case 'SETTINGS_ACCOUNT_LOAD_REQUEST':
                 this.loadSettingsAccount();
                 break;
             case 'SETTINGS_ACCOUNT_UPDATE_REQUEST':
                 this.updateSettingsAccount(payload.settings);
                 break;
-
             case 'EDIT_PROFILE_UPDATE_REQUEST':
                 this.updateSettingsAccount(payload.settings);
                 break;
             case 'ACCOUNT_DELETE_REQUEST':
                 this.deleteAccount();
+            case 'CREATE_POST_REQUEST':
+                this.createPost(payload);
+                break;
+            case 'POST_DELETE_REQUEST':
+                this.deletePost(payload.postId);
+                break;
+            case 'POST_EDIT_REQUEST':
+                this.loadPostForEdit(payload.postId);
+                break;
+            case 'EDIT_POST_REQUEST':
+                this.editPost(payload.postId, payload);
                 break;
         }
     }
@@ -68,6 +77,7 @@ class API {
             case STATUS.ok:
                 if (response.data) {
                     const userData = {
+                        id: response.data.id,
                         name: response.data.name,
                         avatar: response.data.avatar || '/img/defaultAvatar.jpg',
                         subtitle: response.data.subtitle || 'Блог'
@@ -92,6 +102,7 @@ class API {
             case STATUS.ok:
                 if (response.data) {
                     const userData = {
+                        id: response.data.id,
                         name: response.data.name,
                         avatar: response.data.avatar || '/img/defaultAvatar.jpg',
                         subtitle: response.data.subtitle || 'Блог'
@@ -125,6 +136,31 @@ class API {
         }
     }
 
+    private async editPost(postId: string, payload: any): Promise<void> {
+        const response = await ajax.editPost(postId, {
+            title: payload.title,
+            content: payload.content,
+            theme: payload.theme
+        });
+
+        if (response.status === 200) {
+            this.sendAction('EDIT_POST_SUCCESS');
+            this.sendAction('POSTS_RELOAD_AFTER_EDIT');
+        } else {
+            this.sendAction('EDIT_POST_FAIL', { 
+                error: response.message || 'Не удалось сохранить пост' 
+            });
+        }
+    }
+
+    private async loadPostForEdit(postId: string): Promise<void> {
+        const response = await ajax.get(`/posts/${postId}`);
+        if (response.status === 200 && response.data) {
+            this.sendAction('POST_EDIT_LOAD_SUCCESS', { post: response.data });
+        } else {
+            this.sendAction('POST_EDIT_LOAD_FAIL', { error: 'Не удалось загрузить пост' });
+        }
+    }
 
     private async signUp(name: string, email: string, password: string): Promise<void> {
         const response = await ajax.register({ name, email, password });
@@ -151,18 +187,17 @@ class API {
         }
     }
 
-    private async loadPosts(): Promise<void> {
-        const response = await ajax.getFeed();
+    private async loadPosts(filter?: string): Promise<void> {
+        const response = await ajax.getFeed(filter);
 
         switch (response.status) {
             case STATUS.ok:
-                case STATUS.ok:
                 if (response.data) {
                     const postsWithAuthorId = response.data.map((post: any) => ({
                         ...post,
                         author_id: post.author_id || post.authorId || null
                     }));
-                    
+                        
                     this.sendAction('POSTS_LOAD_SUCCESS', { posts: postsWithAuthorId });
                 } else {
                     this.sendAction('POSTS_LOAD_FAIL', { error: 'No posts data' });
@@ -180,6 +215,31 @@ class API {
             default:
                 this.sendAction('POSTS_LOAD_FAIL', { 
                     error: response.message || 'Ошибка загрузки постов' 
+                });
+        }
+    }
+
+    private async loadPost(postId: string): Promise<void> {
+        const response = await ajax.get(`/posts/${postId}`);
+
+        switch (response.status) {
+            case STATUS.ok:
+                if (response.data) {
+                    this.sendAction('POST_LOAD_SUCCESS', { post: response.data });
+                } else {
+                    this.sendAction('POST_LOAD_FAIL', { error: 'Post data is empty' });
+                }
+                break;
+            case STATUS.notFound:
+                this.sendAction('POST_LOAD_FAIL', { error: 'Пост не найден' });
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('POST_LOAD_FAIL', { error: 'Not authenticated' });
+                break;
+            default:
+                this.sendAction('POST_LOAD_FAIL', { 
+                    error: response.message || 'Ошибка загрузки поста' 
                 });
         }
     }
@@ -351,6 +411,51 @@ class API {
         }
     }
     
+    private async createPost(payload: { title: string; content: string; theme?: string }): Promise<void> {
+    const response = await ajax.createPost(payload);
+
+    switch (response.status) {
+        case STATUS.ok:
+        case 201:
+            if (response.data) {
+                this.sendAction('CREATE_POST_SUCCESS', response.data);
+                
+                this.sendAction('POSTS_RELOAD_AFTER_CREATE');
+            } else {
+                this.sendAction('CREATE_POST_FAIL', { 
+                    error: 'Пост создан, но данные не возвращены' 
+                });
+            }
+            break;
+        case STATUS.badRequest:
+            this.sendAction('CREATE_POST_FAIL', {
+                error: response.data?.globalError || 
+                       response.data?.message || 
+                       'Некорректные данные поста'
+            });
+            break;
+        case STATUS.unauthorized:
+            this.sendAction('USER_UNAUTHORIZED');
+            this.sendAction('CREATE_POST_FAIL', { 
+                error: 'Требуется авторизация для создания постов' 
+            });
+            break;
+        default:
+            this.sendAction('CREATE_POST_FAIL', {
+                error: response.message || 'Не удалось создать пост'
+            });
+        }
+    }
+
+    private async deletePost(postId: string): Promise<void> {
+        const response = await ajax.deletePost(`/posts/${postId}`);
+        if (response.status === 200) {
+            this.sendAction('POST_DELETE_SUCCESS', { postId });
+            this.sendAction('POSTS_RELOAD_AFTER_DELETE');
+        } else {
+            this.sendAction('POST_DELETE_FAIL', { error: 'Не удалось удалить пост' });
+        }
+    }
 }
 
 // cозд и экспорт единственный экземпляр

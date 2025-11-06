@@ -1,7 +1,8 @@
 import { SettingsNotifications } from '../components/SettingsNotifications/SettingsNotifications';
-import { SidebarMenu } from '../components/SidebarMenu/SidebarMenu';
 import { TopBloggers } from '../components/TopBloggers/TopBloggers';
 import { Header } from '../components/Header/Header';
+import { dispatcher } from '../dispatcher/dispatcher';
+import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
 
 export class SettingsNotificationsView {
     private container: HTMLElement;
@@ -35,12 +36,52 @@ export class SettingsNotificationsView {
         const contentContainer = document.createElement('div');
         contentContainer.className = 'content-layout';
         
-        // Левое меню
         const leftMenu = document.createElement('aside');
         leftMenu.className = 'sidebar-left';
-        this.sidebarMenu = new SidebarMenu();
-        const sidebarElement = await this.sidebarMenu.render();
-        leftMenu.appendChild(sidebarElement);
+
+        // Сохраняем ссылки на DOM-элементы сайдбаров
+        let sidebarEl1: HTMLElement | null = null;
+        let sidebarEl2: HTMLElement | null = null;
+
+        // Функция для сброса активности в сайдбаре
+        const deactivateAll = (sidebarEl: HTMLElement) => {
+            sidebarEl.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('menu-item--active');
+            });
+        };
+
+        // левое меню
+        const sidebar1 = new SidebarMenu(
+            MAIN_MENU_ITEMS,
+            'fresh',
+            (key) => {
+            if (sidebarEl2) deactivateAll(sidebarEl2);
+            
+            const newUrl = key === 'fresh' ? '/feed' : `/feed?filter=${encodeURIComponent(key)}`;
+            window.history.pushState({}, '', newUrl);
+            
+            window.dispatchEvent(new PopStateEvent('popstate'));
+            }
+        );
+        sidebarEl1 = await sidebar1.render();
+
+        // Нижнее меню
+        const sidebar2 = new SidebarMenu(
+            SECONDARY_MENU_ITEMS,
+            '',
+            (key) => {
+            if (sidebarEl1) deactivateAll(sidebarEl2);
+            
+            const newUrl = key === '' ? '/feed' : `/feed?filter=${encodeURIComponent(key)}`;
+            window.history.pushState({}, '', newUrl);
+            
+            window.dispatchEvent(new PopStateEvent('popstate'));
+            }
+        );
+        sidebarEl2 = await sidebar2.render();
+
+        leftMenu.appendChild(sidebarEl1);
+        leftMenu.appendChild(sidebarEl2);
 
         // Центральная область
         const mainContent = document.createElement('main');

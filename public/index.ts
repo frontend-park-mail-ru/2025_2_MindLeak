@@ -5,6 +5,8 @@ import { SettingsView } from './views/viewSettings';
 import { SettingsAccountView } from './views/viewSettingsAccount';
 import { SettingsNotificationsView } from './views/viewSettingsNotifications';
 import { SettingsPrivacyView } from './views/viewSettingsPrivacy';
+import { PostView } from './views/viewPost';
+
 
 async function initApp(): Promise<void> {
     router.addRoute('/', HomeView, 'Mindleak - Главная');
@@ -16,6 +18,7 @@ async function initApp(): Promise<void> {
     router.addRoute('/settings/account', SettingsAccountView, 'Mindleak - Учетная запись');
     router.addRoute('/settings/notifications', SettingsNotificationsView, 'Mindleak - Уведомления');
     router.addRoute('/settings/privacy', SettingsPrivacyView, 'Mindleak - Конфиденциальность');
+    router.addRoute('/post/:id', PostView, 'Mindleak - Пост');
 
     router.init();
     console.log('App initialized with routing');

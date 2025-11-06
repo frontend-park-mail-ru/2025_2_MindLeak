@@ -1,7 +1,8 @@
-<input 
-    type="{{type}}" 
-    placeholder="{{placeholder}}" 
-    name="{{name}}" 
-    {{#if value}}value="{{value}}"{{/if}}
-    class="form__input"
-/>
+<input
+  type="{{type}}"
+  name="{{name}}"
+  {{#if value}}value="{{value}}"{{/if}}
+  placeholder="{{placeholder}}"
+  class="form__input {{#if extraClass}}{{extraClass}}{{/if}}"
+  {{#if dataKey}}data-key="{{dataKey}}"{{/if}}
+>

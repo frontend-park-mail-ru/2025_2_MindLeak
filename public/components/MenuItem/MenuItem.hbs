@@ -1,4 +1,6 @@
-<button class="menu-item" data-key="{{this.key}}">
-    <div class="menu-item__icon" style="background-image: url('{{this.icon}}');"></div>
+<button class="menu-item {{#if extraClass}}{{extraClass}}{{/if}}" data-key="{{this.key}}">
+    {{#if icon}}
+        <div class="menu-item__icon" style="background-image: url('{{this.icon}}');"></div>
+    {{/if}}
     <span class="menu-item__text">{{this.text}}</span>
 </button>

@@ -4,6 +4,8 @@ import { Header } from '../components/Header/Header';
 import { router } from '../router/router';
 import { dispatcher } from '../dispatcher/dispatcher';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
+import { loginStore } from '../stores/storeLogin';
+
 
 export class SettingsView {
     private container: HTMLElement;
@@ -11,13 +13,16 @@ export class SettingsView {
     private topBloggers: TopBloggers | null = null;
     private headerInstance: Header;
     private pageWrapper: HTMLElement | null = null;
+    private boundLoginStoreHandler: () => void;
 
     constructor(container: HTMLElement) {
         this.container = container;
         this.headerInstance = new Header();
+        this.boundLoginStoreHandler = this.handleLoginStoreChange.bind(this);
     }
 
     async render(): Promise<HTMLElement> {
+        loginStore.addListener(this.boundLoginStoreHandler);
         await this.renderFullPage();
         return this.pageWrapper!;
     }
@@ -127,7 +132,16 @@ export class SettingsView {
         });
     }
 
+    private handleLoginStoreChange(): void {
+        const loginState = loginStore.getState();
+        
+        if (!loginState.isLoggedIn) {
+            router.navigate('/');
+        }
+    }
+
     destroy(): void {
+        loginStore.removeListener(this.boundLoginStoreHandler);
         this.headerInstance.destroy();
     }
 }

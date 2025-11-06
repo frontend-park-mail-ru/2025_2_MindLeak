@@ -69,6 +69,11 @@
     margin: 0 0 10px 0;
     line-height: 1.5;
     font-weight: var(--font-weight-regular);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+    text-align: left;
 }
 
 .profile__description-placeholder {
@@ -76,6 +81,9 @@
     margin: 0 0 10px 0;
     cursor: pointer;
     font-style: italic;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .profile__edit-btn {
@@ -200,4 +208,29 @@
 
 .content-layout .profile__posts {
     width: 100%;
+}
+
+.profile__description-input {
+    width: 100%;
+    max-width: 500px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-size: var(--text-base);
+    font-family: inherit;
+    margin-bottom: 8px;
+}
+
+.profile__description-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.profile__description-hint {
+    font-size: var(--text-xs);
+    color: var(--text-lighter);
+    font-style: italic;
 }

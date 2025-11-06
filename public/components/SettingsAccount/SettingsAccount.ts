@@ -11,14 +11,27 @@ interface SettingsAccountProps {
         sex: string;
         date_of_birth: string;
         age?: number;
+        avatar_url?: string;
+        cover_url?: string;
     };
+    isLoading?: boolean;
+    error?: string | null;
 }
 
 async function getSettingsAccountTemplate(): Promise<Handlebars.TemplateDelegate> {
     if (settingsAccountTemplate) return settingsAccountTemplate;
 
+    const inputRes = await fetch('/components/Input/Input.hbs');
+    const inputSource = await inputRes.text();
+    Handlebars.registerPartial('input', Handlebars.compile(inputSource));
+
     const res = await fetch('/components/SettingsAccount/SettingsAccount.hbs');
     const source = await res.text();
+    
+    Handlebars.registerHelper('eq', function(a, b) {
+        return a === b;
+    });
+
     settingsAccountTemplate = Handlebars.compile(source);
     return settingsAccountTemplate;
 }
@@ -35,7 +48,14 @@ export class SettingsAccount {
         
         const formattedData = this.formatUserData(this.props.userData);
         
-        const html = template(formattedData);
+        const templateData = {
+            ...formattedData,
+            userData: this.props.userData,
+            isLoading: this.props.isLoading || false,
+            error: this.props.error || null
+        };
+        
+        const html = template(templateData);
 
         const div = document.createElement('div');
         div.innerHTML = html.trim();
@@ -45,22 +65,20 @@ export class SettingsAccount {
             throw new Error('SettingsAccount element not found');
         }
 
-        this.attachEditButtonListener(settingsAccountElement);
-        this.attachDeleteButtonListener(settingsAccountElement);
         return settingsAccountElement;
     }
 
     private formatUserData(userData?: SettingsAccountProps['userData']) {
         if (!userData) {
             return {
-                name: 'Не указано',
-                phone: 'Не указано',
+                name: '',
+                phone: '',
                 email: 'Не указано',
                 created_at: 'Не указано',
                 country: 'Россия',
                 language: 'Русский',
-                sex: 'Не указано',
-                date_of_birth: 'Не указано',
+                sex: 'other',
+                date_of_birth: '',
                 age: 'Не указано'
             };
         }
@@ -79,15 +97,11 @@ export class SettingsAccount {
             });
         }
 
-        let formattedBirthDate = 'Не указано';
+        let formattedBirthDate = userData.date_of_birth || '';
         let age = 'Не указано';
         if (userData.date_of_birth) {
             const birthDate = new Date(userData.date_of_birth);
-            formattedBirthDate = birthDate.toLocaleDateString('ru-RU', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit'
-            });
+            formattedBirthDate = birthDate.toISOString().split('T')[0]; // Формат для input[type="date"]
             
             const today = new Date();
             let calculatedAge = today.getFullYear() - birthDate.getFullYear();
@@ -99,13 +113,13 @@ export class SettingsAccount {
         }
 
         let formattedSex = userData.sex;
-        if (userData.sex === 'male') formattedSex = 'Мужской';
-        if (userData.sex === 'female') formattedSex = 'Женский';
-        if (userData.sex === 'other') formattedSex = 'Другой';
+        if (userData.sex === 'male') formattedSex = 'male';
+        if (userData.sex === 'female') formattedSex = 'female';
+        if (userData.sex === 'other') formattedSex = 'other';
 
         return {
-            name: userData.name || 'Не указано',
-            phone: userData.phone || 'Не указано',
+            name: userData.name || '',
+            phone: userData.phone || '',
             email: userData.email || 'Не указано',
             created_at: formattedDate,
             country: userData.country || 'Россия',
@@ -115,25 +129,4 @@ export class SettingsAccount {
             age: age
         };
     }
-
-    private attachEditButtonListener(container: HTMLElement): void {
-        const editButton = container.querySelector('.settings-account__edit-button') as HTMLButtonElement;
-        if (editButton) {
-            editButton.addEventListener('click', () => {
-                const event = new CustomEvent('editAccountRequest');
-                container.dispatchEvent(event);
-            });
-        }
-    }
-
-    private attachDeleteButtonListener(container: HTMLElement): void {
-        const deleteButton = container.querySelector('.settings-account__delete-button') as HTMLButtonElement;
-        if (deleteButton) {
-            deleteButton.addEventListener('click', () => {
-                const event = new CustomEvent('deleteAccountRequest');
-                container.dispatchEvent(event);
-            });
-        }
-    }
-
 }

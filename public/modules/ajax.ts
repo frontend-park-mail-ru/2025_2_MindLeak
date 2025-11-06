@@ -8,17 +8,50 @@ export interface ApiResponse {
 }
 
 class Ajax {
+    /*
+    todo РАССКОМИТИТЬ ДЛЯ ДЕПЛОЯ
+    private getCookie(name: string): string | null {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()!.split(";").shift() || null;
+        return null;
+    }*/
+
     private async request(url: string, options: RequestInit = {}): Promise<ApiResponse> {
         try {
             const fullUrl = `${BASE_URL}${url}`;
             console.log(`AJAX Making request to: ${fullUrl}`, options);
 
+            /*
+            todo РАССКОМИТИТЬ ДЛЯ ДЕПЛОЯ
+            // Получаем CSRF токен из куки
+            const csrfToken = this.getCookie('csrf_token');
+            console.log('CSRF Token from cookie:', csrfToken);
+            
+            // Базовые заголовки*/
+            const headers: Record<string, string> = {};
+            
+            if (!(options.body instanceof FormData)) {
+                headers['Content-Type'] = 'application/json';
+            }
+            
+            /*
+            todo РАССКОМИТИТЬ ДЛЯ ДЕПЛОЯ
+            // Добавляем CSRF токен для всех не-GET запросов
+            if (options.method && options.method !== 'GET' && options.method !== 'HEAD') {
+                if (csrfToken) {
+                    headers['X-CSRF-Token'] = csrfToken;
+                    console.log('Adding CSRF token to headers');
+                }
+                console.warn('No CSRF token found for non-GET request');
+            }*/
+
             const response = await fetch(fullUrl, {
                 headers: {
-                    'Content-Type': 'application/json',
+                    ...headers,
                     ...options.headers,
                 },
-                credentials: 'include', //куки
+                credentials: 'include', // куки
                 ...options
             });
 
@@ -111,6 +144,32 @@ class Ajax {
 
     async editPost(postId: string, postData: { title: string; content: string; theme?: string }): Promise<ApiResponse> {
         return this.put(`/posts/${postId}`, postData);
+
+    async uploadAvatar(formData: FormData): Promise<ApiResponse> {
+        return this.request('/uploads/avatar', {
+            method: 'POST',
+            body: formData
+        });
+    }
+
+    async deleteAvatar(): Promise<ApiResponse> {
+        return this.request('/delete/avatar', {
+            method: 'DELETE'
+        });
+    }
+
+    async uploadCover(formData: FormData): Promise<ApiResponse> {
+        return this.request('/uploads/cover', {
+            method: 'POST',
+            body: formData
+        });
+    }
+
+    async deleteCover(): Promise<ApiResponse> {
+        return this.request('/delete/cover', {
+            method: 'DELETE'
+        });
+
     }
 }
 

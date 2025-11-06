@@ -2,8 +2,6 @@ import { SettingsAccount } from '../components/SettingsAccount/SettingsAccount';
 import { TopBloggers } from '../components/TopBloggers/TopBloggers';
 import { Header } from '../components/Header/Header';
 import { settingsAccountStore, SettingsAccountState } from '../stores/storeSettingsAccount';
-import { editProfileStore } from '../stores/storeProfileEdit';
-import { EditProfileView } from '../views/viewProfileEdit';
 import { DeleteAccountModal } from '../components/DeleteAccount/DeleteAccount';
 import { loginStore } from '../stores/storeLogin';
 import { router } from '../router/router';
@@ -13,32 +11,30 @@ import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../component
 export class SettingsAccountView {
     private container: HTMLElement;
     private boundStoreHandler: () => void;
-    private boundEditStoreHandler: () => void;
     private sidebarMenu: SidebarMenu | null = null;
     private topBloggers: TopBloggers | null = null;
     private headerInstance: Header;
     private pageWrapper: HTMLElement | null = null;
-    private editProfileView: EditProfileView | null = null;
     private deleteModal: DeleteAccountModal | null = null;
     private boundLoginStoreHandler: () => void;
+    private boundFormSubmitHandler: (e: SubmitEvent) => void;
 
     constructor(container: HTMLElement) {
         this.container = container;
         this.headerInstance = new Header();
         this.boundStoreHandler = this.handleStoreChange.bind(this);
-        this.boundEditStoreHandler = this.handleEditStoreChange.bind(this);
         this.boundLoginStoreHandler = this.handleLoginStoreChange.bind(this);
+        this.boundFormSubmitHandler = this.handleFormSubmit.bind(this);
     }
 
     async render(): Promise<HTMLElement> {
+        await this.renderFullPage();
+        
         settingsAccountStore.addListener(this.boundStoreHandler);
-        editProfileStore.addListener(this.boundEditStoreHandler);
         loginStore.addListener(this.boundLoginStoreHandler);
         
-        //загруж данные настроек учетной записи
         dispatcher.dispatch('SETTINGS_ACCOUNT_LOAD_REQUEST');
         
-        await this.renderFullPage();
         return this.pageWrapper!;
     }
 
@@ -47,13 +43,11 @@ export class SettingsAccountView {
 
         this.pageWrapper = document.createElement('div');
         
-        // Header
         const headerContainer = document.createElement('header');
         const headerEl = await this.headerInstance.render(headerContainer);
         headerContainer.appendChild(headerEl);
         this.pageWrapper.appendChild(headerContainer);
 
-        // Основной контент
         const contentContainer = document.createElement('div');
         contentContainer.className = 'content-layout';
         
@@ -104,14 +98,12 @@ export class SettingsAccountView {
         leftMenu.appendChild(sidebarEl1);
         leftMenu.appendChild(sidebarEl2);
 
-        // Центральная область с настройками учетной записи
         const mainContent = document.createElement('main');
         mainContent.className = 'main-content';
         
         const accountContent = await this.renderAccountContent();
         mainContent.appendChild(accountContent);
 
-        // Правое меню
         const rightMenu = document.createElement('aside');
         rightMenu.className = 'sidebar-right';
         this.topBloggers = new TopBloggers();
@@ -124,34 +116,278 @@ export class SettingsAccountView {
         
         this.pageWrapper.appendChild(contentContainer);
         this.container.appendChild(this.pageWrapper);
-
-        // Проверяем, нужно ли открыть форму редактирования
-        this.checkEditForm();
     }
 
     private async renderAccountContent(): Promise<HTMLElement> {
         const currentState = settingsAccountStore.getState();
-        console.log('Current account state:', currentState);
         
         const settingsAccountComponent = new SettingsAccount({
-            userData: currentState.settings
+            userData: currentState.settings,
+            isLoading: currentState.isUpdating,
+            error: currentState.error
         });
+        
         const element = await settingsAccountComponent.render();
-        this.attachEditButtonListener(element);
-        this.attachDeleteButtonListener(element);
+        this.attachEventListeners(element);
         return element;
     }
 
-    private attachEditButtonListener(container: HTMLElement): void {
-        container.addEventListener('editAccountRequest', () => {
-            this.handleEditButtonClick();
+    private attachEventListeners(container: HTMLElement): void {
+        const form = container.querySelector('.settings-account__form') as HTMLFormElement;
+        if (form) {
+            form.addEventListener('submit', this.boundFormSubmitHandler);
+        }
+
+        const deleteButton = container.querySelector('.settings-account__delete-button') as HTMLButtonElement;
+        if (deleteButton) {
+            deleteButton.addEventListener('click', () => {
+                this.openDeleteModal();
+            });
+        }
+
+        const changeAvatarBtn = container.querySelector('#change-avatar-btn') as HTMLButtonElement;
+        const deleteAvatarBtn = container.querySelector('#delete-avatar-btn') as HTMLButtonElement;
+        const avatarUpload = container.querySelector('#avatar-upload') as HTMLInputElement;
+
+        if (changeAvatarBtn && avatarUpload) {
+            changeAvatarBtn.addEventListener('click', () => {
+                avatarUpload.click();
+            });
+        }
+
+        if (avatarUpload) {
+            avatarUpload.addEventListener('change', (e) => {
+                this.handleAvatarUpload(e);
+            });
+        }
+
+        if (deleteAvatarBtn) {
+            deleteAvatarBtn.addEventListener('click', () => {
+                this.handleAvatarDelete();
+            });
+        }
+
+        const changeCoverBtn = container.querySelector('#change-cover-btn') as HTMLButtonElement;
+        const deleteCoverBtn = container.querySelector('#delete-cover-btn') as HTMLButtonElement;
+        const coverUpload = container.querySelector('#cover-upload') as HTMLInputElement;
+
+        if (changeCoverBtn && coverUpload) {
+            changeCoverBtn.addEventListener('click', () => {
+                coverUpload.click();
+            });
+        }
+
+        if (coverUpload) {
+            coverUpload.addEventListener('change', (e) => {
+                this.handleCoverUpload(e);
+            });
+        }
+
+        if (deleteCoverBtn) {
+            deleteCoverBtn.addEventListener('click', () => {
+                this.handleCoverDelete();
+            });
+        }
+    }
+
+    private async handleAvatarUpload(e: Event): Promise<void> {
+        const input = e.target as HTMLInputElement;
+        if (!input.files || input.files.length === 0) return;
+
+        const file = input.files[0];
+        
+        this.clearAvatarError();
+
+        if (!file.type.startsWith('image/jpeg')) {
+            this.showAvatarError('Пожалуйста, выберите файл в формате JPEG (JPG)');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            this.showAvatarError('Размер файла не должен превышать 5MB');
+            return;
+        }
+
+        dispatcher.dispatch('AVATAR_UPLOAD_REQUEST', { file });
+
+        input.value = '';
+    }
+
+    private handleAvatarDelete(): void {
+        this.clearAvatarError();
+        dispatcher.dispatch('AVATAR_DELETE_REQUEST');
+    }
+
+    private async handleCoverUpload(e: Event): Promise<void> {
+        const input = e.target as HTMLInputElement;
+        if (!input.files || input.files.length === 0) return;
+
+        const file = input.files[0];
+        
+        this.clearCoverError();
+
+        if (!file.type.startsWith('image/jpeg')) {
+            this.showCoverError('Пожалуйста, выберите файл в формате JPEG (JPG)');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            this.showCoverError('Размер файла не должен превышать 10MB');
+            return;
+        }
+
+        dispatcher.dispatch('COVER_UPLOAD_REQUEST', { file });
+
+        input.value = '';
+    }
+
+    private handleCoverDelete(): void {
+        this.clearCoverError();
+        dispatcher.dispatch('COVER_DELETE_REQUEST');
+    }
+
+    private showAvatarError(message: string): void {
+        this.clearAvatarError();
+        
+        const avatarField = this.pageWrapper?.querySelector('.settings-account__field:nth-child(1)');
+        if (avatarField) {
+            const errorEl = document.createElement('div');
+            errorEl.className = 'field-error';
+            errorEl.textContent = message;
+            avatarField.appendChild(errorEl);
+        }
+    }
+
+    private showCoverError(message: string): void {
+        this.clearCoverError();
+        
+        const coverField = this.pageWrapper?.querySelector('.settings-account__field:nth-child(2)');
+        if (coverField) {
+            const errorEl = document.createElement('div');
+            errorEl.className = 'field-error';
+            errorEl.textContent = message;
+            coverField.appendChild(errorEl);
+        }
+    }
+
+    private clearAvatarError(): void {
+        const avatarField = this.pageWrapper?.querySelector('.settings-account__field:nth-child(1)');
+        if (avatarField) {
+            const existingError = avatarField.querySelector('.field-error');
+            if (existingError) {
+                existingError.remove();
+            }
+        }
+    }
+
+    private clearCoverError(): void {
+        const coverField = this.pageWrapper?.querySelector('.settings-account__field:nth-child(2)');
+        if (coverField) {
+            const existingError = coverField.querySelector('.field-error');
+            if (existingError) {
+                existingError.remove();
+            }
+        }
+    }
+
+    private async handleFormSubmit(e: SubmitEvent): Promise<void> {
+        e.preventDefault();
+        
+        if (!this.pageWrapper) return;
+
+        const form = this.pageWrapper.querySelector('.settings-account__form') as HTMLFormElement;
+        if (!form) return;
+
+        const formData = new FormData(form);
+        const currentState = settingsAccountStore.getState();
+
+        const updatedData: any = {};
+
+        const name = (formData.get('name') as string)?.trim();
+        if (name) updatedData.name = name;
+
+        const password = (formData.get('password') as string)?.trim();
+        if (password) {
+            updatedData.password = password;
+        }
+
+        const phone = (formData.get('phone') as string)?.trim();
+        const country = (formData.get('country') as string)?.trim();
+        const language = formData.get('language') as string;
+        const sex = formData.get('sex') as string;
+        const date_of_birth = formData.get('date_of_birth') as string;
+
+        if (phone !== undefined) updatedData.phone = phone || '';
+        if (country !== undefined) updatedData.country = country || '';
+        if (language !== undefined) updatedData.language = language;
+        if (sex !== undefined) updatedData.sex = sex;
+        if (date_of_birth !== undefined) updatedData.date_of_birth = date_of_birth || '';
+
+        console.log('Updating profile with:', updatedData);
+
+        const errors = this.validateForm(updatedData);
+        if (errors.length > 0) {
+            this.showFieldErrors(form, errors);
+            return;
+        }
+
+        dispatcher.dispatch('SETTINGS_ACCOUNT_UPDATE_REQUEST', { 
+            settings: updatedData,
+            currentSettings: currentState.settings
         });
     }
 
-    private attachDeleteButtonListener(container: HTMLElement): void {
-        container.addEventListener('deleteAccountRequest', () => {
-            this.openDeleteModal();
+    private validateForm(data: any): Array<{ field: string; message: string }> {
+        const errors: Array<{ field: string; message: string }> = [];
+
+        if (!data.name || data.name.trim().length < 4) {
+            errors.push({ field: 'name', message: 'Имя должно быть не менее 4 символов' });
+        }
+
+        if (data.password && data.password.length < 4) {
+            errors.push({ field: 'password', message: 'Пароль должен быть не менее 4 символов' });
+        }
+
+        if (data.phone && !/^\+?[\d\s\-()]+$/.test(data.phone)) {
+            errors.push({ field: 'phone', message: 'Некорректный формат телефона' });
+        }
+
+        if (data.date_of_birth) {
+            const birthDate = new Date(data.date_of_birth);
+            const today = new Date();
+            if (birthDate > today) {
+                errors.push({ field: 'date_of_birth', message: 'Дата рождения не может быть в будущем' });
+            }
+        }
+
+        return errors;
+    }
+
+    private showFieldErrors(form: HTMLFormElement, errors: Array<{ field: string; message: string }>): void {
+        this.clearErrors(form);
+        
+        errors.forEach(({ field, message }) => {
+            const input = form.querySelector(`[name="${field}"]`) as HTMLInputElement;
+            if (!input) return;
+
+            input.classList.add('error');
+
+            const errorEl = document.createElement('div');
+            errorEl.className = 'field-error';
+            errorEl.textContent = message;
+
+            const wrapper = input.closest('.settings-account__field');
+            if (wrapper) {
+                wrapper.appendChild(errorEl);
+            }
         });
+    }
+
+    private clearErrors(form: HTMLFormElement): void {
+        form.querySelectorAll('.form__input').forEach((input: Element) => {
+            input.classList.remove('error');
+        });
+        form.querySelectorAll('.field-error, .global-error').forEach((el: Element) => el.remove());
     }
 
     private handleLoginStoreChange(): void {
@@ -163,38 +399,12 @@ export class SettingsAccountView {
         }
     }
 
-    private handleEditButtonClick(): void {
-        const accountState = settingsAccountStore.getState();
-        console.log('Edit button clicked, account state:', accountState);
-        
-        if (accountState.settings) {
-            const initialData = {
-                name: accountState.settings.name || '',
-                phone: accountState.settings.phone || '',
-                email: accountState.settings.email || '',
-                country: accountState.settings.country || '',
-                language: accountState.settings.language || 'Русский',
-                sex: accountState.settings.sex || 'other',
-                date_of_birth: accountState.settings.date_of_birth || '',
-            };
-            
-            console.log('Dispatching EDIT_PROFILE_OPEN with data:', initialData);
-            
-            dispatcher.dispatch('EDIT_PROFILE_OPEN', { 
-                initialData: initialData 
-            });
-        } else {
-            console.error('No settings data available when opening edit form');
-        }
-    }
-
     private async openDeleteModal(): Promise<void> {
         if (this.deleteModal) return;
 
         this.deleteModal = new DeleteAccountModal();
         const modalElement = await this.deleteModal.render();
         
-        //удаление
         modalElement.addEventListener('accountDeleteRequest', () => {
             this.handleAccountDelete();
         });
@@ -214,42 +424,14 @@ export class SettingsAccountView {
         }
     }
 
-    private async checkEditForm(): Promise<void> {
-        const editState = editProfileStore.getState();
-        console.log('Checking edit form, editState:', editState);
-        
-        if (editState.isOpen && !this.editProfileView) {
-            console.log('Creating EditProfileView with formData:', editState.formData);
-            this.editProfileView = new EditProfileView();
-            const modal = await this.editProfileView.render();
-            this.pageWrapper?.appendChild(modal);
-        }
-    }
-
     private handleStoreChange(): void {
         const state = settingsAccountStore.getState();
-        console.log('Settings account store changed:', state);
         
         if (state.error) {
             console.error('Settings account error:', state.error);
         }
         
-        // перерисовываем компонент
-        if (state.settings && !state.isLoading) {
-            this.updateAccountContent();
-        }
-    }
-
-    private handleEditStoreChange(): void {
-        const editState = editProfileStore.getState();
-        console.log('Edit profile store changed:', editState);
-        
-        if (editState.isOpen) {
-            this.checkEditForm();
-        } else if (this.editProfileView) {
-            this.editProfileView.destroy();
-            this.editProfileView = null;
-        }
+        this.updateAccountContent();
     }
 
     private async updateAccountContent(): Promise<void> {
@@ -257,7 +439,6 @@ export class SettingsAccountView {
         
         const mainContent = this.pageWrapper.querySelector('.main-content');
         if (mainContent) {
-
             const oldContent = mainContent.querySelector('.settings-account');
             if (oldContent) {
                 oldContent.remove();
@@ -265,15 +446,21 @@ export class SettingsAccountView {
             
             const newContent = await this.renderAccountContent();
             mainContent.appendChild(newContent);
+            console.log('SettingsAccount content UPDATED');
         }
     }
 
     destroy(): void {
         settingsAccountStore.removeListener(this.boundStoreHandler);
-        editProfileStore.removeListener(this.boundEditStoreHandler);
-        if (this.editProfileView) {
-            this.editProfileView.destroy();
+        loginStore.removeListener(this.boundLoginStoreHandler);
+        
+        if (this.pageWrapper) {
+            const form = this.pageWrapper.querySelector('.settings-account__form') as HTMLFormElement;
+            if (form) {
+                form.removeEventListener('submit', this.boundFormSubmitHandler);
+            }
         }
+        
         if (this.deleteModal) {
             this.deleteModal.destroy();
         }

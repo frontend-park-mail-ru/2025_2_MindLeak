@@ -34,6 +34,8 @@ export class ProfileView {
     }
 
     async render(): Promise<HTMLElement> {
+        await this.renderFullPage();
+        
         profileStore.addListener(this.boundStoreHandler);
         loginStore.addListener(this.boundLoginStoreHandler);
         
@@ -41,8 +43,6 @@ export class ProfileView {
             userId: this.userId 
         });
 
-        await this.renderFullPage();
-        
         return this.pageWrapper!;
 
     }
@@ -131,7 +131,8 @@ export class ProfileView {
             posts: state.posts,
             activeTab: state.activeTab,
             isLoading: state.isLoading,
-            error: state.error
+            error: state.error,
+            isEditingDescription: state.isEditingDescription
         });
 
         const profileElement = await profileComponent.render();
@@ -141,11 +142,13 @@ export class ProfileView {
     }
 
     private handleStoreChange(): void {
+        console.log('Store changed:', profileStore.getState());
         const mainContent = this.container.querySelector('.main-content');
         if (mainContent) {
             this.renderProfileContent().then(newContent => {
                 mainContent.innerHTML = '';
                 mainContent.appendChild(newContent);
+                console.log('Profile content UPDATED');
             });
         }
     }
@@ -153,7 +156,6 @@ export class ProfileView {
     private handleLoginStoreChange(): void {
         const loginState = loginStore.getState();
         
-        // Если пользователь вышел - перенаправляем на главную
         if (!loginState.isLoggedIn) {
             router.navigate('/');
         }
@@ -170,32 +172,51 @@ export class ProfileView {
             });
         });
 
+        this.attachDescriptionEventListeners(container);
+    }
+
+    private attachDescriptionEventListeners(container: HTMLElement): void {
+
         const editButton = container.querySelector('.profile__edit-btn');
         if (editButton) {
             editButton.addEventListener('click', () => {
-                this.editDescription();
+                this.startEditingDescription();
             });
         }
 
         const placeholder = container.querySelector('.profile__description-placeholder');
         if (placeholder) {
             placeholder.addEventListener('click', () => {
-                this.editDescription();
+                this.startEditingDescription();
             });
+        }
+
+        const descriptionInput = container.querySelector('.form__input[name="description"]');
+        if (descriptionInput) {
+            descriptionInput.addEventListener('keydown', (e: Event) => {
+                const keyboardEvent = e as KeyboardEvent;
+                if (keyboardEvent.key === 'Enter') {
+                    this.saveDescription((keyboardEvent.target as HTMLInputElement).value);
+                }
+            });
+
+            descriptionInput.addEventListener('blur', (e: Event) => {
+                this.saveDescription((e.target as HTMLInputElement).value);
+            });
+
+            (descriptionInput as HTMLInputElement).focus();
+            (descriptionInput as HTMLInputElement).select();
         }
     }
 
-    private editDescription(): void {
-        const state = profileStore.getState();
-        if (!state.profile) return;
+    private startEditingDescription(): void {
+        dispatcher.dispatch('PROFILE_START_EDIT_DESCRIPTION');
+    }
 
-        const newDescription = prompt('Введите описание профиля:', state.profile.description || '');
-        if (newDescription !== null) {
-            // Сохраняем на сервер
-            dispatcher.dispatch('PROFILE_UPDATE_DESCRIPTION_REQUEST', {
-                description: newDescription
-            });
-        }
+    private saveDescription(description: string): void {
+        dispatcher.dispatch('PROFILE_UPDATE_DESCRIPTION_REQUEST', {
+            description: description.trim()
+        });
     }
 
     destroy(): void {

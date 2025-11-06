@@ -62,6 +62,19 @@ class API {
             case 'EDIT_POST_REQUEST':
                 this.editPost(payload.postId, payload);
                 break;
+
+            case 'AVATAR_UPLOAD_REQUEST':
+                this.uploadAvatar(payload.file);
+                break;
+            case 'AVATAR_DELETE_REQUEST':
+                this.deleteAvatar();
+                break;
+            case 'COVER_UPLOAD_REQUEST':
+                this.uploadCover(payload.file);
+                break;
+            case 'COVER_DELETE_REQUEST':
+                this.deleteCover();
+                break;
         }
     }
 
@@ -245,11 +258,10 @@ class API {
     }
 
     private async loadProfile(userId?: number): Promise<void> {
-        // URL С QUERY ПАРАМЕТРОМ (так сказал БЭК)
-        let url = '/profile'; // свой профиль по умолчанию
+        let url = '/profile';
         
         if (userId) {
-            url = `/user?id=${userId}`; // чужой профиль
+            url = `/user?id=${userId}`;
         }
         
         const response = await ajax.get(url);
@@ -260,11 +272,11 @@ class API {
                         id: response.data.id,
                         name: response.data.name,
                         email: response.data.email,
-                        avatar: response.data.avatar || '/img/defaultAvatar.jpg',
-                        cover: response.data.cover || '/img/defaultCover.jpg',
+                        avatar_url: response.data.avatar_url,
+                        cover_url: response.data.cover_url,
                         description: response.data.description,
-                        subscribersCount: response.data.subscribers_count || 0,
-                        subscriptionsCount: response.data.subscriptions_count || 0,
+                        subscribers: response.data.subscribers || 0,
+                        subscriptions: response.data.subscriptions || 0,
                         postsCount: response.data.posts_count || 0,
                         isSubscribed: response.data.is_subscribed || false
                     };
@@ -299,8 +311,32 @@ class API {
         }
     }
 
+
     private async updateProfileDescription(description: string): Promise<void> {
-        const response = await ajax.post('/profile', { description });
+
+        const currentProfileResponse = await ajax.get('/profile');
+        
+        if (currentProfileResponse.status !== STATUS.ok || !currentProfileResponse.data) {
+            this.sendAction('PROFILE_UPDATE_DESCRIPTION_FAIL', { 
+                error: 'Не удалось загрузить текущие данные профиля' 
+            });
+            return;
+        }
+        
+        const currentData = currentProfileResponse.data;
+        
+        const updateData = {
+            phone: currentData.phone || '',
+            country: currentData.country || 'Россия',
+            language: currentData.language || 'Русский',
+            sex: currentData.sex || 'other',
+            date_of_birth: currentData.date_of_birth || '',
+            name: currentData.name || '',
+            email: currentData.email || '',
+            description: description
+        };
+        
+        const response = await ajax.put('/profile', updateData);
         
         switch (response.status) {
             case STATUS.ok:
@@ -320,7 +356,6 @@ class API {
                 });
         }
     }
-
     //Сведения об аккаунте
     private async loadSettingsAccount(): Promise<void> {
         const response = await ajax.get('/profile');
@@ -328,16 +363,15 @@ class API {
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
-                    // Преобразуем данные API в формат store
                     const settingsData = {
                         phone: response.data.phone || '',
                         country: response.data.country || 'Россия',
                         language: response.data.language || 'Русский',
                         sex: response.data.sex || 'other',
                         date_of_birth: response.data.date_of_birth || '',
-                        cover: response.data.cover || '/img/defaultCover.jpg',
+                        cover_url: response.data.cover_url,
                         name: response.data.name || '',
-                        avatar_url: response.data.avatar_url || '/img/defaultAvatar.jpg',
+                        avatar_url: response.data.avatar_url,
                         email: response.data.email || '',
                         created_at: response.data.created_at || ''
                     };
@@ -363,20 +397,8 @@ class API {
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
-
-                    const updatedSettings = {
-                        phone: response.data.phone || '',
-                        country: response.data.country || 'Россия',
-                        language: response.data.language || 'Русский',
-                        sex: response.data.sex || 'other',
-                        date_of_birth: response.data.date_of_birth || '',
-                        cover: response.data.cover || '/img/defaultCover.jpg',
-                        name: response.data.name || '',
-                        avatar_url: response.data.avatar_url || '/img/defaultAvatar.jpg',
-                        email: response.data.email || '',
-                        created_at: response.data.created_at || ''
-                    };
-                    this.sendAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS', { settings: updatedSettings });
+                    this.sendAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS');
+                    this.loadSettingsAccount();
                 } else {
                     this.sendAction('SETTINGS_ACCOUNT_UPDATE_FAIL', { error: 'No updated data' });
                 }
@@ -454,6 +476,96 @@ class API {
             this.sendAction('POSTS_RELOAD_AFTER_DELETE');
         } else {
             this.sendAction('POST_DELETE_FAIL', { error: 'Не удалось удалить пост' });
+
+    private async uploadAvatar(file: File): Promise<void> {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await ajax.uploadAvatar(formData);
+
+        switch (response.status) {
+            case STATUS.ok:
+                this.sendAction('AVATAR_UPLOAD_SUCCESS');
+                this.loadSettingsAccount();
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('AVATAR_UPLOAD_FAIL', { error: 'Not authenticated' });
+                break;
+            case STATUS.badRequest:
+                this.sendAction('AVATAR_UPLOAD_FAIL', { 
+                    error: response.data?.error || 'Неверный формат файла' 
+                });
+                break;
+            default:
+                this.sendAction('AVATAR_UPLOAD_FAIL', { 
+                    error: response.message || 'Ошибка загрузки аватара' 
+                });
+        }
+    }
+
+    private async deleteAvatar(): Promise<void> {
+        const response = await ajax.deleteAvatar();
+
+        switch (response.status) {
+            case STATUS.ok:
+                this.sendAction('AVATAR_DELETE_SUCCESS');
+                this.loadSettingsAccount();
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('AVATAR_DELETE_FAIL', { error: 'Not authenticated' });
+                break;
+            default:
+                this.sendAction('AVATAR_DELETE_FAIL', { 
+                    error: response.message || 'Ошибка удаления аватара' 
+                });
+        }
+    }
+
+    private async uploadCover(file: File): Promise<void> {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await ajax.uploadCover(formData);
+
+        switch (response.status) {
+            case STATUS.ok:
+                this.sendAction('COVER_UPLOAD_SUCCESS');
+                this.loadSettingsAccount();
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('COVER_UPLOAD_FAIL', { error: 'Not authenticated' });
+                break;
+            case STATUS.badRequest:
+                this.sendAction('COVER_UPLOAD_FAIL', { 
+                    error: response.data?.error || 'Неверный формат файла' 
+                });
+                break;
+            default:
+                this.sendAction('COVER_UPLOAD_FAIL', { 
+                    error: response.message || 'Ошибка загрузки обложки' 
+                });
+        }
+    }
+
+    private async deleteCover(): Promise<void> {
+        const response = await ajax.deleteCover();
+
+        switch (response.status) {
+            case STATUS.ok:
+                this.sendAction('COVER_DELETE_SUCCESS');
+                this.loadSettingsAccount();
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('COVER_DELETE_FAIL', { error: 'Not authenticated' });
+                break;
+            default:
+                this.sendAction('COVER_DELETE_FAIL', { 
+                    error: response.message || 'Ошибка удаления обложки' 
+                });
         }
     }
 }

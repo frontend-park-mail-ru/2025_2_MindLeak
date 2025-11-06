@@ -144,6 +144,7 @@ class Ajax {
 
     async editPost(postId: string, postData: { title: string; content: string; theme?: string }): Promise<ApiResponse> {
         return this.put(`/posts/${postId}`, postData);
+    }
 
     async uploadAvatar(formData: FormData): Promise<ApiResponse> {
         return this.request('/uploads/avatar', {

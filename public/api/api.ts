@@ -476,6 +476,8 @@ class API {
             this.sendAction('POSTS_RELOAD_AFTER_DELETE');
         } else {
             this.sendAction('POST_DELETE_FAIL', { error: 'Не удалось удалить пост' });
+        }
+    }
 
     private async uploadAvatar(file: File): Promise<void> {
         const formData = new FormData();

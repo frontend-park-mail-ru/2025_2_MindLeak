@@ -22,8 +22,9 @@ export class PostsView {
         postsStore.addListener(this.boundStoreHandler);
     }
 
+// PostsView.ts - обновите метод init
     public async init(feedWrapper?: HTMLElement): Promise<void> {
-       if (feedWrapper) {
+        if (feedWrapper) {
             this.feedWrapper = feedWrapper;
         } else {
             this.feedWrapper = document.getElementById('feed-wrapper');
@@ -31,6 +32,20 @@ export class PostsView {
         
         if (!this.feedWrapper) {
             throw new Error('Feed wrapper not found');
+        }
+
+        // Определяем категорию из URL
+        const url = new URL(window.location.href);
+        const pathname = url.pathname;
+        const topic = url.searchParams.get('topic');
+        
+        if (pathname === '/feed/category' && topic) {
+            this.currentFilter = topic;
+            dispatcher.dispatch('POSTS_LOAD_REQUEST', { filter: topic });
+        } else {
+            // Для '/' и '/feed' используем свежее
+            this.currentFilter = 'fresh';
+            dispatcher.dispatch('POSTS_LOAD_REQUEST', { filter: 'fresh' });
         }
 
         this.setupInfiniteScroll();
@@ -87,7 +102,8 @@ export class PostsView {
     private transformPost(apiPost: Post): PostCardProps {
         const authState = loginStore.getState();
         const currentUserId = authState.user?.id; // ← теперь есть id!
-        const isOwnPost = !!currentUserId && currentUserId === apiPost.authorId;
+        const isOwnPost = !!currentUserId && currentUserId.toString() === apiPost.authorId?.toString();
+
 
         return {
             postId: apiPost.id || '',

@@ -50,6 +50,7 @@ class API {
                 break;
             case 'ACCOUNT_DELETE_REQUEST':
                 this.deleteAccount();
+                break;
             case 'CREATE_POST_REQUEST':
                 this.createPost(payload);
                 break;
@@ -153,7 +154,7 @@ class API {
         const response = await ajax.editPost(postId, {
             title: payload.title,
             content: payload.content,
-            theme: payload.theme
+            topic_id: payload.topic_id
         });
 
         if (response.status === 200) {
@@ -200,17 +201,42 @@ class API {
         }
     }
 
-    private async loadPosts(filter?: string): Promise<void> {
-        const response = await ajax.getFeed(filter);
+
+    private async loadPosts(filter?: string, offset: number = 0): Promise<void> {
+        let response;
+        
+        if (filter && filter !== 'fresh') {
+            // Загрузка для категории
+            response = await ajax.get(`/feed/category?topic=${filter}&offset=${offset}`);
+        } else {
+            // Загрузка для свежего
+            response = await ajax.get(`/feed?offset=${offset}`);
+        }
+
+        console.log('🔍 [API] Ответ от сервера:', response); // Добавьте для отладки
 
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
-                    const postsWithAuthorId = response.data.map((post: any) => ({
+                    // Исправление: берем posts из response.data.articles, а не response.data
+                    const postsArray = response.data.articles || response.data;
+                    
+                    const postsWithAuthorId = postsArray.map((post: any) => ({
                         ...post,
-                        author_id: post.author_id || post.authorId || null
+                        id: post.id,
+                        authorId: post.author_id,
+                        authorName: post.author_name,
+                        authorAvatar: post.author_avatar,
+                        title: post.title,
+                        content: post.content,
+                        commentsCount: post.comments_count,
+                        repostsCount: post.reposts_count,
+                        viewsCount: post.views_count,
+                        theme: post.Topic?.Title || 'without_topic',
+                        tags: [] // Добавляем пустой массив тегов, если их нет в ответе
                     }));
                         
+                    console.log('🔍 [API] Преобразованные посты:', postsWithAuthorId);
                     this.sendAction('POSTS_LOAD_SUCCESS', { posts: postsWithAuthorId });
                 } else {
                     this.sendAction('POSTS_LOAD_FAIL', { error: 'No posts data' });
@@ -257,11 +283,37 @@ class API {
         }
     }
 
+    private async loadUserPosts(userId: number): Promise<any[]> {
+        let url = `/posts?author_id=${userId}`;
+        
+        const response = await ajax.get(url);
+        if (response.status === STATUS.ok && response.data) {
+            const postsArray = response.data.articles || response.data || [];
+            
+            return postsArray.map((post: any) => ({
+                ...post,
+                id: post.id,
+                authorId: post.author_id,
+                authorName: post.author_name,
+                authorAvatar : post.author_avatar,
+                title: post.title,
+                content: post.content,
+                commentsCount: post.comments_count,
+                repostsCount: post.reposts_count,
+                viewsCount: post.views_count,
+                theme: post.Topic?.Title || 'without_topic',
+                tags: []
+            }));
+        }
+        
+        return [];
+    }
+
     private async loadProfile(userId?: number): Promise<void> {
         let url = '/profile';
         
         if (userId) {
-            url = `/user?id=${userId}`;
+            url = `/profile?id=${userId}`;
         }
         
         const response = await ajax.get(url);
@@ -281,11 +333,12 @@ class API {
                         isSubscribed: response.data.is_subscribed || false
                     };
 
-                    const posts = response.data.posts || [];
-                    
+                    // Загружаем посты пользователя по его ID
+                    const userPosts = await this.loadUserPosts(profileData.id); // ИСПОЛЬЗУЕМ profileData.id
+                        
                     this.sendAction('PROFILE_LOAD_SUCCESS', {
                         profile: profileData,
-                        posts: posts
+                        posts: userPosts
                     });
                 } else {
                     this.sendAction('PROFILE_LOAD_FAIL', { 
@@ -337,9 +390,12 @@ class API {
         };
         
         const response = await ajax.put('/profile', updateData);
+
+        console.log('🔍 [API] Update profile response:', response);
         
         switch (response.status) {
             case STATUS.ok:
+                console.log('🔍 [API] Description updated successfully');
                 this.sendAction('PROFILE_UPDATE_DESCRIPTION_SUCCESS', { 
                     description: description 
                 });
@@ -433,7 +489,7 @@ class API {
         }
     }
     
-    private async createPost(payload: { title: string; content: string; theme?: string }): Promise<void> {
+    private async createPost(payload: { title: string; content: string; topic_id?: number }): Promise<void> {
     const response = await ajax.createPost(payload);
 
     switch (response.status) {

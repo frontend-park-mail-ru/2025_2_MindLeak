@@ -47,7 +47,7 @@ class PostsStore extends BaseStore<PostsState> {
 
         this.registerAction('POSTS_LOAD_SUCCESS', (payload: { posts: Post[] }) => {
             this.setState({
-                posts: [...this.state.posts, ...payload.posts],
+                posts: payload.posts,
                 isLoading: false,
                 hasMore: payload.posts.length > 0
             });
@@ -68,7 +68,6 @@ class PostsStore extends BaseStore<PostsState> {
         });
 
         this.registerAction('POSTS_SET_FILTER', (payload: { filter: string }) => {
-            // Очищаем старые посты при смене фильтра
             this.setState({
                 posts: [],
                 currentFilter: payload.filter,
@@ -76,15 +75,24 @@ class PostsStore extends BaseStore<PostsState> {
                 error: null,
                 isLoading: false
             });
-            // И сразу запрашиваем новые
             dispatcher.dispatch('POSTS_LOAD_REQUEST', { filter: payload.filter });
         });
 
         this.registerAction('POSTS_RELOAD_AFTER_CREATE', () => {
+            this.setState({
+                posts: [],
+                isLoading: true,
+                error: null
+            });
             dispatcher.dispatch('POSTS_LOAD_REQUEST', { filter: this.state.currentFilter });
         });
 
         this.registerAction('POSTS_RELOAD_AFTER_DELETE', () => {
+            this.setState({
+                posts: [],
+                isLoading: true,
+                error: null
+            });
             dispatcher.dispatch('POSTS_LOAD_REQUEST', { filter: this.state.currentFilter });
         });
     }

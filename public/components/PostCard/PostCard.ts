@@ -1,6 +1,6 @@
 import { PostCardMenu } from '../PostCardMenu/PostCardMenu';
 import { dispatcher } from '../../dispatcher/dispatcher';
-
+import { router } from '../../router/router';
 
 let postCardTemplate: Handlebars.TemplateDelegate | null = null;
 
@@ -56,7 +56,7 @@ async function getPostCardTemplate(): Promise<Handlebars.TemplateDelegate> {
 }
 
 export class PostCard {
-    private postId: string; // ← добавили!
+    private postId: string;
     private user: PostAuthor;
     private title: string;
     private text: string;
@@ -71,7 +71,6 @@ export class PostCard {
     private onMenuAction?: (action: string) => void;
 
     constructor(props: PostCardProps) {
-        // Сохраняем postId
         this.postId = props.postId;
 
         const {
@@ -125,7 +124,6 @@ export class PostCard {
         const html = template({
             user: this.user,
             title: this.title,          
-            titleTruncated: null,
             text: this.text,
             textTruncated: textTruncated,
             link: this.link,
@@ -148,7 +146,6 @@ export class PostCard {
 
         this.setupAuthorClickHandlers(postCard);
 
-        // Обработка текста (оставляем раскрытие текста)
         const toggleTextBtn = postCard.querySelector('[data-key="toggle-text"]') as HTMLElement;
         const textPreview = postCard.querySelector('.post-card__text-preview') as HTMLElement;
         const textFull = postCard.querySelector('.post-card__text-full') as HTMLElement;
@@ -179,7 +176,6 @@ export class PostCard {
             });
         }
 
-        // Меню действий
         const menuButton = postCard.querySelector('.post-card__menu-button') as HTMLElement;
         const menuPopup = postCard.querySelector('.post-card-menu') as HTMLElement;
 
@@ -205,6 +201,7 @@ export class PostCard {
         return postCard;
     }
 
+
     private setupAuthorClickHandlers(postCard: HTMLElement): void {
         const authorAvatar = postCard.querySelector('.user-menu__avatar') as HTMLElement;
         const authorName = postCard.querySelector('.user-menu__name') as HTMLElement;
@@ -215,17 +212,22 @@ export class PostCard {
             e.preventDefault();
             e.stopPropagation();
             
-            console.log(`[PostCard] Переход в профиль автора: ${this.user.name}`, this.user.id);
+            console.log(`[PostCard] Переход в профиль автора: ${this.user.name}, ${this.user.id}`);
             
-            let profileUrl = '/profile';
             if (this.user.id) {
-                profileUrl += `?id=${this.user.id}`;
+                // 1. Навигация через роутер (ОБЯЗАТЕЛЬНО!)
+                router.navigate(`/profile?id=${this.user.id}`);
+                
+                // 2. Загрузка данных (опционально - ProfileView сам загрузит)
+                // dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
+                //     userId: this.user.id.toString() 
+                // });
+            } else {
+                console.warn('Author ID not available');
             }
-            
-            window.history.pushState({}, '', profileUrl);
-            window.dispatchEvent(new PopStateEvent('popstate'));
         };
 
+        // Вешаем обработчики на все элементы автора
         if (authorAvatar) {
             authorAvatar.style.cursor = 'pointer';
             authorAvatar.addEventListener('click', navigateToProfile);
@@ -241,12 +243,13 @@ export class PostCard {
             authorSubtitle.addEventListener('click', navigateToProfile);
         }
 
+        // И на весь блок user-menu
         const userMenuBlock = postCard.querySelector('.user-menu') as HTMLElement;
         if (userMenuBlock) {
             userMenuBlock.style.cursor = 'pointer';
             userMenuBlock.addEventListener('click', (e: Event) => {
                 if (subscribeButton && subscribeButton.contains(e.target as Node)) {
-                    return;
+                    return; // Не нажимать на кнопку подписки
                 }
                 navigateToProfile(e);
             });

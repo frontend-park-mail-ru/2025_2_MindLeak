@@ -28,9 +28,15 @@
                         {{else}}
                             {{#if profile.description}}
                                 <p class="profile__description-text">{{profile.description}}</p>
-                                <button class="profile__edit-btn">Изменить</button>
+                                {{#if isMyProfile}}
+                                    <button class="profile__edit-btn">Изменить</button>
+                                {{/if}}
                             {{else}}
-                                <p class="profile__description-placeholder">Вы можете добавить описание профиля</p>
+                                {{#if isMyProfile}}
+                                    <p class="profile__description-placeholder">Вы можете добавить описание профиля</p>
+                                {{else}}
+                                    <p class="profile__description-text--empty"> </p>
+                                {{/if}}
                             {{/if}}
                         {{/if}}
                     </div>
@@ -69,11 +75,13 @@
                                 {{> post-card 
                                     user=this.user
                                     title=this.title
-                                    text=this.content
+                                    text=this.text
                                     image=this.image
+                                    tags=this.tags
                                     commentsCount=this.commentsCount
                                     repostsCount=this.repostsCount
                                     viewsCount=this.viewsCount
+                                    isOwnPost=this.isOwnPost
                                 }}
                             {{/each}}
                         {{else}}

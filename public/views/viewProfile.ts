@@ -9,7 +9,7 @@ import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../component
 
 export class ProfileView {
     private container: HTMLElement;
-    private userId?: number;
+    private userId?: string;
     private boundStoreHandler: () => void;
     private boundLoginStoreHandler: () => void;
     private topBloggers: TopBloggers | null = null;
@@ -21,12 +21,18 @@ export class ProfileView {
         this.headerInstance = new Header();
         
         if (params && params.id) {
-            this.userId = parseInt(params.id);
+            this.userId = params.id;
+            console.log(`[ProfileView] User ID from route params: ${this.userId}`);
         } else {
+            // Fallback для прямого перехода на /profile
             const urlParams = new URLSearchParams(window.location.search);
             const idParam = urlParams.get('id');
             if (idParam) {
-                this.userId = parseInt(idParam);
+                this.userId = idParam;
+                console.log(`[ProfileView] User ID from query params: ${this.userId}`);
+            } else {
+                // Если нет ID, загружаем текущего пользователя
+                console.log(`[ProfileView] No user ID provided, loading current user`);
             }
         }
         this.boundStoreHandler = this.handleStoreChange.bind(this);
@@ -39,12 +45,12 @@ export class ProfileView {
         profileStore.addListener(this.boundStoreHandler);
         loginStore.addListener(this.boundLoginStoreHandler);
         
+        // Всегда передаем userId, даже если undefined (тогда API вернет текущего пользователя)
         dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
             userId: this.userId 
         });
 
         return this.pageWrapper!;
-
     }
 
     private async renderFullPage(): Promise<void> {
@@ -125,14 +131,21 @@ export class ProfileView {
 
     private async renderProfileContent(): Promise<HTMLElement> {
         const state = profileStore.getState();
+        const loginState = loginStore.getState();
         
+        // Проверяем, мой это профиль или чужой
+        const isMyProfile = !this.userId || 
+                        (loginState.user && loginState.user.id.toString() === this.userId) ||
+                        (!this.userId && loginState.isLoggedIn); // для /profile без ID
+
         const profileComponent = new Profile({
             profile: state.profile,
             posts: state.posts,
             activeTab: state.activeTab,
             isLoading: state.isLoading,
             error: state.error,
-            isEditingDescription: state.isEditingDescription
+            isEditingDescription: state.isEditingDescription,
+            isMyProfile: isMyProfile // Передаем флаг
         });
 
         const profileElement = await profileComponent.render();
@@ -176,7 +189,6 @@ export class ProfileView {
     }
 
     private attachDescriptionEventListeners(container: HTMLElement): void {
-
         const editButton = container.querySelector('.profile__edit-btn');
         if (editButton) {
             editButton.addEventListener('click', () => {
@@ -191,6 +203,7 @@ export class ProfileView {
             });
         }
 
+        // Остальной код без изменений...
         const descriptionInput = container.querySelector('.form__input[name="description"]');
         if (descriptionInput) {
             descriptionInput.addEventListener('keydown', (e: Event) => {

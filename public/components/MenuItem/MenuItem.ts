@@ -1,21 +1,12 @@
-/**
- * Кэшированный шаблон элемента меню
- */
 let menuItemTemplate: Handlebars.TemplateDelegate | null = null;
 
-/**
- * Интерфейс для свойств элемента меню
- */
 interface MenuItemProps {
     key: string;
     icon: string;
     text: string;
+    topic_id: number;
 }
 
-/**
- * Асинхронно загружает шаблон элемента меню
- * @returns {Promise<Handlebars.TemplateDelegate>} - скомпилированный Handlebars-шаблон элемента меню
- */
 async function getMenuItemTemplate(): Promise<Handlebars.TemplateDelegate> {
     if (menuItemTemplate) return menuItemTemplate;
 
@@ -25,27 +16,31 @@ async function getMenuItemTemplate(): Promise<Handlebars.TemplateDelegate> {
     return menuItemTemplate;
 }
 
-/**
- * Класс для рендеринга элемента меню
- */
 export class MenuItem {
     private key: string;
     private icon: string;
     private text: string;
+    private topic_id: number;
 
-    constructor({ key, icon, text }: MenuItemProps) {
+    constructor({ key, icon, text, topic_id }: MenuItemProps) {
         this.key = key;
         this.icon = icon;
         this.text = text;
+        this.topic_id = topic_id;
     }
 
-    /**
-     * Рендерит элемент меню
-     * @returns {Promise<HTMLElement>} - DOM-элемент элемента меню
-     */
+    public toJSON() {
+        return {
+            key: this.key,
+            icon: this.icon,
+            text: this.text,
+            topic_id: this.topic_id,
+        };
+    }
+
     async render(): Promise<HTMLElement> {
         const template = await getMenuItemTemplate();
-        const html = template(this);
+        const html = template(this.toJSON());
 
         const div = document.createElement('div');
         div.innerHTML = html.trim();

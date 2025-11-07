@@ -1,8 +1,9 @@
 import { BaseStore } from './store';
 import { Post } from './storePosts';
+import { loginStore } from './storeLogin';
 
 export interface ProfileData {
-    id: number;
+    id: string;
     name: string;
     email: string;
     avatar_url: string;
@@ -22,6 +23,7 @@ export interface ProfileState {
     isLoading: boolean;
     error: string | null;
     isEditingDescription: boolean;
+    isMyProfile?: boolean;
 }
 
 class ProfileStore extends BaseStore<ProfileState> {
@@ -33,7 +35,8 @@ class ProfileStore extends BaseStore<ProfileState> {
             activeTab: 'posts',
             isLoading: false,
             error: null,
-            isEditingDescription: false
+            isEditingDescription: false,
+            isMyProfile: false
         });
     }
 
@@ -46,11 +49,15 @@ class ProfileStore extends BaseStore<ProfileState> {
         });
 
         this.registerAction('PROFILE_LOAD_SUCCESS', (payload: { profile: ProfileData; posts: Post[] }) => {
+            const loginState = loginStore.getState();
+            const isMyProfile = loginState.user && loginState.user.id === payload.profile.id;
+            
             this.setState({
                 profile: payload.profile,
                 posts: payload.posts,
                 isLoading: false,
-                error: null
+                error: null,
+                isMyProfile: isMyProfile
             });
         });
 

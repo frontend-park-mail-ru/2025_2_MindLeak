@@ -50,7 +50,7 @@ export class PostsView {
 
         this.setupInfiniteScroll();
     }
-    
+
     private setupInfiniteScroll(): void {
         if (!this.feedWrapper) return;
 
@@ -102,7 +102,8 @@ export class PostsView {
     private transformPost(apiPost: Post): PostCardProps {
         const authState = loginStore.getState();
         const currentUserId = authState.user?.id; // ← теперь есть id!
-        const isOwnPost = !!currentUserId && currentUserId === apiPost.authorId;
+        const isOwnPost = !!currentUserId && currentUserId.toString() === apiPost.authorId?.toString();
+
 
         return {
             postId: apiPost.id || '',

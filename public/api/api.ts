@@ -200,25 +200,42 @@ class API {
         }
     }
 
-        private async loadPosts(filter?: string, offset: number = 0): Promise<void> {
-            let response;
-            
-            if (filter && filter !== 'fresh') {
-                // Загрузка для категории
-                response = await ajax.get(`/feed/category?topic=${filter}&offset=${offset}`);
-            } else {
-                // Загрузка для свежего
-                response = await ajax.get(`/feed?offset=${offset}`);
-            }
-  
-            switch (response.status) {
-                case STATUS.ok:
+
+    private async loadPosts(filter?: string, offset: number = 0): Promise<void> {
+        let response;
+        
+        if (filter && filter !== 'fresh') {
+            // Загрузка для категории
+            response = await ajax.get(`/feed/category?topic=${filter}&offset=${offset}`);
+        } else {
+            // Загрузка для свежего
+            response = await ajax.get(`/feed?offset=${offset}`);
+        }
+
+        console.log('🔍 [API] Ответ от сервера:', response); // Добавьте для отладки
+
+        switch (response.status) {
+            case STATUS.ok:
                 if (response.data) {
-                    const postsWithAuthorId = response.data.map((post: any) => ({
-                    ...post,
-                    author_id: post.author_id || post.authorId || null
-                    }));
+                    // Исправление: берем posts из response.data.articles, а не response.data
+                    const postsArray = response.data.articles || response.data;
                     
+                    const postsWithAuthorId = postsArray.map((post: any) => ({
+                        ...post,
+                        id: post.id,
+                        authorId: post.author_id,
+                        authorName: post.author_name,
+                        authorAvatar: post.author_avatar,
+                        title: post.title,
+                        content: post.content,
+                        commentsCount: post.comments_count,
+                        repostsCount: post.reposts_count,
+                        viewsCount: post.views_count,
+                        theme: post.Topic?.Title || 'without_topic',
+                        tags: [] // Добавляем пустой массив тегов, если их нет в ответе
+                    }));
+                        
+                    console.log('🔍 [API] Преобразованные посты:', postsWithAuthorId);
                     this.sendAction('POSTS_LOAD_SUCCESS', { posts: postsWithAuthorId });
                 } else {
                     this.sendAction('POSTS_LOAD_FAIL', { error: 'No posts data' });

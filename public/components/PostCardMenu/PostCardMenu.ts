@@ -6,11 +6,13 @@ export class PostCardMenu {
     private menuButton: HTMLElement;
     private isOpen = false;
     private postId: string;
+    private onMenuItemClick?: (key: string, postId: string) => void;
 
-    constructor(menuButton: HTMLElement, menuElement: HTMLElement, postId: string) {
+    constructor(menuButton: HTMLElement, menuElement: HTMLElement, postId: string, onMenuItemClick?: (key: string, postId: string) => void) {
         this.menuButton = menuButton;
         this.element = menuElement;
         this.postId = postId;
+        this.onMenuItemClick = onMenuItemClick;
 
         this.init();
     }
@@ -33,24 +35,29 @@ export class PostCardMenu {
     }
 
     private handleMenuItemClick(key: string | null) {
-        switch (key) {
-            case 'edit':
-                this.handleEdit();
-                break;
-            case 'delete':
-                this.handleDelete();
-                break;
-            // ... другие обработчики
+        if (!key) return;
+        
+        // Вызываем колбэк вместо прямой обработки
+        if (this.onMenuItemClick) {
+            this.onMenuItemClick(key, this.postId);
+        } else {
+            // Фолбэк на случай если колбэк не передан
+            switch (key) {
+                case 'edit':
+                    this.handleEdit();
+                    break;
+                case 'delete':
+                    this.handleDelete();
+                    break;
+            }
         }
     }
 
     private handleEdit() {
         console.log('[PostCardMenu] Редактирование поста:', this.postId);
-        // Отправляем запрос на загрузку данных поста для редактирования
+        // ТОЛЬКО отправляем запрос на загрузку данных поста
         dispatcher.dispatch('POST_EDIT_REQUEST', { postId: this.postId });
-        
-        // Открываем форму редактирования
-        this.openEditPostForm();
+        // НЕ открываем форму здесь - это сделает store
     }
 
     private async openEditPostForm(): Promise<void> {

@@ -183,28 +183,29 @@ export class PostCard {
         const menuPopup = postCard.querySelector('.post-card-menu') as HTMLElement;
 
         if (menuButton && menuPopup) {
-            // ИСПРАВЛЕНИЕ: использовать this.postId вместо postId
-            new PostCardMenu(menuButton, menuPopup, this.postId);
+            // Передаем колбэк для обработки действий меню
+            new PostCardMenu(menuButton, menuPopup, this.postId, (key: string, postId: string) => {
+                this.handleMenuAction(key, postId);
+            });
         }
 
-        // todo Убрать дублирующиеся обработчики меню, так как они уже есть в PostCardMenu
-        const menuItemsElements = postCard.querySelectorAll('.post-card-menu [data-key]');
-        menuItemsElements.forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.preventDefault();
-                const key = item.getAttribute('data-key');
-                if (key) {
-                    if (key === 'edit') {
-                        console.log('[PostCard] Редактирование поста:', this.postId);
-                        this.handleEditPost();
-                    } else {
-                        this.onMenuAction?.(key);
-                    }
-                }
-            });
-        });
 
         return postCard;
+    }
+
+        private handleMenuAction(key: string, postId: string): void {
+        console.log(`[PostCard] Menu action: ${key} for post: ${postId}`);
+        
+        switch (key) {
+            case 'edit':
+                this.handleEditPost();
+                break;
+            case 'delete':
+                this.onMenuAction?.(key);
+                break;
+            default:
+                this.onMenuAction?.(key);
+        }
     }
 
     private async handleEditPost(): Promise<void> {

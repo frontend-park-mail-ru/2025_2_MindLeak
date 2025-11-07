@@ -3,11 +3,10 @@
     align-items: center;
     gap: 12px;
     background: var(--section-color);
-    border-radius: 8px;
+    border-radius: 4px;
     color: var(--text-color);
     cursor: default;
     transition: all 0.2s ease;
-    padding: 4px 8px;
 }
 
 .user-menu--clickable {
@@ -56,7 +55,7 @@
 }
 
 .user-menu__button {
-    padding: 3px 7px;
+    padding: 3px 8px;
     margin-left: 10px;
     border: none;
     border-radius: 6px;

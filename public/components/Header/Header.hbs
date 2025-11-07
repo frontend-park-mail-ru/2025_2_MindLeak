@@ -16,15 +16,19 @@
             type="button" 
             class="header__button createPost_button"
         }}
-        
-        <div class="header__user" data-key="user-menu">
-            <img 
-                src="{{user.avatar}}" 
-                alt="{{user.name}}" 
-                class="header__avatar"
-                onerror="this.src='/img/defaultAvatar.jpg'">
+
+        <div class="user_info_header">
+            {{> icon key="wo_notifications" src="/img/icons/wo_notifications_icon.svg" title="Уведомления" class="header__icon" }}
+            <div class="header__user" data-key="user-menu">
+                <img 
+                    src="{{user.avatar}}" 
+                    alt="{{user.name}}" 
+                    class="header__avatar"
+                    onerror="this.src='/img/defaultAvatar.jpg'">
+            </div>
             {{> icon key="arrow-down" src="/img/icons/arrowDown_icon.svg" title="Развернуть" class="header__arrow" }}
         </div>
+        
         {{else}}
             {{> button 
                 text="Создать" 

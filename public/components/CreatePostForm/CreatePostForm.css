@@ -31,7 +31,7 @@ body .create-post-form__overlay {
     align-items: center;
     text-align: center;
     height: 20px;
-    width: 100px;
+    width: 101px;
     background: var(--section-color);
     border: 1px solid var(--section-hover);
     border-radius: 4px;

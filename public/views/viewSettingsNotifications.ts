@@ -50,34 +50,33 @@ export class SettingsNotificationsView {
             });
         };
 
-        // левое меню
+        // Левое меню
         const sidebar1 = new SidebarMenu(
             MAIN_MENU_ITEMS,
-            'fresh',
+            '',
             (key) => {
-            if (sidebarEl2) deactivateAll(sidebarEl2);
-            
-            const newUrl = key === 'fresh' ? '/feed' : `/feed?filter=${encodeURIComponent(key)}`;
+
+            const newUrl = key === 'fresh' ? '/feed' : `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
             window.history.pushState({}, '', newUrl);
             
             window.dispatchEvent(new PopStateEvent('popstate'));
             }
         );
         sidebarEl1 = await sidebar1.render();
-
+        
         // Нижнее меню
         const sidebar2 = new SidebarMenu(
             SECONDARY_MENU_ITEMS,
             '',
             (key) => {
-            if (sidebarEl1) deactivateAll(sidebarEl2);
             
-            const newUrl = key === '' ? '/feed' : `/feed?filter=${encodeURIComponent(key)}`;
+            const newUrl = key === '' ? '/feed' : `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
             window.history.pushState({}, '', newUrl);
             
             window.dispatchEvent(new PopStateEvent('popstate'));
             }
         );
+        
         sidebarEl2 = await sidebar2.render();
 
         leftMenu.appendChild(sidebarEl1);

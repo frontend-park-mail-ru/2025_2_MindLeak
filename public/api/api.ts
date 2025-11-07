@@ -153,7 +153,7 @@ class API {
         const response = await ajax.editPost(postId, {
             title: payload.title,
             content: payload.content,
-            theme: payload.theme
+            menu_item_id: payload.menu_item_id
         });
 
         if (response.status === 200) {
@@ -200,9 +200,8 @@ class API {
         }
     }
 
-    private async loadPosts(filter?: string): Promise<void> {
-        const response = await ajax.getFeed(filter);
-
+        private async loadPosts(filter?: string, offset: number = 0): Promise<void> {
+        const response = await ajax.getFeed(filter, offset);
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
@@ -433,7 +432,7 @@ class API {
         }
     }
     
-    private async createPost(payload: { title: string; content: string; theme?: string }): Promise<void> {
+    private async createPost(payload: { title: string; content: string; menu_item_id?: number }): Promise<void> {
     const response = await ajax.createPost(payload);
 
     switch (response.status) {

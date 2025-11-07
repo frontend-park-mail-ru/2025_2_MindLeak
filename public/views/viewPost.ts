@@ -57,7 +57,7 @@ export class PostView {
             '',
             (key) => {
                 if (sidebarEl2) deactivateAll(sidebarEl2);
-                const newUrl = key === 'fresh' ? '/feed' : `/feed?filter=${encodeURIComponent(key)}`;
+                const newUrl = key === 'fresh' ? '/feed' : `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
                 window.history.pushState({}, '', newUrl);
                 window.dispatchEvent(new PopStateEvent('popstate'));
             }
@@ -70,7 +70,7 @@ export class PostView {
             '',
             (key) => {
                 if (sidebarEl1) deactivateAll(sidebarEl1);
-                const newUrl = key === 'fresh' ? '/feed' : `/feed?filter=${encodeURIComponent(key)}`;
+                const newUrl = key === 'fresh' ? '/feed' : `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
                 window.history.pushState({}, '', newUrl);
                 window.dispatchEvent(new PopStateEvent('popstate'));
             }

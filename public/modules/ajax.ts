@@ -125,24 +125,29 @@ class Ajax {
         return this.get('/logout');
     }
 
-    getFeed(filter?: string): Promise<any> {
-        const url = filter ? `/feed?filter=${encodeURIComponent(filter)}` : '/feed';
-        return this.get(url);
+    getFeed(filter?: string, offset: number = 0): Promise<any> {
+        if (filter) {
+            const url = `/feed/category?topic=${encodeURIComponent(filter)}&offset=${offset}`;
+            return this.get(url);
+        } else {
+            const url = `/feed?offset=${offset}`;
+            return this.get(url);
+        }
     }
 
-    async createPost(postData: { title: string; content: string; theme?: string }): Promise<ApiResponse> {
+    async createPost(postData: { title: string; content: string; menu_item_id?: number }): Promise<ApiResponse> {
         return this.post('/posts', postData);
     }
 
-    async deletePost(url: string): Promise<ApiResponse> {
-        return this.request(url, { method: 'DELETE' });
+    async deletePost(postId: string): Promise<ApiResponse> {
+        return this.delete(`/posts/${postId}`);
     }
 
     async deleteAccount(): Promise<ApiResponse> {
         return this.delete('/profile/delete');
     }
 
-    async editPost(postId: string, postData: { title: string; content: string; theme?: string }): Promise<ApiResponse> {
+    async editPost(postId: string, postData: { title: string; content: string; menu_item_id?: number }): Promise<ApiResponse> {
         return this.put(`/posts/${postId}`, postData);
     }
 

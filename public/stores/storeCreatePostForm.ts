@@ -5,12 +5,12 @@ export interface CreatePostState {
     draftTitle: string;
     draftContent: string;
     currentTheme: string;
-    currentThemeKey: string | null;
+    currentThemeId: number;
     isCreating: boolean;
     success: boolean;
     error: string | null;
-    isEditing: boolean;        // ← добавлено
-    editingPostId: string | null; // ← добавлено
+    isEditing: boolean;
+    editingPostId: string | null;
 }
 
 class CreatePostStore extends BaseStore<CreatePostState> {
@@ -19,7 +19,7 @@ class CreatePostStore extends BaseStore<CreatePostState> {
             draftTitle: '',
             draftContent: '',
             currentTheme: 'Без темы',
-            currentThemeKey: null,
+            currentThemeId: 0,
             isCreating: false,
             success: false,
             error: null,
@@ -34,7 +34,7 @@ class CreatePostStore extends BaseStore<CreatePostState> {
                 draftTitle: '',
                 draftContent: '',
                 currentTheme: 'Без темы',
-                currentThemeKey: null,
+                currentThemeId: 0,
                 isCreating: false,
                 success: false,
                 error: null,
@@ -51,10 +51,11 @@ class CreatePostStore extends BaseStore<CreatePostState> {
             this.setState({ draftContent: payload.content });
         });
 
-        this.registerAction('THEME_SELECTED', (payload: { theme: string; key: string }) => {
+        this.registerAction('THEME_SELECTED', (payload: { themeName: string; menu_item_id: number }) => {
+            console.log('[Store] Выбрана тема:', payload);
             this.setState({
-                currentTheme: payload.theme,
-                currentThemeKey: payload.key
+                currentTheme: payload.themeName,
+                currentThemeId: payload.menu_item_id
             });
         });
 
@@ -63,7 +64,7 @@ class CreatePostStore extends BaseStore<CreatePostState> {
                 draftTitle: payload.post.title || '',
                 draftContent: payload.post.content || '',
                 currentTheme: payload.post.theme || 'Без темы',
-                currentThemeKey: payload.post.theme || null,
+                currentThemeId: payload.post.menu_item_id || 0,
                 isEditing: true,
                 editingPostId: payload.post.id
             });

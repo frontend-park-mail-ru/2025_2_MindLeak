@@ -4,6 +4,7 @@ export interface MenuItem {
     key: string;
     icon: string;
     text: string;
+    menu_item_id?: number;
 }
 
 // Основное меню (верхнее)
@@ -16,15 +17,15 @@ export const MAIN_MENU_ITEMS: MenuItem[] = [
 
 // Доп. меню (нижнее)
 export const SECONDARY_MENU_ITEMS: MenuItem[] = [
-    { key: 'services', icon: '/img/icons/services_icon.svg', text: 'Сервисы' },
-    { key: 'marketing', icon: '/img/icons/marketing_icon.svg', text: 'Маркетинг' },
-    { key: 'money', icon: '/img/icons/money_icon.svg', text: 'Деньги' },
-    { key: 'travel', icon: '/img/icons/travel_icon.svg', text: 'Путешествия' },
-    { key: 'ai', icon: '/img/icons/AI_icon.svg', text: 'AI' },
-    { key: 'personal-exp', icon: '/img/icons/person-exp_icon.svg', text: 'Личный опыт' },
-    { key: 'invest', icon: '/img/icons/invest_icon.svg', text: 'Инвестиции' },
-    { key: 'career', icon: '/img/icons/career_icon.svg', text: 'Карьера' },
-    { key: 'edu', icon: '/img/icons/edu_icon.svg', text: 'Образование' },
+    { menu_item_id: 1, key: 'services', icon: '/img/icons/services_icon.svg', text: 'Сервисы' },
+    { menu_item_id: 2, key: 'marketing', icon: '/img/icons/marketing_icon.svg', text: 'Маркетинг' },
+    { menu_item_id: 3, key: 'money', icon: '/img/icons/money_icon.svg', text: 'Деньги' },
+    { menu_item_id: 4, key: 'travel', icon: '/img/icons/travel_icon.svg', text: 'Путешествия' },
+    { menu_item_id: 5, key: 'ai', icon: '/img/icons/AI_icon.svg', text: 'AI' },
+    { menu_item_id: 6, key: 'personal-exp', icon: '/img/icons/person-exp_icon.svg', text: 'Личный опыт' },
+    { menu_item_id: 7, key: 'invest', icon: '/img/icons/invest_icon.svg', text: 'Инвестиции' },
+    { menu_item_id: 8, key: 'career', icon: '/img/icons/career_icon.svg', text: 'Карьера' },
+    { menu_item_id: 9, key: 'edu', icon: '/img/icons/edu_icon.svg', text: 'Образование' },
 ];
 
 async function getSidebarTemplate(): Promise<Handlebars.TemplateDelegate> {

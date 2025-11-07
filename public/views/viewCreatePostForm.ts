@@ -35,7 +35,7 @@ async function getCreatePostTemplate(): Promise<Handlebars.TemplateDelegate> {
 
 class ThemeSelectorPopup {
     private popupElement: HTMLElement | null = null;
-    constructor(private onSelect: (key: string) => void) {}
+    constructor(private onSelect: (menu_item_id: number, themeName: string) => void) {}
 
     async render(): Promise<HTMLElement> {
         const div = document.createElement('div');
@@ -44,19 +44,31 @@ class ThemeSelectorPopup {
         const sidebarMenu = new SidebarMenu(
             SECONDARY_MENU_ITEMS,
             '',
-            (key) => {
-                this.onSelect(key);
+            (selectedKey) => {
+                const item = SECONDARY_MENU_ITEMS.find(i => i.key === selectedKey);
+                if (item) {
+                    console.log('[ThemePopup] Выбрана тема:', item);
+                    this.onSelect(item.menu_item_id || 0, item.text);
+                }
                 this.close();
             }
         );
+        console.log('[ThemePopup] SECONDARY_MENU_ITEMS:', SECONDARY_MENU_ITEMS);
 
         const menuEl = await sidebarMenu.render();
         menuEl.classList.add('theme-selector-popup__menu');
         div.appendChild(menuEl);
 
-        document.addEventListener('click', (e) => {
-            if (!div.contains(e.target as Node)) this.close();
-        }, { once: true });
+        // Отложим добавление обработчика до следующего тика, чтобы текущий клик не вызвал его
+        setTimeout(() => {
+            const handleClickOutside = (e: MouseEvent) => {
+                if (!div.contains(e.target as Node)) {
+                    this.close();
+                    document.removeEventListener('click', handleClickOutside);
+                }
+            };
+            document.addEventListener('click', handleClickOutside);
+        }, 0);
 
         document.body.appendChild(div);
         this.popupElement = div;
@@ -114,8 +126,9 @@ export class CreatePostFormView {
 
         const themeBtn = this.formElement.querySelector('[data-key="select-theme"]');
         if (themeBtn) {
-            themeBtn.textContent = state.currentThemeKey ? 'Сменить тему' : 'Выбрать тему';
-            themeBtn.classList.toggle('theme-button--selected', !!state.currentThemeKey);
+            const isThemeSelected = state.currentThemeId !== 0;
+            themeBtn.textContent = isThemeSelected ? 'Сменить тему' : 'Выбрать тему';
+            themeBtn.classList.toggle('theme-button--selected', isThemeSelected);
         }
 
         const textarea = this.formElement.querySelector('[data-key="post-content"]') as HTMLTextAreaElement;
@@ -162,17 +175,22 @@ export class CreatePostFormView {
         this.formElement = div.firstElementChild as HTMLElement;
         this.formElement.classList.add('create-post-form--modal');
 
+        console.log('[View] formElement:', this.formElement);
+
         this.setupEventHandlers();
         this.updateUIFromState(state);
         return this.formElement;
     }
 
     private setupEventHandlers(): void {
+        console.log('[View] Установка обработчиков событий');
         if (!this.formElement) return;
 
         const overlay = this.formElement.querySelector('[data-key="overlay"]');
         overlay?.addEventListener('click', (e) => {
-            if (e.target === overlay) this.close();
+            if (e.target === e.currentTarget) {
+                this.close();
+            }
         });
 
         const form = this.formElement.querySelector('[data-key="create-post-form"]') as HTMLFormElement;
@@ -183,7 +201,7 @@ export class CreatePostFormView {
             const data = {
                 title: fd.get('title') as string,
                 content: fd.get('content') as string,
-                theme: state.currentThemeKey
+                menu_item_id: state.currentThemeId
             };
 
             if (state.isEditing && state.editingPostId) {
@@ -205,12 +223,18 @@ export class CreatePostFormView {
         });
 
         const themeBtn = this.formElement.querySelector('[data-key="select-theme"]');
+        console.log('[View] Кнопка "Выбрать тему":', themeBtn);
         themeBtn?.addEventListener('click', async () => {
-            const popup = new ThemeSelectorPopup((key) => {
-                const item = SECONDARY_MENU_ITEMS.find(i => i.key === key);
-                if (item) selectTheme(item.text, key);
+            console.log('[View] Клик по кнопке "Выбрать тему"');
+            const popup = new ThemeSelectorPopup((menu_item_id, themeName) => {
+                selectTheme(themeName, menu_item_id); 
             });
             await popup.render();
+        });
+
+        const closeButton = this.formElement.querySelector('[data-key="close-button"]');
+        closeButton?.addEventListener('click', () => {
+            this.close();
         });
     }
 

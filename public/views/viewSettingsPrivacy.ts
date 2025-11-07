@@ -56,7 +56,7 @@ export class SettingsPrivacyView {
             '',
             (key) => {
 
-            const newUrl = key === 'fresh' ? '/feed' : `/feed?filter=${encodeURIComponent(key)}`;
+            const newUrl = key === 'fresh' ? '/feed' : `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
             window.history.pushState({}, '', newUrl);
             
             window.dispatchEvent(new PopStateEvent('popstate'));
@@ -70,7 +70,7 @@ export class SettingsPrivacyView {
             '',
             (key) => {
             
-            const newUrl = key === '' ? '/feed' : `/feed?filter=${encodeURIComponent(key)}`;
+            const newUrl = key === '' ? '/feed' : `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
             window.history.pushState({}, '', newUrl);
             
             window.dispatchEvent(new PopStateEvent('popstate'));

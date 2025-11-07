@@ -23,7 +23,7 @@ export class PostsView {
     }
 
     public async init(feedWrapper?: HTMLElement): Promise<void> {
-       if (feedWrapper) {
+        if (feedWrapper) {
             this.feedWrapper = feedWrapper;
         } else {
             this.feedWrapper = document.getElementById('feed-wrapper');
@@ -31,6 +31,16 @@ export class PostsView {
         
         if (!this.feedWrapper) {
             throw new Error('Feed wrapper not found');
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const topic = urlParams.get('topic');
+        
+        if (topic) {
+            this.currentFilter = topic;
+            dispatcher.dispatch('POSTS_LOAD_REQUEST', { filter: topic });
+        } else {
+            dispatcher.dispatch('POSTS_LOAD_REQUEST');
         }
 
         this.setupInfiniteScroll();

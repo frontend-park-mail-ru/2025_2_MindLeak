@@ -15,6 +15,7 @@ export class HomeView {
   }
 
   async render(): Promise<HTMLElement> {
+    dispatcher.dispatch('POSTS_LOAD_REQUEST', { offset: 0 });
 
     const url = new URL(window.location.href);
     let currentFilter = 'fresh';
@@ -64,7 +65,7 @@ export class HomeView {
         (key) => {
           if (sidebarEl2) deactivateAll(sidebarEl2);
           
-          const newUrl = key === 'fresh' ? '/feed' : `/feed?filter=${encodeURIComponent(key)}`;
+          const newUrl = key === 'fresh' ? '/feed' : `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
           window.history.pushState({}, '', newUrl);
           
           window.dispatchEvent(new PopStateEvent('popstate'));
@@ -79,7 +80,7 @@ export class HomeView {
         (key) => {
           if (sidebarEl1) deactivateAll(sidebarEl2);
           
-          const newUrl = key === '' ? '/feed' : `/feed?filter=${encodeURIComponent(key)}`;
+          const newUrl = key === '' ? '/feed' : `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
           window.history.pushState({}, '', newUrl);
           
           window.dispatchEvent(new PopStateEvent('popstate'));

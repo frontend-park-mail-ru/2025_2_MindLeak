@@ -1,11 +1,12 @@
 import { dispatcher } from '../dispatcher/dispatcher';
 
-export const createPost = (data: { title: string; content: string; theme?: string }) => {
+export const createPost = (data: { title: string; content: string; menu_item_id: number }) => {
     dispatcher.dispatch('CREATE_POST_REQUEST', data);
 };
 
-export const selectTheme = (theme: string, key: string) => {
-    dispatcher.dispatch('THEME_SELECTED', { theme, key });
+export function selectTheme(themeName: string, menu_item_id: number): void {
+    console.log('[Action] Выбор темы:', { themeName, menu_item_id });
+    dispatcher.dispatch('THEME_SELECTED', { themeName, menu_item_id });
 };
 
 export const updatePostContent = (content: string) => {
@@ -24,6 +25,6 @@ export const applyTextFormat = (formatType: string) => {
     dispatcher.dispatch('TEXT_EDIT_APPLY', { type: formatType });
 };
 
-export const editPost = (postId: string, data: { title: string; content: string; theme?: string }) => {
+export const editPost = (postId: string, data: { title: string; content: string; menu_item_id?: number }) => {
     dispatcher.dispatch('EDIT_POST_REQUEST', { postId, ...data });
 };

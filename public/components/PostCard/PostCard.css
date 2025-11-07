@@ -110,12 +110,12 @@
     right: 30px;
     transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
     z-index: 1000;
+    visibility: hidden;
 }
 
 .post-card-menu--open {
     opacity: 1;
     visibility: visible;
-
 }
 
 .post-card-menu__items {

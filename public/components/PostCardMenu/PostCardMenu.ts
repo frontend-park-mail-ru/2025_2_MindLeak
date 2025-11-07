@@ -20,6 +20,7 @@ export class PostCardMenu {
         this.element.querySelectorAll('[data-key]').forEach(item => {
             item.addEventListener('click', (e) => {
                 e.preventDefault();
+                this.close();
             });
         });
     }
@@ -27,6 +28,12 @@ export class PostCardMenu {
     private handleClickOutside = (e: MouseEvent) => {
         const target = e.target as Node;
         if (!this.element.contains(target) && !this.menuButton.contains(target)) {
+            this.close();
+        }
+    };
+
+    private handleEscapeKey = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
             this.close();
         }
     };
@@ -50,11 +57,6 @@ export class PostCardMenu {
 
         this.element.classList.add('post-card-menu--open');
         this.isOpen = true;
-
-        // Небольшая задержка, чтобы обработчик не сработал на том же клике
-        setTimeout(() => {
-            document.addEventListener('click', this.handleClickOutside);
-        }, 10);
     }
 
     close() {
@@ -64,5 +66,6 @@ export class PostCardMenu {
         this.isOpen = false;
 
         document.removeEventListener('click', this.handleClickOutside);
+        document.removeEventListener('keydown', this.handleEscapeKey);
     }
 }

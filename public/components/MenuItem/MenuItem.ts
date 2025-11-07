@@ -4,7 +4,7 @@ interface MenuItemProps {
     key: string;
     icon: string;
     text: string;
-    menu_item_id?: number;
+    topic_id: number;
 }
 
 async function getMenuItemTemplate(): Promise<Handlebars.TemplateDelegate> {
@@ -20,13 +20,13 @@ export class MenuItem {
     private key: string;
     private icon: string;
     private text: string;
-    private menu_item_id?: number;
+    private topic_id: number;
 
-    constructor({ key, icon, text, menu_item_id }: MenuItemProps) {
+    constructor({ key, icon, text, topic_id }: MenuItemProps) {
         this.key = key;
         this.icon = icon;
         this.text = text;
-        this.menu_item_id = menu_item_id;
+        this.topic_id = topic_id;
     }
 
     public toJSON() {
@@ -34,7 +34,7 @@ export class MenuItem {
             key: this.key,
             icon: this.icon,
             text: this.text,
-            menu_item_id: this.menu_item_id,
+            topic_id: this.topic_id,
         };
     }
 

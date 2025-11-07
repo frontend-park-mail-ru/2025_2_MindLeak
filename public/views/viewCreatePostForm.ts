@@ -35,7 +35,7 @@ async function getCreatePostTemplate(): Promise<Handlebars.TemplateDelegate> {
 
 class ThemeSelectorPopup {
     private popupElement: HTMLElement | null = null;
-    constructor(private onSelect: (menu_item_id: number, themeName: string) => void) {}
+    constructor(private onSelect: (topic_id: number, themeName: string) => void) {}
 
     async render(): Promise<HTMLElement> {
         const div = document.createElement('div');
@@ -48,7 +48,7 @@ class ThemeSelectorPopup {
                 const item = SECONDARY_MENU_ITEMS.find(i => i.key === selectedKey);
                 if (item) {
                     console.log('[ThemePopup] Выбрана тема:', item);
-                    this.onSelect(item.menu_item_id || 0, item.text);
+                    this.onSelect(item.topic_id || 0, item.text);
                 }
                 this.close();
             }
@@ -59,7 +59,6 @@ class ThemeSelectorPopup {
         menuEl.classList.add('theme-selector-popup__menu');
         div.appendChild(menuEl);
 
-        // Отложим добавление обработчика до следующего тика, чтобы текущий клик не вызвал его
         setTimeout(() => {
             const handleClickOutside = (e: MouseEvent) => {
                 if (!div.contains(e.target as Node)) {
@@ -84,7 +83,6 @@ class ThemeSelectorPopup {
 }
 
 export class CreatePostFormView {
-
     private formElement: HTMLElement | null = null;
     private readonly maxChars = 5000;
     private boundStoreHandler: () => void;
@@ -196,14 +194,37 @@ export class CreatePostFormView {
         const form = this.formElement.querySelector('[data-key="create-post-form"]') as HTMLFormElement;
         form?.addEventListener('submit', (e) => {
             e.preventDefault();
-            const state = createPostStore.getState();
+
             const fd = new FormData(form);
+            let title = fd.get('title');
+            let content = fd.get('content');
+
+            if (typeof title !== 'string') title = '';
+            if (typeof content !== 'string') content = '';
+
+            title = title.trim();
+
+            if (title.length === 0) {
+                this.showError('Заголовок не может быть пустым');
+                return;
+            }
+            if (title.length > 200) {
+                this.showError('Заголовок не должен превышать 200 символов');
+                return;
+            }
+
+            if (content.length > 5000) {
+                this.showError('Текст поста не должен превышать 5000 символов');
+                return;
+            }
+
             const data = {
-                title: fd.get('title') as string,
-                content: fd.get('content') as string,
-                menu_item_id: state.currentThemeId
+                title,
+                content,
+                topic_id: createPostStore.getState().currentThemeId
             };
 
+            const state = createPostStore.getState();
             if (state.isEditing && state.editingPostId) {
                 editPost(state.editingPostId, data);
             } else {
@@ -226,8 +247,8 @@ export class CreatePostFormView {
         console.log('[View] Кнопка "Выбрать тему":', themeBtn);
         themeBtn?.addEventListener('click', async () => {
             console.log('[View] Клик по кнопке "Выбрать тему"');
-            const popup = new ThemeSelectorPopup((menu_item_id, themeName) => {
-                selectTheme(themeName, menu_item_id); 
+            const popup = new ThemeSelectorPopup((topic_id, themeName) => {
+                selectTheme(themeName, topic_id); 
             });
             await popup.render();
         });

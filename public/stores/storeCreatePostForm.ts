@@ -51,11 +51,11 @@ class CreatePostStore extends BaseStore<CreatePostState> {
             this.setState({ draftContent: payload.content });
         });
 
-        this.registerAction('THEME_SELECTED', (payload: { themeName: string; menu_item_id: number }) => {
+        this.registerAction('THEME_SELECTED', (payload: { themeName: string; topic_id: number }) => {
             console.log('[Store] Выбрана тема:', payload);
             this.setState({
                 currentTheme: payload.themeName,
-                currentThemeId: payload.menu_item_id
+                currentThemeId: payload.topic_id
             });
         });
 
@@ -64,7 +64,7 @@ class CreatePostStore extends BaseStore<CreatePostState> {
                 draftTitle: payload.post.title || '',
                 draftContent: payload.post.content || '',
                 currentTheme: payload.post.theme || 'Без темы',
-                currentThemeId: payload.post.menu_item_id || 0,
+                currentThemeId: payload.post.topic_id || 0,
                 isEditing: true,
                 editingPostId: payload.post.id
             });

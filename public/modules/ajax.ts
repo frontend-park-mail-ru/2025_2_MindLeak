@@ -135,7 +135,7 @@ class Ajax {
         }
     }
 
-    async createPost(postData: { title: string; content: string; menu_item_id?: number }): Promise<ApiResponse> {
+    async createPost(postData: { title: string; content: string; topic_id?: number }): Promise<ApiResponse> {
         return this.post('/posts', postData);
     }
 
@@ -147,7 +147,7 @@ class Ajax {
         return this.delete('/profile/delete');
     }
 
-    async editPost(postId: string, postData: { title: string; content: string; menu_item_id?: number }): Promise<ApiResponse> {
+    async editPost(postId: string, postData: { title: string; content: string; topic_id?: number }): Promise<ApiResponse> {
         return this.put(`/posts/${postId}`, postData);
     }
 

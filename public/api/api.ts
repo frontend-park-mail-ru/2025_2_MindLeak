@@ -84,6 +84,26 @@ class API {
         dispatcher.dispatch(actionType, payload);
     }
 
+    /**
+     * Нормализует данные поста, приводя их к единой структуре
+     * Конвертирует PascalCase в camelCase и стандартизирует поля
+     */
+    private normalizePostData(post: any): any {
+        return {
+            id: post.id || post.ID,
+            authorId: post.author_id || post.AuthorID,
+            authorName: post.author_name || post.AuthorName,
+            authorAvatar: post.author_avatar || post.AuthorAvatar,
+            title: post.title || post.Title,
+            content: post.content || post.Content,
+            commentsCount: post.comments_count || post.CommentsCount || 0,
+            repostsCount: post.reposts_count || post.RepostsCount || 0,
+            viewsCount: post.views_count || post.ViewsCount || 0,
+            theme: post.Topic?.Title || post.theme || 'Без темы',
+            tags: []
+        };
+    }
+
     private async checkAuth(): Promise<void> {
         const response = await ajax.getMe();
 
@@ -221,20 +241,8 @@ class API {
                     // Исправление: берем posts из response.data.articles, а не response.data
                     const postsArray = response.data.articles || response.data;
                     
-                    const postsWithAuthorId = postsArray.map((post: any) => ({
-                        ...post,
-                        id: post.id,
-                        authorId: post.author_id,
-                        authorName: post.author_name,
-                        authorAvatar: post.author_avatar,
-                        title: post.title,
-                        content: post.content,
-                        commentsCount: post.comments_count,
-                        repostsCount: post.reposts_count,
-                        viewsCount: post.views_count,
-                        theme: post.Topic?.Title || 'Без темы',
-                        tags: [] // Добавляем пустой массив тегов, если их нет в ответе
-                    }));
+                    // ИСПОЛЬЗУЕМ НОРМАЛИЗАЦИЮ
+                    const postsWithAuthorId = postsArray.map((post: any) => this.normalizePostData(post));
                         
                     console.log('🔍 [API] Преобразованные посты:', postsWithAuthorId);
                     this.sendAction('POSTS_LOAD_SUCCESS', { posts: postsWithAuthorId });
@@ -290,20 +298,8 @@ class API {
         if (response.status === STATUS.ok && response.data) {
             const postsArray = response.data.articles || response.data || [];
             
-            return postsArray.map((post: any) => ({
-                ...post,
-                id: post.id,
-                authorId: post.author_id,
-                authorName: post.author_name,
-                authorAvatar : post.author_avatar,
-                title: post.title,
-                content: post.content,
-                commentsCount: post.comments_count,
-                repostsCount: post.reposts_count,
-                viewsCount: post.views_count,
-                theme: post.Topic?.Title || post.topic || 'Без темы',
-                tags: []
-            }));
+            // ИСПОЛЬЗУЕМ НОРМАЛИЗАЦИЮ
+            return postsArray.map((post: any) => this.normalizePostData(post));
         }
         
         return [];

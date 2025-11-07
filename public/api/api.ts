@@ -50,6 +50,7 @@ class API {
                 break;
             case 'ACCOUNT_DELETE_REQUEST':
                 this.deleteAccount();
+                break;
             case 'CREATE_POST_REQUEST':
                 this.createPost(payload);
                 break;
@@ -282,11 +283,37 @@ class API {
         }
     }
 
+    private async loadUserPosts(userId: number): Promise<any[]> {
+        let url = `/posts?author_id=${userId}`;
+        
+        const response = await ajax.get(url);
+        if (response.status === STATUS.ok && response.data) {
+            const postsArray = response.data.articles || response.data || [];
+            
+            return postsArray.map((post: any) => ({
+                ...post,
+                id: post.id,
+                authorId: post.author_id,
+                authorName: post.author_name,
+                authorAvatar : post.author_avatar,
+                title: post.title,
+                content: post.content,
+                commentsCount: post.comments_count,
+                repostsCount: post.reposts_count,
+                viewsCount: post.views_count,
+                theme: post.Topic?.Title || 'without_topic',
+                tags: []
+            }));
+        }
+        
+        return [];
+    }
+
     private async loadProfile(userId?: number): Promise<void> {
         let url = '/profile';
         
         if (userId) {
-            url = `/user?id=${userId}`;
+            url = `/profile?id=${userId}`;
         }
         
         const response = await ajax.get(url);
@@ -306,11 +333,12 @@ class API {
                         isSubscribed: response.data.is_subscribed || false
                     };
 
-                    const posts = response.data.posts || [];
-                    
+                    // Загружаем посты пользователя по его ID
+                    const userPosts = await this.loadUserPosts(profileData.id); // ИСПОЛЬЗУЕМ profileData.id
+                        
                     this.sendAction('PROFILE_LOAD_SUCCESS', {
                         profile: profileData,
-                        posts: posts
+                        posts: userPosts
                     });
                 } else {
                     this.sendAction('PROFILE_LOAD_FAIL', { 
@@ -362,9 +390,12 @@ class API {
         };
         
         const response = await ajax.put('/profile', updateData);
+
+        console.log('🔍 [API] Update profile response:', response);
         
         switch (response.status) {
             case STATUS.ok:
+                console.log('🔍 [API] Description updated successfully');
                 this.sendAction('PROFILE_UPDATE_DESCRIPTION_SUCCESS', { 
                     description: description 
                 });

@@ -143,7 +143,7 @@ export class PostView {
     private async renderPostInWrapper(post: Post, wrapper: HTMLElement): Promise<void> {
         const authState = loginStore.getState();
         const currentUserId = authState.user?.id;
-        const isOwnPost = !!currentUserId && currentUserId === post.authorId;
+        const isOwnPost = !!currentUserId && currentUserId.toString() === post.authorId.toString();
 
         const postData: PostCardProps = {
             postId: post.id,

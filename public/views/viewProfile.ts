@@ -131,14 +131,21 @@ export class ProfileView {
 
     private async renderProfileContent(): Promise<HTMLElement> {
         const state = profileStore.getState();
+        const loginState = loginStore.getState();
         
+        // Проверяем, мой это профиль или чужой
+        const isMyProfile = !this.userId || 
+                        (loginState.user && loginState.user.id.toString() === this.userId) ||
+                        (!this.userId && loginState.isLoggedIn); // для /profile без ID
+
         const profileComponent = new Profile({
             profile: state.profile,
             posts: state.posts,
             activeTab: state.activeTab,
             isLoading: state.isLoading,
             error: state.error,
-            isEditingDescription: state.isEditingDescription
+            isEditingDescription: state.isEditingDescription,
+            isMyProfile: isMyProfile // Передаем флаг
         });
 
         const profileElement = await profileComponent.render();
@@ -182,7 +189,6 @@ export class ProfileView {
     }
 
     private attachDescriptionEventListeners(container: HTMLElement): void {
-
         const editButton = container.querySelector('.profile__edit-btn');
         if (editButton) {
             editButton.addEventListener('click', () => {
@@ -197,6 +203,7 @@ export class ProfileView {
             });
         }
 
+        // Остальной код без изменений...
         const descriptionInput = container.querySelector('.form__input[name="description"]');
         if (descriptionInput) {
             descriptionInput.addEventListener('keydown', (e: Event) => {

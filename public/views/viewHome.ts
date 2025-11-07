@@ -4,32 +4,37 @@ import { dispatcher } from '../dispatcher/dispatcher';
 import { PostsView } from './viewPosts';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
 
+
 export class HomeView {
   private headerInstance: Header;
   private postsView: PostsView;
   private feedWrapper: HTMLElement | null = null;
+  private currentCategory: string = 'fresh';
 
   constructor() {
     this.headerInstance = new Header();
     this.postsView = new PostsView();
+    this.determineCurrentCategory();
+  }
+
+  private determineCurrentCategory(): void {
+    const url = new URL(window.location.href);
+    const pathname = url.pathname;
+    
+    if (pathname === '/' || pathname === '/feed') {
+      this.currentCategory = 'fresh';
+    } else if (pathname === '/feed/category') {
+      const topicParam = url.searchParams.get('topic');
+      this.currentCategory = topicParam || 'fresh';
+    }
+    
+    // Отправляем в store текущий фильтр
+    dispatcher.dispatch('POSTS_SET_FILTER', { filter: this.currentCategory });
   }
 
   async render(): Promise<HTMLElement> {
-    dispatcher.dispatch('POSTS_LOAD_REQUEST', { offset: 0 });
-
-    const url = new URL(window.location.href);
-    let currentFilter = 'fresh';
-    
-    // Извлекаем filter из query
-    const filterParam = url.searchParams.get('filter');
-    if (filterParam) {
-        currentFilter = filterParam;
-    } else if (url.pathname === '/feed') {
-        currentFilter = 'fresh';
-    }
-
-    // Отправляем в store
-    dispatcher.dispatch('POSTS_SET_FILTER', { filter: currentFilter });
+    // Определяем категорию перед рендером
+    this.determineCurrentCategory();
 
     const rootElem = document.createElement('div');
     
@@ -39,7 +44,7 @@ export class HomeView {
     headerContainer.appendChild(headerEl);
     rootElem.appendChild(headerContainer);
 
-    // oсновной контент
+    // основной контент
     const contentContainer = document.createElement('div');
     contentContainer.className = 'content-layout';
     rootElem.appendChild(contentContainer);
@@ -47,44 +52,52 @@ export class HomeView {
     const leftMenu = document.createElement('aside');
     leftMenu.className = 'sidebar-left';
 
-    // Сохраняем ссылки на DOM-элементы сайдбаров
     let sidebarEl1: HTMLElement | null = null;
     let sidebarEl2: HTMLElement | null = null;
 
-    // Функция для сброса активности в сайдбаре
     const deactivateAll = (sidebarEl: HTMLElement) => {
-        sidebarEl.querySelectorAll('.menu-item').forEach(item => {
-            item.classList.remove('menu-item--active');
-        });
+      sidebarEl.querySelectorAll('.menu-item').forEach(item => {
+        item.classList.remove('menu-item--active');
+      });
     };
 
-    // левое меню
+    // левое меню - передаем текущую категорию для подсветки
     const sidebar1 = new SidebarMenu(
-        MAIN_MENU_ITEMS,
-        currentFilter,
-        (key) => {
-          if (sidebarEl2) deactivateAll(sidebarEl2);
-          
-          const newUrl = key === 'fresh' ? '/feed' : `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
-          window.history.pushState({}, '', newUrl);
-          
-          window.dispatchEvent(new PopStateEvent('popstate'));
+      MAIN_MENU_ITEMS,
+      this.currentCategory,
+      (key) => {
+        if (sidebarEl2) deactivateAll(sidebarEl2);
+        
+        let newUrl = '';
+        if (key === 'fresh') {
+          newUrl = '/feed';
+        } else {
+          newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
         }
+        
+        window.history.pushState({}, '', newUrl);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
     );
     sidebarEl1 = await sidebar1.render();
 
-    // Нижнее меню
+    // нижнее меню - также передаем текущую категорию
     const sidebar2 = new SidebarMenu(
-        SECONDARY_MENU_ITEMS,
-        currentFilter,
-        (key) => {
-          if (sidebarEl1) deactivateAll(sidebarEl2);
-          
-          const newUrl = key === '' ? '/feed' : `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
-          window.history.pushState({}, '', newUrl);
-          
-          window.dispatchEvent(new PopStateEvent('popstate'));
+      SECONDARY_MENU_ITEMS,
+      this.currentCategory,
+      (key) => {
+        if (sidebarEl1) deactivateAll(sidebarEl1);
+        
+        let newUrl = '';
+        if (key === 'fresh') {
+          newUrl = '/feed';
+        } else {
+          newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
         }
+        
+        window.history.pushState({}, '', newUrl);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
     );
     sidebarEl2 = await sidebar2.render();
 
@@ -95,7 +108,7 @@ export class HomeView {
     const pageElement = document.createElement('main');
     pageElement.className = 'main-content';
     
-    //контейнер для постов
+    // контейнер для постов
     this.feedWrapper = document.createElement('div');
     this.feedWrapper.className = 'feed';
     this.feedWrapper.id = 'feed-wrapper';
@@ -112,10 +125,10 @@ export class HomeView {
     contentContainer.appendChild(pageElement);
     contentContainer.appendChild(rightMenu);
 
-    // инициал feed через feedWrapper
+    // инициализация feed
     try {
       await this.postsView.init(this.feedWrapper);
-      console.log('PostsView initialized successfully');
+      console.log('PostsView initialized successfully for category:', this.currentCategory);
     } catch (error) {
       console.error('Failed to initialize PostsView:', error);
       const errorEl = document.createElement('div');

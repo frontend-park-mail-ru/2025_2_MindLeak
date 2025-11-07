@@ -201,15 +201,24 @@ class API {
     }
 
         private async loadPosts(filter?: string, offset: number = 0): Promise<void> {
-        const response = await ajax.getFeed(filter, offset);
-        switch (response.status) {
-            case STATUS.ok:
+            let response;
+            
+            if (filter && filter !== 'fresh') {
+                // Загрузка для категории
+                response = await ajax.get(`/feed/category?topic=${filter}&offset=${offset}`);
+            } else {
+                // Загрузка для свежего
+                response = await ajax.get(`/feed?offset=${offset}`);
+            }
+  
+            switch (response.status) {
+                case STATUS.ok:
                 if (response.data) {
                     const postsWithAuthorId = response.data.map((post: any) => ({
-                        ...post,
-                        author_id: post.author_id || post.authorId || null
+                    ...post,
+                    author_id: post.author_id || post.authorId || null
                     }));
-                        
+                    
                     this.sendAction('POSTS_LOAD_SUCCESS', { posts: postsWithAuthorId });
                 } else {
                     this.sendAction('POSTS_LOAD_FAIL', { error: 'No posts data' });

@@ -1,41 +1,84 @@
+import { loginStore } from '../stores/storeLogin';
+import { LoginFormView } from '../views/viewLogin';
+import { dispatcher } from '../dispatcher/dispatcher';
+
 interface Route {
     path: string;
     view: any;
     title?: string;
+    requiresAuth?: boolean;
 }
 
 export class Router {
     private routes: Route[] = [];
     private currentView: any = null;
     private isInitialized: boolean = false;
+    private pendingRoute: { route: Route; path?: string } | null = null;
+    private isAuthCheckComplete: boolean = false;
+    private authCheckPromise: Promise<void> | null = null;
 
     constructor() {
         this.handleRouteChange = this.handleRouteChange.bind(this);
         this.handleLinkClick = this.handleLinkClick.bind(this);
+        this.handleLoginStoreChange = this.handleLoginStoreChange.bind(this);
     }
 
-    addRoute(path: string, view: any, title?: string): void {
-        this.routes.push({ path, view, title });
+    addRoute(path: string, view: any, title?: string, requiresAuth: boolean = false): void {
+        this.routes.push({ path, view, title, requiresAuth });
     }
 
     init(): void {
         if (this.isInitialized) return;
 
-        // обработчик изменения URL
-        window.addEventListener('popstate', this.handleRouteChange);
-        
-        // перехват кликов по ссылкам
-        document.addEventListener('click', this.handleLinkClick);
+        // Запускаем проверку авторизации при инициализации роутера
+        this.startAuthCheck();
 
-        // первоначальная загрузка маршрута
+        window.addEventListener('popstate', this.handleRouteChange);
+        document.addEventListener('click', this.handleLinkClick);
+        loginStore.addListener(this.handleLoginStoreChange);
+
         this.handleRouteChange();
         this.isInitialized = true;
 
         console.log('Router initialized');
     }
 
+    private startAuthCheck(): void {
+        // Если проверка уже запущена, не запускаем повторно
+        if (this.authCheckPromise) return;
+
+        console.log('[Router] Starting auth check...');
+        
+        this.authCheckPromise = new Promise<void>((resolve) => {
+            const state = loginStore.getState();
+            
+            // Если проверка уже не в процессе, значит она завершена
+            if (!state.isLoading) {
+                console.log('[Router] Auth check already complete');
+                this.isAuthCheckComplete = true;
+                resolve();
+                return;
+            }
+
+            // Ждем завершения проверки авторизации
+            const unsubscribe = loginStore.addListener(() => {
+                const newState = loginStore.getState();
+                console.log(`[Router] Auth check update - isLoading: ${newState.isLoading}, isLoggedIn: ${newState.isLoggedIn}`);
+                
+                if (!newState.isLoading) {
+                    console.log('[Router] Auth check completed');
+                    this.isAuthCheckComplete = true;
+                    resolve();
+                }
+            });
+        });
+
+        // Запускаем проверку авторизации через API
+        dispatcher.dispatch('LOGIN_CHECK_REQUEST');
+    }
+
     private async handleRouteChange(): Promise<void> {
-        const path = window.location.pathname;
+        const path = window.location.pathname + window.location.search;
         await this.navigate(path, false);
     }
 
@@ -47,17 +90,14 @@ export class Router {
 
         const href = link.getAttribute('href');
 
-        // игнор внеш ссылки и ссылки с разными протоколами
         if (!href || href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:')) {
             return;
         }
 
-        // игнорир якорные ссылки
         if (href.startsWith('#')) {
             return;
         }
 
-        // игнорир ссылки с data-router-ignore
         if (link.hasAttribute('data-router-ignore')) {
             console.log('Ignoring link with data-router-ignore:', href);
             return;
@@ -89,48 +129,52 @@ export class Router {
         
         console.log(`[Router] Finding route for: ${normalizedPath} (original: ${path})`);
         
+        // Сначала ищем точное совпадение
         const exactMatch = this.routes.find(route => route.path === normalizedPath);
         if (exactMatch) {
             console.log(`[Router] Exact match found: ${exactMatch.path}`);
             return exactMatch;
         }
 
+        // Затем ищем совпадение по паттерну (с параметрами)
         for (const route of this.routes) {
             if (route.path.includes(':')) {
                 const routeRegex = this.pathToRegex(route.path);
-                const match = path.match(routeRegex);
+                const match = normalizedPath.match(routeRegex);
                 
                 if (match) {
-                    console.log(`[Router] Pattern match found: ${route.path} for ${path}`);
+                    console.log(`[Router] Pattern match found: ${route.path} for ${normalizedPath}`);
                     return route;
                 }
             }
         }
 
-        console.log(`[Router] No route found for: ${path}`);
+        console.log(`[Router] No route found for: ${normalizedPath}`);
         return null;
     }
 
     private extractParams(routePath: string, actualPath: string): any {
         const params: any = {};
-        const routeParts = routePath.split('/');
         
-        // Извлекаем только pathname для сравнения маршрутов
+        const routeParts = routePath.split('/');
         const actualPathname = actualPath.split('?')[0];
         const actualParts = actualPathname.split('/');
         
         for (let i = 0; i < routeParts.length; i++) {
             if (routeParts[i].startsWith(':')) {
                 const paramName = routeParts[i].slice(1);
-                params[paramName] = actualParts[i];
+                params[paramName] = actualParts[i] || '';
             }
         }
         
-        // Добавляем query параметры
-        const url = new URL(actualPath, window.location.origin);
-        url.searchParams.forEach((value, key) => {
-            params[key] = value;
-        });
+        try {
+            const url = new URL(actualPath, window.location.origin);
+            url.searchParams.forEach((value, key) => {
+                params[key] = value;
+            });
+        } catch (e) {
+            console.warn('Failed to parse URL for params:', e);
+        }
         
         return params;
     }
@@ -140,8 +184,31 @@ export class Router {
         return new RegExp(`^${pattern}$`);
     }
 
-
     private async renderView(route: Route, path?: string): Promise<void> {
+        console.log(`[Router] renderView called for route: ${route.path}, path: ${path}`);
+        console.log(`[Router] Route requires auth: ${route.requiresAuth}, Auth check complete: ${this.isAuthCheckComplete}`);
+        
+        // Если проверка авторизации еще не завершена, ждем
+        if (!this.isAuthCheckComplete && this.authCheckPromise) {
+            console.log(`[Router] Waiting for auth check to complete...`);
+            await this.authCheckPromise;
+            console.log(`[Router] Auth check completed, user authenticated: ${this.isUserAuthenticated()}`);
+        }
+
+        // Проверяем, требует ли маршрут авторизации
+        if (route.requiresAuth && !this.isUserAuthenticated()) {
+            console.log(`[Router] Route ${route.path} requires auth, showing login form`);
+            
+            this.pendingRoute = { route, path };
+            
+            const loginView = new LoginFormView(path);
+            const modal = await loginView.render();
+            document.body.appendChild(modal);
+            return;
+        }
+
+        console.log(`[Router] User authenticated or route doesn't require auth, rendering view`);
+        
         if (this.currentView && typeof this.currentView.destroy === 'function') {
             this.currentView.destroy();
         }
@@ -153,10 +220,10 @@ export class Router {
         try {
             const ViewClass = route.view;
             
-            // извлек параметры если есть
             let params = {};
-            if (path && route.path.includes(':')) {
+            if (path) {
                 params = this.extractParams(route.path, path);
+                console.log(`[Router] Extracted params:`, params);
             }
             
             const content = document.getElementById('root');
@@ -177,29 +244,50 @@ export class Router {
         }
     }
 
-    //страница 404 todo иначе
+    private isUserAuthenticated(): boolean {
+        const state = loginStore.getState();
+        return state.isLoggedIn;
+    }
+
+    private handleLoginStoreChange(): void {
+        const state = loginStore.getState();
+        console.log(`[Router] Login store changed, isLoggedIn: ${state.isLoggedIn}, isLoading: ${state.isLoading}`);
+        
+        // Если пользователь авторизовался и есть ожидающий маршрут
+        if (state.isLoggedIn && this.pendingRoute) {
+            console.log(`[Router] User logged in, navigating to pending route: ${this.pendingRoute.path}`);
+            
+            const { route, path } = this.pendingRoute;
+            this.pendingRoute = null;
+            
+            this.renderView(route, path);
+        }
+    }
+
     private async show404(): Promise<void> {
         const content = document.getElementById('root');
         if (content) {
-        content.innerHTML = `
-            <div style="text-align: center; padding: 50px;">
-            <h1>404 - Страница не найдена</h1>
-            <p>Запрошенная страница не существует.</p>
-            <a href="/" data-router-link>Вернуться на главную</a>
-            </div>
-        `;
+            content.innerHTML = `
+                <div style="text-align: center; padding: 50px;">
+                <h1>404 - Страница не найдена</h1>
+                <p>Запрошенная страница не существует.</p>
+                <a href="/" data-router-link>Вернуться на главную</a>
+                </div>
+            `;
         }
     }
 
     destroy(): void {
         window.removeEventListener('popstate', this.handleRouteChange);
         document.removeEventListener('click', this.handleLinkClick);
+        loginStore.removeListener(this.handleLoginStoreChange);
         
         if (this.currentView && typeof this.currentView.destroy === 'function') {
             this.currentView.destroy();
         }
         
         this.isInitialized = false;
+        this.authCheckPromise = null;
     }
 }
 

@@ -221,30 +221,22 @@ class API {
         }
     }
 
-
     private async loadPosts(filter?: string, offset: number = 0): Promise<void> {
         let response;
         
         if (filter && filter !== 'fresh') {
-            // Загрузка для категории (русские названия) - только для реальных категорий
             response = await ajax.get(`/feed/category?topic=${encodeURIComponent(filter)}&offset=${offset}`);
         } else {
-            // Загрузка для свежего
             response = await ajax.get(`/feed?offset=${offset}`);
         }
 
-        console.log('🔍 [API] Ответ от сервера:', response); // Добавьте для отладки
+        console.log('🔍 [API] Ответ от сервера:', response);
 
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
-                    // Исправление: берем posts из response.data.articles, а не response.data
                     const postsArray = response.data.articles || response.data;
-                    
-                    // ИСПОЛЬЗУЕМ НОРМАЛИЗАЦИЮ
                     const postsWithAuthorId = postsArray.map((post: any) => this.normalizePostData(post));
-                        
-                    console.log('🔍 [API] Преобразованные посты:', postsWithAuthorId);
                     this.sendAction('POSTS_LOAD_SUCCESS', { posts: postsWithAuthorId });
                 } else {
                     this.sendAction('POSTS_LOAD_FAIL', { error: 'No posts data' });
@@ -297,8 +289,6 @@ class API {
         const response = await ajax.get(url);
         if (response.status === STATUS.ok && response.data) {
             const postsArray = response.data.articles || response.data || [];
-            
-            // ИСПОЛЬЗУЕМ НОРМАЛИЗАЦИЮ
             return postsArray.map((post: any) => this.normalizePostData(post));
         }
         
@@ -329,8 +319,7 @@ class API {
                         isSubscribed: response.data.is_subscribed || false
                     };
 
-                    // Загружаем посты пользователя по его ID
-                    const userPosts = await this.loadUserPosts(profileData.id); // ИСПОЛЬЗУЕМ profileData.id
+                    const userPosts = await this.loadUserPosts(profileData.id);
                         
                     this.sendAction('PROFILE_LOAD_SUCCESS', {
                         profile: profileData,
@@ -359,7 +348,6 @@ class API {
                 });
         }
     }
-
 
     private async updateProfileDescription(description: string): Promise<void> {
 

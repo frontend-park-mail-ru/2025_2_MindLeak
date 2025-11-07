@@ -1,7 +1,9 @@
 import { PostCardMenu } from '../PostCardMenu/PostCardMenu';
 import { dispatcher } from '../../dispatcher/dispatcher';
 import { router } from '../../router/router';
-import { CreatePostFormView } from '../../views/viewCreatePostForm'; // Добавить импорт
+import { CreatePostFormView } from '../../views/viewCreatePostForm';
+import { loginStore } from '../../stores/storeLogin'; // Добавить импорт
+import { LoginFormView } from '../../views/viewLogin'; // Добавить импорт
 
 let postCardTemplate: Handlebars.TemplateDelegate | null = null;
 
@@ -227,10 +229,24 @@ export class PostCard {
             
             console.log(`[PostCard] Переход в профиль автора: ${this.user.name}, ${this.user.id}`);
             
-            if (this.user.id) {
-                router.navigate(`/profile?id=${this.user.id}`);
-            } else {
+            const authState = loginStore.getState();
+            const authorId = this.user.id;
+            
+            if (!authorId) {
                 console.warn('Author ID not available');
+                return;
+            }
+            
+            const targetUrl = `/profile?id=${authorId}`;
+            
+            if (!authState.isLoggedIn) {
+                // Показываем форму логина с редиректом на профиль автора
+                console.log(`[PostCard] User not logged in, showing login form for profile: ${targetUrl}`);
+                this.showLoginForm(targetUrl);
+            } else {
+                // Переходим сразу на профиль
+                console.log(`[PostCard] User logged in, navigating to profile: ${targetUrl}`);
+                router.navigate(targetUrl);
             }
         };
 
@@ -267,5 +283,11 @@ export class PostCard {
                 e.stopPropagation();
             });
         }
+    }
+
+    private async showLoginForm(targetUrl: string): Promise<void> {
+        const loginView = new LoginFormView(targetUrl);
+        const modal = await loginView.render();
+        document.body.appendChild(modal);
     }
 }

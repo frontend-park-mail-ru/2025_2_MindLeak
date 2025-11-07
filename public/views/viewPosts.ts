@@ -11,6 +11,7 @@ export class PostsView {
     private allPosts: Post[] = [];
     private boundStoreHandler: () => void;
     private currentFilter: string = 'fresh';
+    private isInitialized: boolean = false;
 
     constructor() {
         this.boundStoreHandler = this.handleStoreChange.bind(this);
@@ -22,7 +23,6 @@ export class PostsView {
         postsStore.addListener(this.boundStoreHandler);
     }
 
-// PostsView.ts - обновите метод init
     public async init(feedWrapper?: HTMLElement): Promise<void> {
         if (feedWrapper) {
             this.feedWrapper = feedWrapper;
@@ -33,6 +33,9 @@ export class PostsView {
         if (!this.feedWrapper) {
             throw new Error('Feed wrapper not found');
         }
+
+        // Очищаем предыдущий observer если был
+        this.cleanupScroll();
 
         // Определяем категорию из URL
         const url = new URL(window.location.href);
@@ -49,10 +52,16 @@ export class PostsView {
         }
 
         this.setupInfiniteScroll();
+        this.isInitialized = true;
     }
 
     private setupInfiniteScroll(): void {
         if (!this.feedWrapper) return;
+
+        // Очищаем предыдущий sentinel
+        if (this.sentinel) {
+            this.sentinel.remove();
+        }
 
         this.sentinel = document.createElement('div');
         this.sentinel.style.height = '20px';
@@ -60,8 +69,13 @@ export class PostsView {
         
         this.feedWrapper.appendChild(this.sentinel);
 
+        // Очищаем предыдущий observer
+        if (this.observer) {
+            this.observer.disconnect();
+        }
+
         this.observer = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting && this.allPosts.length > 0) {
+            if (entries[0].isIntersecting && this.allPosts.length > 0 && this.isInitialized) {
                 this.renderNextPosts();
             }
         }, {
@@ -70,6 +84,17 @@ export class PostsView {
 
         if (this.sentinel) {
             this.observer.observe(this.sentinel);
+        }
+    }
+
+    private cleanupScroll(): void {
+        if (this.observer) {
+            this.observer.disconnect();
+            this.observer = null;
+        }
+        if (this.sentinel) {
+            this.sentinel.remove();
+            this.sentinel = null;
         }
     }
 
@@ -91,7 +116,10 @@ export class PostsView {
 
         if (state.posts.length > 0) {
             this.allPosts = [...state.posts];
-            this.renderNextPosts();
+            // При первой загрузке рендерим первые посты
+            if (this.virtualPostIndex === 0) {
+                this.renderNextPosts();
+            }
         }
 
         if (state.error) {
@@ -101,9 +129,8 @@ export class PostsView {
 
     private transformPost(apiPost: Post): PostCardProps {
         const authState = loginStore.getState();
-        const currentUserId = authState.user?.id; // ← теперь есть id!
+        const currentUserId = authState.user?.id;
         const isOwnPost = !!currentUserId && currentUserId.toString() === apiPost.authorId?.toString();
-
 
         return {
             postId: apiPost.id || '',
@@ -128,15 +155,21 @@ export class PostsView {
     private async renderNextPosts(): Promise<void> {
         if (!this.feedWrapper || this.allPosts.length === 0) return;
 
-        const POSTS_PER_LOAD = 3;
+        const POSTS_PER_LOAD = 10;
         const fragment = document.createDocumentFragment();
         
+        console.log(`🔍 [PostsView] Rendering next ${POSTS_PER_LOAD} posts from index ${this.virtualPostIndex}`);
+        
         for (let i = 0; i < POSTS_PER_LOAD; i++) {
+            // Циклическая логика: если дошли до конца массива, начинаем сначала
             if (this.virtualPostIndex >= this.allPosts.length) {
-                this.virtualPostIndex = 0; // Циклическая лента
+                this.virtualPostIndex = 0;
+                console.log('🔍 [PostsView] Restarting from beginning of posts array');
             }
             
             const apiPost = this.allPosts[this.virtualPostIndex];
+            console.log(`🔍 [PostsView] Rendering post ${this.virtualPostIndex}:`, apiPost.id, apiPost.title);
+            
             const postData = this.transformPost(apiPost);
             
             try {
@@ -158,6 +191,8 @@ export class PostsView {
         } else {
             this.feedWrapper.appendChild(fragment);
         }
+        
+        console.log(`🔍 [PostsView] Next posts rendered, new index: ${this.virtualPostIndex}`);
     }
 
     private showError(message: string): void {
@@ -173,11 +208,11 @@ export class PostsView {
 
     destroy(): void {
         postsStore.removeListener(this.boundStoreHandler);
-        if (this.observer && this.sentinel) {
-            this.observer.unobserve(this.sentinel);
-        }
+        this.cleanupScroll();
         this.feedWrapper = null;
-        this.sentinel = null;
+        this.allPosts = [];
+        this.virtualPostIndex = 0;
+        this.isInitialized = false;
     }
 
     private handlePostAction(action: string, postId?: string): void {

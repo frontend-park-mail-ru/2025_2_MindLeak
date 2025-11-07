@@ -4,10 +4,9 @@ import { dispatcher } from '../dispatcher/dispatcher';
 import { PostsView } from './viewPosts';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
 
-
 export class HomeView {
     private headerInstance: Header;
-    private postsView: PostsView;
+    private postsView: PostsView | null = null;
     private feedWrapper: HTMLElement | null = null;
     private currentCategory: string = 'fresh';
 
@@ -127,8 +126,10 @@ export class HomeView {
 
         // инициализация feed
         try {
-            await this.postsView.init(this.feedWrapper);
-            console.log('PostsView initialized successfully for category:', this.currentCategory);
+            if (this.postsView) {
+                await this.postsView.init(this.feedWrapper);
+                console.log('PostsView initialized successfully for category:', this.currentCategory);
+            }
         } catch (error) {
             console.error('Failed to initialize PostsView:', error);
             const errorEl = document.createElement('div');
@@ -144,6 +145,9 @@ export class HomeView {
 
     destroy(): void {
         this.headerInstance.destroy();
-        this.postsView.destroy();
+        if (this.postsView) {
+            this.postsView.destroy();
+            this.postsView = null;
+        }
     }
 }

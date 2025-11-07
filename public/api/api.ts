@@ -286,7 +286,7 @@ class API {
         let url = '/profile';
         
         if (userId) {
-            url = `/user?id=${userId}`;
+            url = `/profile?id=${userId}`;
         }
         
         const response = await ajax.get(url);

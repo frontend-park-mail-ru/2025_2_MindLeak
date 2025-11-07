@@ -9,7 +9,7 @@ import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../component
 
 export class ProfileView {
     private container: HTMLElement;
-    private userId?: number;
+    private userId?: string;
     private boundStoreHandler: () => void;
     private boundLoginStoreHandler: () => void;
     private topBloggers: TopBloggers | null = null;
@@ -21,12 +21,18 @@ export class ProfileView {
         this.headerInstance = new Header();
         
         if (params && params.id) {
-            this.userId = parseInt(params.id);
+            this.userId = params.id;
+            console.log(`[ProfileView] User ID from route params: ${this.userId}`);
         } else {
+            // Fallback для прямого перехода на /profile
             const urlParams = new URLSearchParams(window.location.search);
             const idParam = urlParams.get('id');
             if (idParam) {
-                this.userId = parseInt(idParam);
+                this.userId = idParam;
+                console.log(`[ProfileView] User ID from query params: ${this.userId}`);
+            } else {
+                // Если нет ID, загружаем текущего пользователя
+                console.log(`[ProfileView] No user ID provided, loading current user`);
             }
         }
         this.boundStoreHandler = this.handleStoreChange.bind(this);
@@ -39,12 +45,12 @@ export class ProfileView {
         profileStore.addListener(this.boundStoreHandler);
         loginStore.addListener(this.boundLoginStoreHandler);
         
+        // Всегда передаем userId, даже если undefined (тогда API вернет текущего пользователя)
         dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
             userId: this.userId 
         });
 
         return this.pageWrapper!;
-
     }
 
     private async renderFullPage(): Promise<void> {

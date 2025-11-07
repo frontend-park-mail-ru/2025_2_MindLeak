@@ -2,7 +2,7 @@ import { BaseStore } from './store';
 import { Post } from './storePosts';
 
 export interface ProfileData {
-    id: number;
+    id: string;
     name: string;
     email: string;
     avatar_url: string;

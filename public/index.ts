@@ -15,7 +15,7 @@ async function initApp(): Promise<void> {
     router.addRoute('/feed', HomeView, 'Mindleak - Лента');
     router.addRoute('/feed/category', HomeView, 'Mindleak - Категория');
     router.addRoute('/profile', ProfileView, 'Mindleak - Мой профиль'); // свой профиль
-    router.addRoute('/user', ProfileView, 'Mindleak - Профиль'); // чужой профиль с query параметром
+    router.addRoute('/profile/:id', ProfileView, 'Mindleak - Профиль'); // чужой профиль с query параметром
     router.addRoute('/feed/category', PostsView, 'Категория');
 
     // Настройки

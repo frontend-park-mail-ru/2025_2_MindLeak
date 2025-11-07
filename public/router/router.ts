@@ -84,9 +84,12 @@ export class Router {
     }
 
     private findRoute(path: string): Route | null {
-        console.log(`[Router] Finding route for: ${path}`);
+        const pathname = path.split('?')[0];
+        const normalizedPath = pathname === '/' ? '/' : `/${pathname.replace(/^\/+/, '')}`;
         
-        const exactMatch = this.routes.find(route => route.path === path);
+        console.log(`[Router] Finding route for: ${normalizedPath} (original: ${path})`);
+        
+        const exactMatch = this.routes.find(route => route.path === normalizedPath);
         if (exactMatch) {
             console.log(`[Router] Exact match found: ${exactMatch.path}`);
             return exactMatch;
@@ -111,7 +114,10 @@ export class Router {
     private extractParams(routePath: string, actualPath: string): any {
         const params: any = {};
         const routeParts = routePath.split('/');
-        const actualParts = actualPath.split('/');
+        
+        // Извлекаем только pathname для сравнения маршрутов
+        const actualPathname = actualPath.split('?')[0];
+        const actualParts = actualPathname.split('/');
         
         for (let i = 0; i < routeParts.length; i++) {
             if (routeParts[i].startsWith(':')) {
@@ -119,6 +125,12 @@ export class Router {
                 params[paramName] = actualParts[i];
             }
         }
+        
+        // Добавляем query параметры
+        const url = new URL(actualPath, window.location.origin);
+        url.searchParams.forEach((value, key) => {
+            params[key] = value;
+        });
         
         return params;
     }

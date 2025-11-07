@@ -78,7 +78,7 @@ function transformPostForProfile(apiPost: any): any {
         authorId: apiPost.authorId,
         user: {
             name: apiPost.authorName || 'Аноним',
-            subtitle: apiPost.theme || 'Блог',
+            subtitle: apiPost.theme || 'Блог', 
             avatar: apiPost.authorAvatar || '/img/defaultAvatar.jpg',
             isSubscribed: false,
             id: apiPost.authorId

@@ -168,7 +168,7 @@ class API {
     }
 
     private async loadPostForEdit(postId: string): Promise<void> {
-        const response = await ajax.get(`/posts/${postId}`);
+        const response = await ajax.get(`/post?id=${postId}`);
         if (response.status === 200 && response.data) {
             this.sendAction('POST_EDIT_LOAD_SUCCESS', { post: response.data });
         } else {

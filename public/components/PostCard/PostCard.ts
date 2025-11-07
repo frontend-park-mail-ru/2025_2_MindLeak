@@ -1,6 +1,7 @@
 import { PostCardMenu } from '../PostCardMenu/PostCardMenu';
 import { dispatcher } from '../../dispatcher/dispatcher';
 import { router } from '../../router/router';
+import { CreatePostFormView } from '../../views/viewCreatePostForm'; // Добавить импорт
 
 let postCardTemplate: Handlebars.TemplateDelegate | null = null;
 
@@ -180,9 +181,11 @@ export class PostCard {
         const menuPopup = postCard.querySelector('.post-card-menu') as HTMLElement;
 
         if (menuButton && menuPopup) {
-            new PostCardMenu(menuButton, menuPopup);
+            // ИСПРАВЛЕНИЕ: использовать this.postId вместо postId
+            new PostCardMenu(menuButton, menuPopup, this.postId);
         }
 
+        // todo Убрать дублирующиеся обработчики меню, так как они уже есть в PostCardMenu
         const menuItemsElements = postCard.querySelectorAll('.post-card-menu [data-key]');
         menuItemsElements.forEach(item => {
             item.addEventListener('click', (e) => {
@@ -190,7 +193,8 @@ export class PostCard {
                 const key = item.getAttribute('data-key');
                 if (key) {
                     if (key === 'edit') {
-                        dispatcher.dispatch('POST_EDIT_REQUEST', { postId: this.postId });
+                        console.log('[PostCard] Редактирование поста:', this.postId);
+                        this.handleEditPost();
                     } else {
                         this.onMenuAction?.(key);
                     }
@@ -201,6 +205,15 @@ export class PostCard {
         return postCard;
     }
 
+    private async handleEditPost(): Promise<void> {
+        // Отправляем запрос на загрузку данных поста для редактирования
+        dispatcher.dispatch('POST_EDIT_REQUEST', { postId: this.postId });
+        
+        // Открываем форму редактирования
+        const createPostForm = new CreatePostFormView();
+        const formElement = await createPostForm.render();
+        document.body.appendChild(formElement);
+    }
 
     private setupAuthorClickHandlers(postCard: HTMLElement): void {
         const authorAvatar = postCard.querySelector('.user-menu__avatar') as HTMLElement;
@@ -215,13 +228,7 @@ export class PostCard {
             console.log(`[PostCard] Переход в профиль автора: ${this.user.name}, ${this.user.id}`);
             
             if (this.user.id) {
-                // 1. Навигация через роутер (ОБЯЗАТЕЛЬНО!)
                 router.navigate(`/profile?id=${this.user.id}`);
-                
-                // 2. Загрузка данных (опционально - ProfileView сам загрузит)
-                // dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
-                //     userId: this.user.id.toString() 
-                // });
             } else {
                 console.warn('Author ID not available');
             }

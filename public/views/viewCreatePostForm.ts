@@ -96,10 +96,15 @@ export class CreatePostFormView {
         const state = createPostStore.getState();
 
         if (state.success) {
-            this.close();
+            // Закрываем форму при успешной операции, как в LoginFormView
+            this.destroy();
+            const message = state.isEditing 
+                ? 'Пост успешно отредактирован!' 
+                : 'Пост успешно опубликован!';
+                
             dispatcher.dispatch('SHOW_NOTIFICATION', {
                 type: 'success',
-                message: 'Пост успешно опубликован!'
+                message: message
             });
         }
 
@@ -116,7 +121,12 @@ export class CreatePostFormView {
         const submitBtn = this.formElement.querySelector('[data-key="submit-post"]') as HTMLButtonElement;
         if (submitBtn) {
             submitBtn.disabled = state.isCreating;
-            submitBtn.textContent = state.isCreating ? 'Публикация...' : 'Опубликовать';
+            
+            if (state.isEditing) {
+                submitBtn.textContent = state.isCreating ? 'Сохранение...' : 'Сохранить изменения';
+            } else {
+                submitBtn.textContent = state.isCreating ? 'Публикация...' : 'Опубликовать';
+            }
         }
 
         const subtitle = this.formElement.querySelector('.user-menu__subtitle');
@@ -132,12 +142,29 @@ export class CreatePostFormView {
         const textarea = this.formElement.querySelector('[data-key="post-content"]') as HTMLTextAreaElement;
         const titleInput = this.formElement.querySelector('[data-key="post-title"]') as HTMLInputElement;
 
-        if (textarea) textarea.value = state.draftContent;
-        if (titleInput) titleInput.value = state.draftTitle;
+        if (textarea && textarea.value !== state.draftContent) {
+            textarea.value = state.draftContent;
+        }
+        if (titleInput && titleInput.value !== state.draftTitle) {
+            titleInput.value = state.draftTitle;
+        }
 
         const charCounter = this.formElement.querySelector('.char-counter__number');
         if (charCounter) {
             charCounter.textContent = (this.maxChars - state.draftContent.length).toString();
+        }
+
+        const header = this.formElement.querySelector('.create-post-form__header');
+        if (header) {
+            let editIndicator = header.querySelector('.create-post-form__edit-mode');
+            if (state.isEditing && !editIndicator) {
+                editIndicator = document.createElement('div');
+                editIndicator.className = 'create-post-form__edit-mode';
+                editIndicator.textContent = 'Режим редактирования';
+                header.appendChild(editIndicator);
+            } else if (!state.isEditing && editIndicator) {
+                editIndicator.remove();
+            }
         }
     }
 
@@ -164,7 +191,8 @@ export class CreatePostFormView {
         const props = {
             name: auth.user?.name || 'Анонимный пользователь',
             subtitle: state.currentTheme,
-            avatar: auth.user?.avatar || '/img/defaultAvatar.jpg'
+            avatar: auth.user?.avatar || '/img/defaultAvatar.jpg',
+            isEditing: state.isEditing
         };
 
         const html = template(props);
@@ -174,6 +202,7 @@ export class CreatePostFormView {
         this.formElement.classList.add('create-post-form--modal');
 
         console.log('[View] formElement:', this.formElement);
+        console.log('[View] Режим редактирования:', state.isEditing);
 
         this.setupEventHandlers();
         this.updateUIFromState(state);
@@ -187,7 +216,8 @@ export class CreatePostFormView {
         const overlay = this.formElement.querySelector('[data-key="overlay"]');
         overlay?.addEventListener('click', (e) => {
             if (e.target === e.currentTarget) {
-                this.close();
+                // Закрываем через destroy, как в LoginFormView
+                this.destroy();
             }
         });
 
@@ -226,8 +256,10 @@ export class CreatePostFormView {
 
             const state = createPostStore.getState();
             if (state.isEditing && state.editingPostId) {
+                console.log('[View] Отправка запроса на редактирование:', state.editingPostId);
                 editPost(state.editingPostId, data);
             } else {
+                console.log('[View] Отправка запроса на создание поста');
                 createPost(data);
             }
         });
@@ -244,7 +276,6 @@ export class CreatePostFormView {
         });
 
         const themeBtn = this.formElement.querySelector('[data-key="select-theme"]');
-        console.log('[View] Кнопка "Выбрать тему":', themeBtn);
         themeBtn?.addEventListener('click', async () => {
             console.log('[View] Клик по кнопке "Выбрать тему"');
             const popup = new ThemeSelectorPopup((topic_id, themeName) => {
@@ -255,20 +286,21 @@ export class CreatePostFormView {
 
         const closeButton = this.formElement.querySelector('[data-key="close-button"]');
         closeButton?.addEventListener('click', () => {
-            this.close();
+            // Закрываем через destroy, как в LoginFormView
+            this.destroy();
         });
     }
 
-    close(): void {
-        if (this.formElement?.parentNode) {
+    // Убираем метод close и оставляем только destroy
+    destroy(): void {
+        console.log('[View] Destroy called');
+        createPostStore.removeListener(this.boundStoreHandler);
+        if (this.formElement && this.formElement.parentNode) {
+            console.log('[View] Removing form element from DOM');
             this.formElement.remove();
             this.formElement = null;
         }
+        // Сбрасываем состояние формы
         dispatcher.dispatch('CREATE_POST_FORM_INIT');
-        this.destroy();
-    }
-
-    destroy(): void {
-        createPostStore.removeListener(this.boundStoreHandler);
     }
 }

@@ -153,7 +153,7 @@ class API {
         const response = await ajax.editPost(postId, {
             title: payload.title,
             content: payload.content,
-            menu_item_id: payload.menu_item_id
+            topic_id: payload.topic_id
         });
 
         if (response.status === 200) {
@@ -458,7 +458,7 @@ class API {
         }
     }
     
-    private async createPost(payload: { title: string; content: string; menu_item_id?: number }): Promise<void> {
+    private async createPost(payload: { title: string; content: string; topic_id?: number }): Promise<void> {
     const response = await ajax.createPost(payload);
 
     switch (response.status) {

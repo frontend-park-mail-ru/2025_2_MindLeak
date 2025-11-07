@@ -206,8 +206,8 @@ class API {
         let response;
         
         if (filter && filter !== 'fresh') {
-            // Загрузка для категории
-            response = await ajax.get(`/feed/category?topic=${filter}&offset=${offset}`);
+            // Загрузка для категории (русские названия) - только для реальных категорий
+            response = await ajax.get(`/feed/category?topic=${encodeURIComponent(filter)}&offset=${offset}`);
         } else {
             // Загрузка для свежего
             response = await ajax.get(`/feed?offset=${offset}`);
@@ -232,7 +232,7 @@ class API {
                         commentsCount: post.comments_count,
                         repostsCount: post.reposts_count,
                         viewsCount: post.views_count,
-                        theme: post.Topic?.Title || 'without_topic',
+                        theme: post.Topic?.Title || 'Без темы',
                         tags: [] // Добавляем пустой массив тегов, если их нет в ответе
                     }));
                         
@@ -301,7 +301,7 @@ class API {
                 commentsCount: post.comments_count,
                 repostsCount: post.reposts_count,
                 viewsCount: post.views_count,
-                theme: post.Topic?.Title || 'without_topic',
+                theme: post.Topic?.Title || post.topic || 'Без темы',
                 tags: []
             }));
         }

@@ -15,14 +15,25 @@
     margin-left: 40px;
 }
 
+.user_info_header {
+    display: flex;
+    align-items: center;
+    display: flex;
+    gap: 5px;
+}
+
 .header__center {
-    flex: 1;
-    max-width: 700px;
+    position: absolute;
+    width: 700px;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
 }
 
 .header__right {
     display: flex;
-    gap: 10px;
+    align-items: center;
+    gap: 20px;
     margin-right: 40px;
 }
 
@@ -32,14 +43,21 @@
     border-radius: 50%;
     object-fit: cover;
     cursor: pointer;
-}
-
-.header__arrow {
     display: flex;
     align-items: center;
+    justify-content: center;
+}
+
+.header__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .createPost_button {
     background-color: var(--section-color);
     border: 1px solid var(--section-hover);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }

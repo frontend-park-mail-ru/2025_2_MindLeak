@@ -59,7 +59,6 @@ body {
     margin: 0;
     font-family: 'Roboto', sans-serif;
     color: var(--text-color);
-    padding: 0 40px;
 }
 
 p {
@@ -74,6 +73,7 @@ header {
     -webkit-backdrop-filter: blur(10px);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     z-index: 1000;
+    width: 100%;
 }
 
 form {
@@ -109,12 +109,12 @@ form {
 
 .feed {
     width: 100%;
+    margin-top: 15px;
 }
 
 .feed-container {
     display: flex;
     flex-direction: column;
-
 }
 
 .feed-error {

@@ -489,7 +489,7 @@ class API {
         }
     }
     
-    private async createPost(payload: { title: string; content: string; topic_id?: number }): Promise<void> {
+    private async createPost(payload: { title: string; content: string; topic_id: number }): Promise<void> {
     const response = await ajax.createPost(payload);
 
     switch (response.status) {
@@ -526,7 +526,7 @@ class API {
     }
 
     private async deletePost(postId: string): Promise<void> {
-        const response = await ajax.deletePost(`/posts/${postId}`);
+        const response = await ajax.deletePost(`/${postId}`);
         if (response.status === 200) {
             this.sendAction('POST_DELETE_SUCCESS', { postId });
             this.sendAction('POSTS_RELOAD_AFTER_DELETE');

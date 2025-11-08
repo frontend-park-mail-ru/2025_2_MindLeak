@@ -6,9 +6,7 @@ import { router } from '../../router/router';
 import { CreatePostFormView } from '../../views/viewCreatePostForm';
 
 let headerTemplate: Handlebars.TemplateDelegate | null = null;
-
 let isTemplateLoading: boolean = false;
-
 let templateLoadPromise: Promise<Handlebars.TemplateDelegate> | null = null;
 
 interface User {
@@ -61,12 +59,9 @@ async function getHeaderTemplate(): Promise<Handlebars.TemplateDelegate> {
     return templateLoadPromise;
 }
 
-
 export class Header {
     private headerElement: HTMLElement | null = null;
-
     private boundStoreHandler: () => void;
-
     private container: HTMLElement | null = null;
 
     constructor() {
@@ -109,6 +104,12 @@ export class Header {
         return this.headerElement;
     }
 
+    private async showLoginForm(targetUrl?: string): Promise<void> {
+        const loginView = new LoginFormView(targetUrl);
+        const modal = await loginView.render();
+        document.body.appendChild(modal);
+    }
+
     private setupEventHandlers(): void {
         if (!this.headerElement) return;
 
@@ -123,10 +124,19 @@ export class Header {
         }
 
         const userMenu = this.headerElement.querySelector('[data-key="user-menu"]') as HTMLElement;
-        if (userMenu && authState.isLoggedIn && authState.user) {
-            userMenu.addEventListener('click', async (e: Event) => {
+            if (userMenu) {
+                userMenu.addEventListener('click', async (e: Event) => {
                 e.stopPropagation();
 
+                // ПРОВЕРКА АВТОРИЗАЦИИ ПРЯМО ЗДЕСЬ
+                if (!authState.isLoggedIn) {
+                    // Сохраняем текущий URL для редиректа после логина
+                    const currentPath = window.location.pathname + window.location.search;
+                    await this.showLoginForm(currentPath);
+                    return;
+                }
+
+                // Если авторизован - показываем меню как раньше
                 const existingMenu = document.querySelector('.popUp-menu');
                 if (existingMenu) {
                     existingMenu.remove();
@@ -193,12 +203,6 @@ export class Header {
 
     private navigateToHome(): void {
         router.navigate('/');
-    }
-
-    private async showLoginForm(): Promise<void> {
-        const loginView = new LoginFormView();
-        const modal = await loginView.render();
-        document.body.appendChild(modal);
     }
 
     private async handleStoreChange(): Promise<void>  {

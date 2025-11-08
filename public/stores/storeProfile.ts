@@ -1,6 +1,8 @@
 import { BaseStore } from './store';
 import { Post } from './storePosts';
 import { loginStore } from './storeLogin';
+import { dispatcher } from '../dispatcher/dispatcher';
+
 
 export interface ProfileData {
     id: string;
@@ -50,7 +52,16 @@ class ProfileStore extends BaseStore<ProfileState> {
 
         this.registerAction('PROFILE_LOAD_SUCCESS', (payload: { profile: ProfileData; posts: Post[] }) => {
             const loginState = loginStore.getState();
-            const isMyProfile = loginState.user && loginState.user.id === payload.profile.id;
+            
+            // ПРАВИЛЬНАЯ логика определения isMyProfile
+            let isMyProfile = false;
+            
+            if (payload.profile && loginState.user) {
+                // Сравниваем ID профиля с ID текущего пользователя
+                isMyProfile = payload.profile.id === loginState.user.id;
+            }
+            
+            console.log(`[ProfileStore] isMyProfile: ${isMyProfile}, profile id: ${payload.profile?.id}, user id: ${loginState.user?.id}`);
             
             this.setState({
                 profile: payload.profile,
@@ -65,6 +76,47 @@ class ProfileStore extends BaseStore<ProfileState> {
             this.setState({
                 isLoading: false,
                 error: payload.error
+            });
+        });
+
+        // ДОБАВЛЯЕМ: Обновление постов после редактирования
+        this.registerAction('POSTS_RELOAD_AFTER_EDIT', () => {
+            console.log('[ProfileStore] Reloading posts after edit');
+            const state = this.getState();
+            if (state.profile) {
+                // Перезагружаем профиль чтобы обновить посты
+                dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
+                    userId: state.profile.id 
+                });
+            }
+        });
+
+        this.registerAction('PROFILE_RELOAD_AFTER_DELETE', () => {
+            console.log('[ProfileStore] Reloading profile after delete');
+            const state = this.getState();
+            if (state.profile) {
+                // Перезагружаем профиль чтобы обновить посты
+                dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
+                    userId: state.profile.id 
+                });
+            }
+        });
+
+        this.registerAction('POSTS_RELOAD_AFTER_CREATE', () => {
+            console.log('[ProfileStore] Reloading posts after create');
+            const state = this.getState();
+            if (state.profile) {
+                // Перезагружаем профиль чтобы обновить посты
+                dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
+                    userId: state.profile.id 
+                });
+            }
+        });
+
+
+        this.registerAction('PROFILE_CHANGE_TAB', (payload: { tab: 'posts' | 'comments' }) => {
+            this.setState({
+                activeTab: payload.tab
             });
         });
 

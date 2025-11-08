@@ -86,6 +86,7 @@ export class CreatePostFormView {
     private formElement: HTMLElement | null = null;
     private readonly maxChars = 5000;
     private boundStoreHandler: () => void;
+    private isAutoOpened: boolean = false;
 
     constructor() {
         this.boundStoreHandler = this.handleStoreChange.bind(this);
@@ -95,9 +96,26 @@ export class CreatePostFormView {
     private handleStoreChange(): void {
         const state = createPostStore.getState();
 
-        if (state.success) {
-            // Закрываем форму при успешной операции, как в LoginFormView
+        console.log('[CreatePostFormView] Store changed:', state);
+
+        // ВАЖНО: Автоматически открываем форму при загрузке данных для редактирования
+        if (state.isEditing && state.editingPostId && !this.formElement && !this.isAutoOpened) {
+            console.log('[CreatePostFormView] Auto-opening edit form for post:', state.editingPostId);
+            this.isAutoOpened = true;
+            this.openForm();
+            return;
+        }
+
+        // ВАЖНО: Автоматически закрываем форму после успешного создания/редактирования
+        if (state.success && this.formElement) {
+            console.log('[CreatePostFormView] Success, closing form');
+            
+            // ЗАКРЫВАЕМ ФОРМУ ПЕРЕД перезагрузкой
             this.destroy();
+            
+            // Затем запускаем перезагрузку
+            this.triggerPostsReload();
+            
             const message = state.isEditing 
                 ? 'Пост успешно отредактирован!' 
                 : 'Пост успешно опубликован!';
@@ -106,6 +124,8 @@ export class CreatePostFormView {
                 type: 'success',
                 message: message
             });
+            
+            return; // Выходим чтобы не выполнять остальной код
         }
 
         if (state.error) {
@@ -113,6 +133,18 @@ export class CreatePostFormView {
         }
 
         this.updateUIFromState(state);
+    }
+
+    private triggerPostsReload(): void {
+        console.log('[View] Triggering posts reload after create/edit');
+        // Отправляем действие для перезагрузки ленты
+        dispatcher.dispatch('POSTS_RELOAD_AFTER_CREATE');
+        dispatcher.dispatch('POSTS_RELOAD_AFTER_CREATE');
+    }
+
+    private async openForm(): Promise<void> {
+        const formElement = await this.render();
+        document.body.appendChild(formElement);
     }
 
     private updateUIFromState(state: CreatePostState): void {
@@ -216,13 +248,12 @@ export class CreatePostFormView {
         const overlay = this.formElement.querySelector('[data-key="overlay"]');
         overlay?.addEventListener('click', (e) => {
             if (e.target === e.currentTarget) {
-                // Закрываем через destroy, как в LoginFormView
                 this.destroy();
             }
         });
 
         const form = this.formElement.querySelector('[data-key="create-post-form"]') as HTMLFormElement;
-        form?.addEventListener('submit', (e) => {
+        form?.addEventListener('submit', async (e) => {
             e.preventDefault();
 
             const fd = new FormData(form);
@@ -286,12 +317,10 @@ export class CreatePostFormView {
 
         const closeButton = this.formElement.querySelector('[data-key="close-button"]');
         closeButton?.addEventListener('click', () => {
-            // Закрываем через destroy, как в LoginFormView
             this.destroy();
         });
     }
 
-    // Убираем метод close и оставляем только destroy
     destroy(): void {
         console.log('[View] Destroy called');
         createPostStore.removeListener(this.boundStoreHandler);
@@ -302,5 +331,6 @@ export class CreatePostFormView {
         }
         // Сбрасываем состояние формы
         dispatcher.dispatch('CREATE_POST_FORM_INIT');
+        this.isAutoOpened = false; // СБРАСЫВАЕМ ФЛАГ
     }
 }

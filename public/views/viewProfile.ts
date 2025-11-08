@@ -6,6 +6,7 @@ import { dispatcher } from '../dispatcher/dispatcher';
 import { loginStore } from '../stores/storeLogin';
 import { router } from '../router/router';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
+import { CreatePostFormView } from '../views/viewCreatePostForm'; // ДОБАВЛЯЕМ ИМПОРТ
 
 export class ProfileView {
     private container: HTMLElement;
@@ -15,31 +16,33 @@ export class ProfileView {
     private topBloggers: TopBloggers | null = null;
     private headerInstance: Header;
     private pageWrapper: HTMLElement | null = null;
+    private createPostFormView: CreatePostFormView | null = null; // ДОБАВЛЯЕМ
 
     constructor(container: HTMLElement, params?: any) {
         this.container = container;
         this.headerInstance = new Header();
+        this.createPostFormView = new CreatePostFormView(); // ИНИЦИАЛИЗИРУЕМ
         
+        console.log(`[ProfileView] Constructor called with params:`, params);
+        
+        // Получаем userId из параметров маршрута или query строки
         if (params && params.id) {
             this.userId = params.id;
             console.log(`[ProfileView] User ID from route params: ${this.userId}`);
+        } else if (params && params.query && params.query.id) {
+            this.userId = params.query.id;
+            console.log(`[ProfileView] User ID from query params: ${this.userId}`);
         } else {
-            // Fallback для прямого перехода на /profile
-            const urlParams = new URLSearchParams(window.location.search);
-            const idParam = urlParams.get('id');
-            if (idParam) {
-                this.userId = idParam;
-                console.log(`[ProfileView] User ID from query params: ${this.userId}`);
-            } else {
-                // Если нет ID, загружаем текущего пользователя
-                console.log(`[ProfileView] No user ID provided, loading current user`);
-            }
+            // Если нет ID, загружаем текущего пользователя
+            console.log(`[ProfileView] No user ID provided, loading current user`);
         }
+        
         this.boundStoreHandler = this.handleStoreChange.bind(this);
         this.boundLoginStoreHandler = this.handleLoginStoreChange.bind(this);
     }
 
     async render(): Promise<HTMLElement> {
+        console.log(`[ProfileView] render called, userId: ${this.userId}`);
         await this.renderFullPage();
         
         profileStore.addListener(this.boundStoreHandler);
@@ -133,10 +136,20 @@ export class ProfileView {
         const state = profileStore.getState();
         const loginState = loginStore.getState();
         
-        // Проверяем, мой это профиль или чужой
-        const isMyProfile = !this.userId || 
-                        (loginState.user && loginState.user.id.toString() === this.userId) ||
-                        (!this.userId && loginState.isLoggedIn); // для /profile без ID
+        console.log(`[ProfileView] renderProfileContent, userId: ${this.userId}, loginState user id: ${loginState.user?.id}`);
+        
+        // ПРАВИЛЬНОЕ определение isMyProfile
+        let isMyProfile = false;
+        
+        if (this.userId) {
+            // Если передан конкретный userId, сравниваем с текущим пользователем
+            isMyProfile = loginState.user?.id?.toString() === this.userId.toString();
+        } else {
+            // Если userId не передан, значит это профиль текущего пользователя
+            isMyProfile = true;
+        }
+        
+        console.log(`[ProfileView] isMyProfile: ${isMyProfile}, userId from params: ${this.userId}, current user id: ${loginState.user?.id}`);
 
         const profileComponent = new Profile({
             profile: state.profile,
@@ -145,7 +158,7 @@ export class ProfileView {
             isLoading: state.isLoading,
             error: state.error,
             isEditingDescription: state.isEditingDescription,
-            isMyProfile: isMyProfile // Передаем флаг
+            isMyProfile: isMyProfile // Передаем правильное значение
         });
 
         const profileElement = await profileComponent.render();
@@ -203,7 +216,6 @@ export class ProfileView {
             });
         }
 
-        // Остальной код без изменений...
         const descriptionInput = container.querySelector('.form__input[name="description"]');
         if (descriptionInput) {
             descriptionInput.addEventListener('keydown', (e: Event) => {
@@ -236,5 +248,10 @@ export class ProfileView {
         profileStore.removeListener(this.boundStoreHandler);
         loginStore.removeListener(this.boundLoginStoreHandler);
         this.headerInstance.destroy();
+        // ДОБАВЛЯЕМ уничтожение CreatePostFormView
+        if (this.createPostFormView) {
+            this.createPostFormView.destroy();
+            this.createPostFormView = null;
+        }
     }
 }

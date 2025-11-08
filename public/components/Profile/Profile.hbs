@@ -73,6 +73,7 @@
                         {{#if posts.length}}
                             {{#each posts}}
                                 {{> post-card 
+                                    postId=this.postId
                                     user=this.user
                                     title=this.title
                                     text=this.text
@@ -82,6 +83,9 @@
                                     repostsCount=this.repostsCount
                                     viewsCount=this.viewsCount
                                     isOwnPost=this.isOwnPost
+                                    canEdit=this.canEdit
+                                    menuId=(concat "post-card-menu-" this.postId)
+                                    dataPostId=this.postId
                                 }}
                             {{/each}}
                         {{else}}

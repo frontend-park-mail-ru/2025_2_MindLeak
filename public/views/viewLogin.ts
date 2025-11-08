@@ -1,16 +1,19 @@
 import { LoginForm } from '../components/LoginForm/LoginForm';
 import { dispatcher } from '../dispatcher/dispatcher';
+import { router } from '../router/router';
 import { loginStore } from '../stores/storeLogin';
 import { SignUpFormView } from './viewSignUp';
 
 export class LoginFormView {
+    private targetUrl: string | null;
     private loginForm: LoginForm;
     private formElement: HTMLElement | null = null;
     private boundStoreHandler: () => void;
 
-    constructor() {
+    constructor(targetUrl?: string) {
         this.loginForm = new LoginForm();
         this.boundStoreHandler = this.handleStoreChange.bind(this);
+        this.targetUrl = targetUrl || null;
         this.init();
     }
 
@@ -109,7 +112,13 @@ export class LoginFormView {
         if (state.isLoggedIn && this.formElement) {
             // Закрываем модальное окно при успешном логине
             this.destroy();
-            window.location.reload();
+            
+            // Редирект на целевой URL или обновление страницы
+            if (this.targetUrl && this.targetUrl !== '/') {
+                router.navigate(this.targetUrl);
+            } else {
+                window.location.reload();
+            }
         }
     }
 

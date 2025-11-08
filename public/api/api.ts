@@ -84,6 +84,28 @@ class API {
         dispatcher.dispatch(actionType, payload);
     }
 
+    /**
+     * Нормализует данные поста, приводя их к единой структуре
+     * Конвертирует PascalCase в camelCase и стандартизирует поля
+     */
+    private normalizePostData(post: any): any {
+        return {
+            id: post.id || post.ID || post.postId,
+            authorId: post.author_id || post.AuthorID,
+            authorName: post.author_name || post.AuthorName,
+            authorAvatar: post.author_avatar || post.AuthorAvatar,
+            title: post.title || post.Title,
+            content: post.content || post.Content,
+            image: post.media_url || post.MediaURL || post.image || '',
+            commentsCount: post.comments_count || post.CommentsCount || 0,
+            repostsCount: post.reposts_count || post.RepostsCount || 0,
+            viewsCount: post.views_count || post.ViewsCount || 0,
+            theme: post.Topic?.Title || post.theme || post.Topic?.title || 'Без темы',
+            topic_id: post.topic_id || post.Topic?.TopicId || post.Topic?.topic_id || 0,
+            tags: []
+        };
+    }
+
     private async checkAuth(): Promise<void> {
         const response = await ajax.getMe();
 
@@ -170,7 +192,9 @@ class API {
     private async loadPostForEdit(postId: string): Promise<void> {
         const response = await ajax.get(`/post?id=${postId}`);
         if (response.status === 200 && response.data) {
-            this.sendAction('POST_EDIT_LOAD_SUCCESS', { post: response.data });
+            // Нормализуем данные поста для редактирования
+            const normalizedPost = this.normalizePostData(response.data);
+            this.sendAction('POST_EDIT_LOAD_SUCCESS', { post: normalizedPost });
         } else {
             this.sendAction('POST_EDIT_LOAD_FAIL', { error: 'Не удалось загрузить пост' });
         }
@@ -201,42 +225,22 @@ class API {
         }
     }
 
-
     private async loadPosts(filter?: string, offset: number = 0): Promise<void> {
         let response;
         
         if (filter && filter !== 'fresh') {
-            // Загрузка для категории (русские названия) - только для реальных категорий
             response = await ajax.get(`/feed/category?topic=${encodeURIComponent(filter)}&offset=${offset}`);
         } else {
-            // Загрузка для свежего
             response = await ajax.get(`/feed?offset=${offset}`);
         }
 
-        console.log('🔍 [API] Ответ от сервера:', response); // Добавьте для отладки
+        console.log('🔍 [API] Ответ от сервера:', response);
 
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
-                    // Исправление: берем posts из response.data.articles, а не response.data
                     const postsArray = response.data.articles || response.data;
-                    
-                    const postsWithAuthorId = postsArray.map((post: any) => ({
-                        ...post,
-                        id: post.id,
-                        authorId: post.author_id,
-                        authorName: post.author_name,
-                        authorAvatar: post.author_avatar,
-                        title: post.title,
-                        content: post.content,
-                        commentsCount: post.comments_count,
-                        repostsCount: post.reposts_count,
-                        viewsCount: post.views_count,
-                        theme: post.Topic?.Title || 'Без темы',
-                        tags: [] // Добавляем пустой массив тегов, если их нет в ответе
-                    }));
-                        
-                    console.log('🔍 [API] Преобразованные посты:', postsWithAuthorId);
+                    const postsWithAuthorId = postsArray.map((post: any) => this.normalizePostData(post));
                     this.sendAction('POSTS_LOAD_SUCCESS', { posts: postsWithAuthorId });
                 } else {
                     this.sendAction('POSTS_LOAD_FAIL', { error: 'No posts data' });
@@ -287,25 +291,23 @@ class API {
         let url = `/posts?author_id=${userId}`;
         
         const response = await ajax.get(url);
+        console.log('🔍 [API] loadUserPosts response:', response);
+        
         if (response.status === STATUS.ok && response.data) {
+            // ОБЕСПЕЧИВАЕМ ТАКОЙ ЖЕ ФОРМАТ, КАК В ЛЕНТЕ
             const postsArray = response.data.articles || response.data || [];
+            console.log('🔍 [API] User posts raw data:', postsArray);
             
-            return postsArray.map((post: any) => ({
-                ...post,
-                id: post.id,
-                authorId: post.author_id,
-                authorName: post.author_name,
-                authorAvatar : post.author_avatar,
-                title: post.title,
-                content: post.content,
-                commentsCount: post.comments_count,
-                repostsCount: post.reposts_count,
-                viewsCount: post.views_count,
-                theme: post.Topic?.Title || post.topic || 'Без темы',
-                tags: []
-            }));
+            const normalizedPosts = postsArray.map((post: any) => {
+                const normalized = this.normalizePostData(post);
+                console.log('🔍 [API] Normalized user post:', normalized);
+                return normalized;
+            });
+            
+            return normalizedPosts;
         }
         
+        console.warn('🔍 [API] No user posts data or error:', response);
         return [];
     }
 
@@ -333,8 +335,7 @@ class API {
                         isSubscribed: response.data.is_subscribed || false
                     };
 
-                    // Загружаем посты пользователя по его ID
-                    const userPosts = await this.loadUserPosts(profileData.id); // ИСПОЛЬЗУЕМ profileData.id
+                    const userPosts = await this.loadUserPosts(profileData.id);
                         
                     this.sendAction('PROFILE_LOAD_SUCCESS', {
                         profile: profileData,
@@ -363,7 +364,6 @@ class API {
                 });
         }
     }
-
 
     private async updateProfileDescription(description: string): Promise<void> {
 
@@ -490,39 +490,40 @@ class API {
     }
     
     private async createPost(payload: { title: string; content: string; topic_id: number }): Promise<void> {
-    const response = await ajax.createPost(payload);
+        const response = await ajax.createPost(payload);
 
-    switch (response.status) {
-        case STATUS.ok:
-        case 201:
-            if (response.data) {
-                this.sendAction('CREATE_POST_SUCCESS', response.data);
-                
-                this.sendAction('POSTS_RELOAD_AFTER_CREATE');
-            } else {
+        switch (response.status) {
+            case STATUS.ok:
+            case 201:
+                if (response.data) {
+                    this.sendAction('CREATE_POST_SUCCESS', response.data);
+                    
+                    // Запускаем перезагрузку ленты
+                    this.sendAction('POSTS_RELOAD_AFTER_CREATE');
+                } else {
+                    this.sendAction('CREATE_POST_FAIL', { 
+                        error: 'Пост создан, но данные не возвращены' 
+                    });
+                }
+                break;
+            case STATUS.badRequest:
+                this.sendAction('CREATE_POST_FAIL', {
+                    error: response.data?.globalError || 
+                        response.data?.message || 
+                        'Некорректные данные поста'
+                });
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
                 this.sendAction('CREATE_POST_FAIL', { 
-                    error: 'Пост создан, но данные не возвращены' 
+                    error: 'Требуется авторизация для создания постов' 
+                });
+                break;
+            default:
+                this.sendAction('CREATE_POST_FAIL', {
+                    error: response.message || 'Не удалось создать пост'
                 });
             }
-            break;
-        case STATUS.badRequest:
-            this.sendAction('CREATE_POST_FAIL', {
-                error: response.data?.globalError || 
-                       response.data?.message || 
-                       'Некорректные данные поста'
-            });
-            break;
-        case STATUS.unauthorized:
-            this.sendAction('USER_UNAUTHORIZED');
-            this.sendAction('CREATE_POST_FAIL', { 
-                error: 'Требуется авторизация для создания постов' 
-            });
-            break;
-        default:
-            this.sendAction('CREATE_POST_FAIL', {
-                error: response.message || 'Не удалось создать пост'
-            });
-        }
     }
 
     private async deletePost(postId: string): Promise<void> {

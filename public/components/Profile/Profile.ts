@@ -1,6 +1,8 @@
-let profileTemplate: Handlebars.TemplateDelegate | null = null;
+import { PostCardMenu } from '../PostCardMenu/PostCardMenu';
+import { DeletePostModal } from '../DeletePostModal/DeletePostModal';
+import { dispatcher } from '../../dispatcher/dispatcher';
 
-// Глобальный флаг для отслеживания загруженных partials
+let profileTemplate: Handlebars.TemplateDelegate | null = null;
 let partialsLoaded = false;
 
 async function loadAllPartials(): Promise<void> {
@@ -18,10 +20,9 @@ async function loadAllPartials(): Promise<void> {
         { name: 'post-card-menu', path: '/components/PostCardMenu/PostCardMenu.hbs' }
     ];
 
-    // Загружаем все partials, которые еще не загружены
     const loadPromises = partials.map(async (partial) => {
-        // Если partial уже загружен, пропускаем
         if (Handlebars.partials[partial.name]) {
+            console.log(`${partial.name} partial already loaded`);
             return;
         }
         
@@ -30,9 +31,9 @@ async function loadAllPartials(): Promise<void> {
             if (response.ok) {
                 const source = await response.text();
                 Handlebars.registerPartial(partial.name, Handlebars.compile(source));
-                console.log(`${partial.name} partial loaded`);
+                console.log(`${partial.name} partial loaded successfully`);
             } else {
-                console.warn(`Failed to load ${partial.name} partial`);
+                console.warn(`Failed to load ${partial.name} partial: ${response.status}`);
             }
         } catch (error) {
             console.error(`Error loading ${partial.name} partial:`, error);
@@ -47,11 +48,13 @@ async function loadAllPartials(): Promise<void> {
 async function getProfileTemplate(): Promise<Handlebars.TemplateDelegate> {
     if (profileTemplate) return profileTemplate;
 
-    // ЗАГРУЖАЕМ ВСЕ PARTIALS ПЕРЕД КОМПИЛЯЦИЕЙ
     await loadAllPartials();
 
-    // Регистрируем хелперы
     Handlebars.registerHelper('eq', (a, b) => a === b);
+    Handlebars.registerHelper('concat', function(...args: any[]) {
+        args.pop();
+        return args.join('');
+    });
 
     const res = await fetch('/components/Profile/Profile.hbs');
     const source = await res.text();
@@ -69,9 +72,27 @@ interface ProfileProps {
     isMyProfile?: boolean;
 }
 
-// Функция для преобразования поста в формат PostCard
-function transformPostForProfile(apiPost: any): any {
+function transformPostForProfile(apiPost: any, isMyProfile: boolean): any {
     if (!apiPost) return {};
+    
+    console.log('🔍 [Profile] Transforming post data:', {
+        apiPostId: apiPost.id,
+        apiPost: apiPost
+    });
+    
+    // СОЗДАЕМ menuItems ТАК ЖЕ КАК В POSTCARD.TS
+    let menuItems = [
+        { key: 'hide', text: 'Скрыть' },
+        { key: 'report', text: 'Пожаловаться' }
+    ];
+            
+    if (isMyProfile) {
+        menuItems = [
+            { key: 'edit', text: 'Редактировать' },
+            { key: 'delete', text: 'Удалить' },
+            ...menuItems
+        ];
+    }
     
     return {
         postId: apiPost.id || '',
@@ -85,11 +106,15 @@ function transformPostForProfile(apiPost: any): any {
         },
         title: apiPost.title || '',
         text: apiPost.content || '',
+        image: apiPost.image || '',
         tags: Array.isArray(apiPost.tags) ? apiPost.tags : [],
         commentsCount: apiPost.commentsCount || 0,
         repostsCount: apiPost.repostsCount || 0,
         viewsCount: apiPost.viewsCount || 0,
-        isOwnPost: true // В профиле всегда свои посты
+        isOwnPost: isMyProfile,
+        canEdit: isMyProfile,
+        dataPostId: apiPost.id || '',
+        menuItems: menuItems // ДОБАВЛЯЕМ menuItems!
     };
 }
 
@@ -101,8 +126,9 @@ export class Profile {
     }
 
     async render(): Promise<HTMLElement> {
-        // Преобразуем посты в правильный формат для отображения
-        const transformedPosts = this.props.posts.map(post => transformPostForProfile(post));
+        const transformedPosts = this.props.posts.map(post => 
+            transformPostForProfile(post, this.props.isMyProfile || false)
+        );
         
         const templateData = {
             ...this.props,
@@ -120,6 +146,114 @@ export class Profile {
             throw new Error('Profile element not found');
         }
 
+        // ИНИЦИАЛИЗИРУЕМ PostCardMenu ДЛЯ КАЖДОГО ПОСТА
+        this.initializePostCardMenus(profileElement);
+
         return profileElement;
+    }
+
+    private initializePostCardMenus(container: HTMLElement): void {
+        const postCards = container.querySelectorAll('.post-card');
+        console.log(`[Profile] Found ${postCards.length} post cards for menu initialization`);
+        
+        postCards.forEach((postCard, index) => {
+            const menuButton = postCard.querySelector('.post-card__menu-button') as HTMLElement;
+            const menuPopup = postCard.querySelector('.post-card-menu') as HTMLElement;
+            
+            console.log(`[Profile] Post card ${index}:`, { 
+                hasMenuButton: !!menuButton, 
+                hasMenuPopup: !!menuPopup 
+            });
+            
+            if (menuButton && menuPopup) {
+                const postId = this.extractPostId(postCard);
+                console.log(`[Profile] Initializing PostCardMenu for post: ${postId}`);
+                
+                if (postId) {
+                    try {
+                        new PostCardMenu(menuButton, menuPopup, postId, (key: string, postId: string) => {
+                            this.handlePostAction(key, postId);
+                        });
+                        console.log(`[Profile] PostCardMenu initialized successfully for post: ${postId}`);
+                    } catch (error) {
+                        console.error(`[Profile] Failed to initialize PostCardMenu for post ${postId}:`, error);
+                    }
+                }
+            }
+        });
+    }
+
+    private extractPostId(postCard: Element): string | null {
+        if (postCard.hasAttribute('data-post-id')) {
+            return postCard.getAttribute('data-post-id');
+        }
+        
+        const postIdElement = postCard.querySelector('[data-post-id]');
+        if (postIdElement) {
+            return postIdElement.getAttribute('data-post-id');
+        }
+        
+        const id = postCard.id;
+        if (id && id.startsWith('post-')) {
+            return id.replace('post-', '');
+        }
+        
+        const titleElement = postCard.querySelector('.post-card__title');
+        if (titleElement && titleElement.id) {
+            return titleElement.id.replace('post-', '');
+        }
+        
+        const innerPostCard = postCard.querySelector('.post-card');
+        if (innerPostCard && innerPostCard.hasAttribute('data-post-id')) {
+            return innerPostCard.getAttribute('data-post-id');
+        }
+        
+        console.warn('[Profile] Could not extract post ID from element:', postCard);
+        return null;
+    }
+
+    private handlePostAction(action: string, postId: string): void {
+        console.log(`[Profile] Post action: ${action} for post: ${postId}`);
+        
+        switch (action) {
+            case 'edit':
+                dispatcher.dispatch('POST_EDIT_REQUEST', { postId });
+                break;
+            case 'delete':
+                // Удаление обрабатывается внутри PostCardMenu
+                this.handleDeletePost(postId);
+                break;
+            case 'hide':
+                dispatcher.dispatch('POST_HIDE_REQUEST', { postId });
+                break;
+            case 'report':
+                dispatcher.dispatch('POST_REPORT_REQUEST', { postId });
+                break;
+        }
+    }
+    
+    private async handleDeletePost(postId: string): Promise<void> {
+        console.log(`[Profile] Deleting post: ${postId}`);
+        
+        // Динамически импортируем DeletePostModal
+        const { DeletePostModal } = await import('../DeletePostModal/DeletePostModal');
+        
+        // Показываем модалку подтверждения удаления
+        const deleteModal = new DeletePostModal();
+        const modalElement = await deleteModal.render();
+        document.body.appendChild(modalElement);
+
+        const confirmed = await deleteModal.waitForResult();
+        
+        if (confirmed) {
+            console.log(`[Profile] User confirmed deletion, dispatching POST_DELETE_REQUEST`);
+            dispatcher.dispatch('POST_DELETE_REQUEST', { postId });
+            
+            // После удаления запускаем перезагрузку профиля
+            setTimeout(() => {
+                console.log(`[Profile] Reloading profile after delete`);
+                dispatcher.dispatch('PROFILE_RELOAD_AFTER_DELETE');
+            }, 500); // Небольшая задержка чтобы API успел обработать удаление
+        }
     }
 }

@@ -1,7 +1,9 @@
 import { PostCardMenu } from '../PostCardMenu/PostCardMenu';
 import { dispatcher } from '../../dispatcher/dispatcher';
 import { router } from '../../router/router';
-import { CreatePostFormView } from '../../views/viewCreatePostForm'; // Добавить импорт
+import { CreatePostFormView } from '../../views/viewCreatePostForm';
+import { loginStore } from '../../stores/storeLogin';
+import { LoginFormView } from '../../views/viewLogin';
 
 let postCardTemplate: Handlebars.TemplateDelegate | null = null;
 
@@ -21,11 +23,13 @@ export interface PostCardProps {
     text?: string;
     link?: string;
     linkText?: string;
+    image?: string;
     tags?: string[];
     commentsCount?: number;
     repostsCount?: number;
     viewsCount?: number;
     isOwnPost: boolean;
+    canEdit?: boolean;
     onMenuAction?: (action: string) => void;
 }
 
@@ -63,16 +67,19 @@ export class PostCard {
     private text: string;
     private link: string;
     private linkText: string;
+    private image: string;
     private tags: string[];
     private commentsCount: number;
     private repostsCount: number;
     private viewsCount: number;
     private menuId: string;
     private isOwnPost: boolean;
+    private canEdit: boolean;
     private onMenuAction?: (action: string) => void;
 
     constructor(props: PostCardProps) {
         this.postId = props.postId;
+        this.image = props.image || '';
 
         const {
             user = { name: 'Аккаунт', subtitle: 'тема', avatar: null, isSubscribed: false },
@@ -84,7 +91,8 @@ export class PostCard {
             commentsCount = 123,
             repostsCount = 42,
             viewsCount = 42,
-            isOwnPost = false
+            isOwnPost = false,
+            canEdit = false
         } = props;
 
         this.user = user;
@@ -98,6 +106,7 @@ export class PostCard {
         this.viewsCount = viewsCount;
         this.menuId = `post-card-menu-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         this.isOwnPost = isOwnPost;
+        this.canEdit = canEdit;
         this.onMenuAction = props.onMenuAction;
     }
 
@@ -129,12 +138,14 @@ export class PostCard {
             textTruncated: textTruncated,
             link: this.link,
             linkText: this.linkText,
+            image: this.image,
             tags: this.tags,
             commentsCount: this.commentsCount,
             repostsCount: this.repostsCount,
             viewsCount: this.viewsCount,
             menuId: this.menuId,
-            menuItems: menuItems 
+            menuItems: menuItems,
+            canEdit: this.canEdit
         });
 
         const div = document.createElement('div');
@@ -181,28 +192,25 @@ export class PostCard {
         const menuPopup = postCard.querySelector('.post-card-menu') as HTMLElement;
 
         if (menuButton && menuPopup) {
-            // ИСПРАВЛЕНИЕ: использовать this.postId вместо postId
-            new PostCardMenu(menuButton, menuPopup, this.postId);
+            // Передаем колбэк для обработки действий меню
+            new PostCardMenu(menuButton, menuPopup, this.postId, (key: string, postId: string) => {
+                this.handleMenuAction(key, postId);
+            });
         }
 
-        // todo Убрать дублирующиеся обработчики меню, так как они уже есть в PostCardMenu
-        const menuItemsElements = postCard.querySelectorAll('.post-card-menu [data-key]');
-        menuItemsElements.forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.preventDefault();
-                const key = item.getAttribute('data-key');
-                if (key) {
-                    if (key === 'edit') {
-                        console.log('[PostCard] Редактирование поста:', this.postId);
-                        this.handleEditPost();
-                    } else {
-                        this.onMenuAction?.(key);
-                    }
-                }
-            });
-        });
-
         return postCard;
+    }
+
+    private handleMenuAction(key: string, postId: string): void {
+        console.log(`[PostCard] Menu action: ${key} for post: ${postId}`);
+        
+        switch (key) {
+            case 'edit':
+                this.handleEditPost();
+                break;
+            default:
+                this.onMenuAction?.(key);
+        }
     }
 
     private async handleEditPost(): Promise<void> {
@@ -227,10 +235,24 @@ export class PostCard {
             
             console.log(`[PostCard] Переход в профиль автора: ${this.user.name}, ${this.user.id}`);
             
-            if (this.user.id) {
-                router.navigate(`/profile?id=${this.user.id}`);
-            } else {
+            const authState = loginStore.getState();
+            const authorId = this.user.id;
+            
+            if (!authorId) {
                 console.warn('Author ID not available');
+                return;
+            }
+            
+            const targetUrl = `/profile?id=${authorId}`;
+            
+            if (!authState.isLoggedIn) {
+                // Показываем форму логина с редиректом на профиль автора
+                console.log(`[PostCard] User not logged in, showing login form for profile: ${targetUrl}`);
+                this.showLoginForm(targetUrl);
+            } else {
+                // Переходим сразу на профиль
+                console.log(`[PostCard] User logged in, navigating to profile: ${targetUrl}`);
+                router.navigate(targetUrl);
             }
         };
 
@@ -267,5 +289,11 @@ export class PostCard {
                 e.stopPropagation();
             });
         }
+    }
+
+    private async showLoginForm(targetUrl: string): Promise<void> {
+        const loginView = new LoginFormView(targetUrl);
+        const modal = await loginView.render();
+        document.body.appendChild(modal);
     }
 }

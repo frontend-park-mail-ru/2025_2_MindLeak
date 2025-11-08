@@ -1,21 +1,45 @@
 import { dispatcher } from '../../dispatcher/dispatcher';
 import { CreatePostFormView } from '../../views/viewCreatePostForm';
+import { DeletePostModal } from '../DeletePostModal/DeletePostModal';
 
 export class PostCardMenu {
     private element: HTMLElement;
     private menuButton: HTMLElement;
     private isOpen = false;
     private postId: string;
+    private onMenuItemClick?: (key: string, postId: string) => void;
+    private isInitialized = false;
 
-    constructor(menuButton: HTMLElement, menuElement: HTMLElement, postId: string) {
+    constructor(menuButton: HTMLElement, menuElement: HTMLElement, postId: string, onMenuItemClick?: (key: string, postId: string) => void) {
+        // Проверяем, не инициализирован ли уже этот элемент
+        if (menuButton.hasAttribute('data-postcard-menu-initialized')) {
+            console.log(`[PostCardMenu] Menu already initialized for post: ${postId}`);
+            // НО ДАЕМ ВОЗМОЖНОСТЬ ПЕРЕИНИЦИАЛИЗАЦИИ ДЛЯ НОВОГО РЕДАКТИРОВАНИЯ
+            this.menuButton = menuButton;
+            this.element = menuElement;
+            this.postId = postId;
+            this.onMenuItemClick = onMenuItemClick;
+            this.init();
+            return;
+        }
+
         this.menuButton = menuButton;
         this.element = menuElement;
         this.postId = postId;
+        this.onMenuItemClick = onMenuItemClick;
 
         this.init();
     }
 
     private init() {
+        if (this.isInitialized) {
+            return;
+        }
+
+        // Помечаем элемент как инициализированный
+        this.menuButton.setAttribute('data-postcard-menu-initialized', 'true');
+        this.isInitialized = true;
+
         this.menuButton.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -23,44 +47,80 @@ export class PostCardMenu {
         });
 
         this.element.querySelectorAll('[data-key]').forEach(item => {
-            item.addEventListener('click', (e) => {
+            item.addEventListener('click', async (e) => {
                 e.preventDefault();
                 const key = item.getAttribute('data-key');
-                this.handleMenuItemClick(key);
+                await this.handleMenuItemClick(key);
                 this.close();
             });
         });
+
+        console.log(`[PostCardMenu] Initialized for post: ${this.postId}`);
     }
 
-    private handleMenuItemClick(key: string | null) {
-        switch (key) {
-            case 'edit':
-                this.handleEdit();
-                break;
-            case 'delete':
-                this.handleDelete();
-                break;
-            // ... другие обработчики
+    private async handleMenuItemClick(key: string | null) {
+        if (!key) return;
+        
+        // Для действия "delete" всегда показываем модалку подтверждения
+        if (key === 'delete') {
+            await this.handleDelete();
+            return;
+        }
+        
+        // ПЕРЕД редактированием сбрасываем возможные предыдущие состояния
+        if (key === 'edit') {
+            console.log('[PostCardMenu] Preparing for edit, resetting form state');
+            // Сбрасываем состояние формы перед новым редактированием
+            dispatcher.dispatch('CREATE_POST_FORM_INIT');
+        }
+        
+        // Для остальных действий вызываем колбэк
+        if (this.onMenuItemClick) {
+            this.onMenuItemClick(key, this.postId);
+        } else {
+            // Фолбэк на случай если колбэк не передан
+            switch (key) {
+                case 'edit':
+                    this.handleEdit();
+                    break;
+                case 'hide':
+                case 'report':
+                    // Эти действия можно передавать через колбэк
+                    break;
+            }
         }
     }
 
     private handleEdit() {
         console.log('[PostCardMenu] Редактирование поста:', this.postId);
-        // Отправляем запрос на загрузку данных поста для редактирования
+        // ТОЛЬКО отправляем запрос на загрузку данных поста
         dispatcher.dispatch('POST_EDIT_REQUEST', { postId: this.postId });
+        // НЕ открываем форму здесь - это сделает store
+    }
+
+    private async handleDelete(): Promise<void> {
+        console.log('[PostCardMenu] Показ модалки удаления поста:', this.postId);
         
-        // Открываем форму редактирования
-        this.openEditPostForm();
-    }
+        // Создаем и показываем модалку подтверждения
+        const deleteModal = new DeletePostModal();
+        const modalElement = await deleteModal.render();
+        document.body.appendChild(modalElement);
 
-    private async openEditPostForm(): Promise<void> {
-        const createPostForm = new CreatePostFormView();
-        const formElement = await createPostForm.render();
-        document.body.appendChild(formElement);
-    }
+        // Ждем результата от пользователя
+        const confirmed = await deleteModal.waitForResult();
+        
+        if (confirmed) {
+            console.log('[PostCardMenu] Пользователь подтвердил удаление поста:', this.postId);
+            // Отправляем запрос на удаление поста
+            dispatcher.dispatch('POST_DELETE_REQUEST', { postId: this.postId });
 
-    private handleDelete() {
-        // ... существующий код для удаления
+            setTimeout(() => {
+                console.log('[PostCardMenu] Triggering profile reload after delete');
+                dispatcher.dispatch('PROFILE_RELOAD_AFTER_DELETE');
+            }, 1000); // Задержка чтобы API успел обработать удаление
+        } else {
+            console.log('[PostCardMenu] Пользователь отменил удаление поста:', this.postId);
+        }
     }
 
     private handleClickOutside = (e: MouseEvent) => {

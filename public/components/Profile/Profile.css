@@ -243,3 +243,17 @@
 .profile__edit-btn[hidden] {
     display: none;
 }
+
+.post-card-menu {
+    display: none;
+    position: absolute;
+    z-index: 1000;
+}
+
+.post-card-menu--open {
+    display: block;
+}
+
+.post-card__menu-button {
+    cursor: pointer;
+}

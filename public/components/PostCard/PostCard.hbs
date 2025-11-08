@@ -24,7 +24,7 @@
 
     {{#if image}}
         <div class="post-card__image-container">
-            <img src="{{image}}" alt="Изображение поста" class="post-card__image">
+            <img src="{{image}}" alt="Изображение поста" class="post-card__image" data-key="post-image">
         </div>
     {{/if}}
 
@@ -46,5 +46,4 @@
     </div>
 
     {{> post-card-menu menuId=menuId menuItems=menuItems}}
-
 </div>

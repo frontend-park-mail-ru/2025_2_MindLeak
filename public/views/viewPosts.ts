@@ -144,11 +144,14 @@ export class PostsView {
             },
             title: apiPost.title || '',
             text: apiPost.content || '',
+            image: apiPost.image || '',
             tags: Array.isArray(apiPost.tags) ? apiPost.tags : [],
             commentsCount: apiPost.commentsCount || 0,
             repostsCount: apiPost.repostsCount || 0,
             viewsCount: apiPost.viewsCount || 0,
-            isOwnPost: isOwnPost
+            isOwnPost: isOwnPost,
+            canEdit: isOwnPost,
+            onMenuAction: (action) => this.handlePostAction(action, apiPost.id)
         };
     }
 

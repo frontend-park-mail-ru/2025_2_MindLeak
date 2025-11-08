@@ -2,8 +2,8 @@ import { PostCardMenu } from '../PostCardMenu/PostCardMenu';
 import { dispatcher } from '../../dispatcher/dispatcher';
 import { router } from '../../router/router';
 import { CreatePostFormView } from '../../views/viewCreatePostForm';
-import { loginStore } from '../../stores/storeLogin'; // Добавить импорт
-import { LoginFormView } from '../../views/viewLogin'; // Добавить импорт
+import { loginStore } from '../../stores/storeLogin';
+import { LoginFormView } from '../../views/viewLogin';
 
 let postCardTemplate: Handlebars.TemplateDelegate | null = null;
 
@@ -23,11 +23,13 @@ export interface PostCardProps {
     text?: string;
     link?: string;
     linkText?: string;
+    image?: string;
     tags?: string[];
     commentsCount?: number;
     repostsCount?: number;
     viewsCount?: number;
     isOwnPost: boolean;
+    canEdit?: boolean;
     onMenuAction?: (action: string) => void;
 }
 
@@ -65,16 +67,19 @@ export class PostCard {
     private text: string;
     private link: string;
     private linkText: string;
+    private image: string;
     private tags: string[];
     private commentsCount: number;
     private repostsCount: number;
     private viewsCount: number;
     private menuId: string;
     private isOwnPost: boolean;
+    private canEdit: boolean;
     private onMenuAction?: (action: string) => void;
 
     constructor(props: PostCardProps) {
         this.postId = props.postId;
+        this.image = props.image || '';
 
         const {
             user = { name: 'Аккаунт', subtitle: 'тема', avatar: null, isSubscribed: false },
@@ -86,7 +91,8 @@ export class PostCard {
             commentsCount = 123,
             repostsCount = 42,
             viewsCount = 42,
-            isOwnPost = false
+            isOwnPost = false,
+            canEdit = false
         } = props;
 
         this.user = user;
@@ -100,6 +106,7 @@ export class PostCard {
         this.viewsCount = viewsCount;
         this.menuId = `post-card-menu-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         this.isOwnPost = isOwnPost;
+        this.canEdit = canEdit;
         this.onMenuAction = props.onMenuAction;
     }
 
@@ -131,12 +138,14 @@ export class PostCard {
             textTruncated: textTruncated,
             link: this.link,
             linkText: this.linkText,
+            image: this.image,
             tags: this.tags,
             commentsCount: this.commentsCount,
             repostsCount: this.repostsCount,
             viewsCount: this.viewsCount,
             menuId: this.menuId,
-            menuItems: menuItems 
+            menuItems: menuItems,
+            canEdit: this.canEdit
         });
 
         const div = document.createElement('div');
@@ -189,11 +198,10 @@ export class PostCard {
             });
         }
 
-
         return postCard;
     }
 
-        private handleMenuAction(key: string, postId: string): void {
+    private handleMenuAction(key: string, postId: string): void {
         console.log(`[PostCard] Menu action: ${key} for post: ${postId}`);
         
         switch (key) {

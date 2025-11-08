@@ -86,7 +86,7 @@ export class CreatePostFormView {
     private formElement: HTMLElement | null = null;
     private readonly maxChars = 5000;
     private boundStoreHandler: () => void;
-    private isAutoOpened: boolean = false; // Флаг чтобы отслеживать авто-открытие
+    private isAutoOpened: boolean = false;
 
     constructor() {
         this.boundStoreHandler = this.handleStoreChange.bind(this);
@@ -234,7 +234,7 @@ export class CreatePostFormView {
         });
 
         const form = this.formElement.querySelector('[data-key="create-post-form"]') as HTMLFormElement;
-        form?.addEventListener('submit', (e) => {
+        form?.addEventListener('submit', async (e) => {
             e.preventDefault();
 
             const fd = new FormData(form);

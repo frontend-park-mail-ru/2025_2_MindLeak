@@ -96,6 +96,7 @@ class API {
             authorAvatar: post.author_avatar || post.AuthorAvatar,
             title: post.title || post.Title,
             content: post.content || post.Content,
+            image: post.media_url || post.MediaURL || '',
             commentsCount: post.comments_count || post.CommentsCount || 0,
             repostsCount: post.reposts_count || post.RepostsCount || 0,
             viewsCount: post.views_count || post.ViewsCount || 0,

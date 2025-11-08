@@ -52,6 +52,8 @@ class ProfileStore extends BaseStore<ProfileState> {
             const loginState = loginStore.getState();
             const isMyProfile = loginState.user && loginState.user.id === payload.profile.id;
             
+            console.log(`[ProfileStore] Profile loaded, isMyProfile: ${isMyProfile}`);
+            
             this.setState({
                 profile: payload.profile,
                 posts: payload.posts,

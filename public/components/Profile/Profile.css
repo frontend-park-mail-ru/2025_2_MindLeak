@@ -243,3 +243,30 @@
 .profile__edit-btn[hidden] {
     display: none;
 }
+
+.profile__posts .post-card__image {
+    max-height: 400px;
+    overflow: hidden;
+    border-radius: 8px;
+    margin: 15px 0;
+}
+
+.profile__posts .post-card__image-img {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+/* Стили для меню постов в профиле */
+.profile__posts .post-card {
+    position: relative;
+}
+
+.profile__posts .post-card-menu {
+    z-index: 1000;
+}
+
+.profile__posts .post-card__menu-button {
+    cursor: pointer;
+}

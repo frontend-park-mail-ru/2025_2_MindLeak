@@ -99,7 +99,8 @@ class API {
             commentsCount: post.comments_count || post.CommentsCount || 0,
             repostsCount: post.reposts_count || post.RepostsCount || 0,
             viewsCount: post.views_count || post.ViewsCount || 0,
-            theme: post.Topic?.Title || post.theme || 'Без темы',
+            theme: post.Topic?.Title || post.theme || post.Topic?.title || 'Без темы',
+            topic_id: post.topic_id || post.Topic?.TopicId || post.Topic?.topic_id || 0,
             tags: []
         };
     }
@@ -190,7 +191,9 @@ class API {
     private async loadPostForEdit(postId: string): Promise<void> {
         const response = await ajax.get(`/post?id=${postId}`);
         if (response.status === 200 && response.data) {
-            this.sendAction('POST_EDIT_LOAD_SUCCESS', { post: response.data });
+            // Нормализуем данные поста для редактирования
+            const normalizedPost = this.normalizePostData(response.data);
+            this.sendAction('POST_EDIT_LOAD_SUCCESS', { post: normalizedPost });
         } else {
             this.sendAction('POST_EDIT_LOAD_FAIL', { error: 'Не удалось загрузить пост' });
         }

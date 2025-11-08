@@ -25,6 +25,6 @@ export const applyTextFormat = (formatType: string) => {
     dispatcher.dispatch('TEXT_EDIT_APPLY', { type: formatType });
 };
 
-export const editPost = (postId: string, data: { title: string; content: string; topic_id?: number }) => {
+export const editPost = (postId: string, data: { title: string; content: string; topic_id: number }) => {
     dispatcher.dispatch('EDIT_POST_REQUEST', { postId, ...data });
 };

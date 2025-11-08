@@ -61,7 +61,6 @@ class ProfileStore extends BaseStore<ProfileState> {
                 isMyProfile = payload.profile.id === loginState.user.id;
             }
             
-            console.log(`[ProfileStore] isMyProfile: ${isMyProfile}, profile id: ${payload.profile?.id}, user id: ${loginState.user?.id}`);
             
             this.setState({
                 profile: payload.profile,
@@ -81,7 +80,6 @@ class ProfileStore extends BaseStore<ProfileState> {
 
         // ДОБАВЛЯЕМ: Обновление постов после редактирования
         this.registerAction('POSTS_RELOAD_AFTER_EDIT', () => {
-            console.log('[ProfileStore] Reloading posts after edit');
             const state = this.getState();
             if (state.profile) {
                 // Перезагружаем профиль чтобы обновить посты
@@ -92,7 +90,6 @@ class ProfileStore extends BaseStore<ProfileState> {
         });
 
         this.registerAction('PROFILE_RELOAD_AFTER_DELETE', () => {
-            console.log('[ProfileStore] Reloading profile after delete');
             const state = this.getState();
             if (state.profile) {
                 // Перезагружаем профиль чтобы обновить посты
@@ -103,7 +100,6 @@ class ProfileStore extends BaseStore<ProfileState> {
         });
 
         this.registerAction('POSTS_RELOAD_AFTER_CREATE', () => {
-            console.log('[ProfileStore] Reloading posts after create');
             const state = this.getState();
             if (state.profile) {
                 // Перезагружаем профиль чтобы обновить посты

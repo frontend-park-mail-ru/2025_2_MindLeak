@@ -5,7 +5,6 @@ export const createPost = (data: { title: string; content: string; topic_id: num
 };
 
 export function selectTheme(themeName: string, topic_id: number): void {
-    console.log('[Action] Выбор темы:', { themeName, topic_id });
     dispatcher.dispatch('THEME_SELECTED', { themeName, topic_id });
 };
 

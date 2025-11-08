@@ -13,7 +13,6 @@ export class PostCardMenu {
     constructor(menuButton: HTMLElement, menuElement: HTMLElement, postId: string, onMenuItemClick?: (key: string, postId: string) => void) {
         // Проверяем, не инициализирован ли уже этот элемент
         if (menuButton.hasAttribute('data-postcard-menu-initialized')) {
-            console.log(`[PostCardMenu] Menu already initialized for post: ${postId}`);
             // НО ДАЕМ ВОЗМОЖНОСТЬ ПЕРЕИНИЦИАЛИЗАЦИИ ДЛЯ НОВОГО РЕДАКТИРОВАНИЯ
             this.menuButton = menuButton;
             this.element = menuElement;
@@ -55,7 +54,6 @@ export class PostCardMenu {
             });
         });
 
-        console.log(`[PostCardMenu] Initialized for post: ${this.postId}`);
     }
 
     private async handleMenuItemClick(key: string | null) {
@@ -69,7 +67,6 @@ export class PostCardMenu {
         
         // ПЕРЕД редактированием сбрасываем возможные предыдущие состояния
         if (key === 'edit') {
-            console.log('[PostCardMenu] Preparing for edit, resetting form state');
             // Сбрасываем состояние формы перед новым редактированием
             dispatcher.dispatch('CREATE_POST_FORM_INIT');
         }
@@ -92,14 +89,12 @@ export class PostCardMenu {
     }
 
     private handleEdit() {
-        console.log('[PostCardMenu] Редактирование поста:', this.postId);
         // ТОЛЬКО отправляем запрос на загрузку данных поста
         dispatcher.dispatch('POST_EDIT_REQUEST', { postId: this.postId });
         // НЕ открываем форму здесь - это сделает store
     }
 
     private async handleDelete(): Promise<void> {
-        console.log('[PostCardMenu] Показ модалки удаления поста:', this.postId);
         
         // Создаем и показываем модалку подтверждения
         const deleteModal = new DeletePostModal();
@@ -110,16 +105,13 @@ export class PostCardMenu {
         const confirmed = await deleteModal.waitForResult();
         
         if (confirmed) {
-            console.log('[PostCardMenu] Пользователь подтвердил удаление поста:', this.postId);
             // Отправляем запрос на удаление поста
             dispatcher.dispatch('POST_DELETE_REQUEST', { postId: this.postId });
 
             setTimeout(() => {
-                console.log('[PostCardMenu] Triggering profile reload after delete');
                 dispatcher.dispatch('PROFILE_RELOAD_AFTER_DELETE');
             }, 1000); // Задержка чтобы API успел обработать удаление
         } else {
-            console.log('[PostCardMenu] Пользователь отменил удаление поста:', this.postId);
         }
     }
 

@@ -47,13 +47,11 @@ class ThemeSelectorPopup {
             (selectedKey) => {
                 const item = SECONDARY_MENU_ITEMS.find(i => i.key === selectedKey);
                 if (item) {
-                    console.log('[ThemePopup] Выбрана тема:', item);
                     this.onSelect(item.topic_id || 0, item.text);
                 }
                 this.close();
             }
         );
-        console.log('[ThemePopup] SECONDARY_MENU_ITEMS:', SECONDARY_MENU_ITEMS);
 
         const menuEl = await sidebarMenu.render();
         menuEl.classList.add('theme-selector-popup__menu');
@@ -96,11 +94,8 @@ export class CreatePostFormView {
     private handleStoreChange(): void {
         const state = createPostStore.getState();
 
-        console.log('[CreatePostFormView] Store changed:', state);
-
         // ВАЖНО: Автоматически открываем форму при загрузке данных для редактирования
         if (state.isEditing && state.editingPostId && !this.formElement && !this.isAutoOpened) {
-            console.log('[CreatePostFormView] Auto-opening edit form for post:', state.editingPostId);
             this.isAutoOpened = true;
             this.openForm();
             return;
@@ -108,7 +103,6 @@ export class CreatePostFormView {
 
         // ВАЖНО: Автоматически закрываем форму после успешного создания/редактирования
         if (state.success && this.formElement) {
-            console.log('[CreatePostFormView] Success, closing form');
             
             // ЗАКРЫВАЕМ ФОРМУ ПЕРЕД перезагрузкой
             this.destroy();
@@ -136,7 +130,6 @@ export class CreatePostFormView {
     }
 
     private triggerPostsReload(): void {
-        console.log('[View] Triggering posts reload after create/edit');
         // Отправляем действие для перезагрузки ленты
         dispatcher.dispatch('POSTS_RELOAD_AFTER_CREATE');
         dispatcher.dispatch('POSTS_RELOAD_AFTER_CREATE');
@@ -233,16 +226,12 @@ export class CreatePostFormView {
         this.formElement = div.firstElementChild as HTMLElement;
         this.formElement.classList.add('create-post-form--modal');
 
-        console.log('[View] formElement:', this.formElement);
-        console.log('[View] Режим редактирования:', state.isEditing);
-
         this.setupEventHandlers();
         this.updateUIFromState(state);
         return this.formElement;
     }
 
     private setupEventHandlers(): void {
-        console.log('[View] Установка обработчиков событий');
         if (!this.formElement) return;
 
         const overlay = this.formElement.querySelector('[data-key="overlay"]');
@@ -287,10 +276,8 @@ export class CreatePostFormView {
 
             const state = createPostStore.getState();
             if (state.isEditing && state.editingPostId) {
-                console.log('[View] Отправка запроса на редактирование:', state.editingPostId);
                 editPost(state.editingPostId, data);
             } else {
-                console.log('[View] Отправка запроса на создание поста');
                 createPost(data);
             }
         });
@@ -308,7 +295,6 @@ export class CreatePostFormView {
 
         const themeBtn = this.formElement.querySelector('[data-key="select-theme"]');
         themeBtn?.addEventListener('click', async () => {
-            console.log('[View] Клик по кнопке "Выбрать тему"');
             const popup = new ThemeSelectorPopup((topic_id, themeName) => {
                 selectTheme(themeName, topic_id); 
             });
@@ -322,10 +308,8 @@ export class CreatePostFormView {
     }
 
     destroy(): void {
-        console.log('[View] Destroy called');
         createPostStore.removeListener(this.boundStoreHandler);
         if (this.formElement && this.formElement.parentNode) {
-            console.log('[View] Removing form element from DOM');
             this.formElement.remove();
             this.formElement = null;
         }

@@ -323,7 +323,6 @@ export class SettingsAccountView {
         if (sex !== undefined) updatedData.sex = sex;
         if (date_of_birth !== undefined) updatedData.date_of_birth = date_of_birth || '';
 
-        console.log('Updating profile with:', updatedData);
 
         const errors = this.validateForm(updatedData);
         if (errors.length > 0) {
@@ -428,7 +427,6 @@ export class SettingsAccountView {
         const state = settingsAccountStore.getState();
         
         if (state.error) {
-            console.error('Settings account error:', state.error);
         }
         
         this.updateAccountContent();
@@ -446,7 +444,6 @@ export class SettingsAccountView {
             
             const newContent = await this.renderAccountContent();
             mainContent.appendChild(newContent);
-            console.log('SettingsAccount content UPDATED');
         }
     }
 

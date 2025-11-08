@@ -40,21 +40,17 @@ export class Router {
         this.handleRouteChange();
         this.isInitialized = true;
 
-        console.log('Router initialized');
     }
 
     private startAuthCheck(): void {
         // Если проверка уже запущена, не запускаем повторно
         if (this.authCheckPromise) return;
-
-        console.log('[Router] Starting auth check...');
         
         this.authCheckPromise = new Promise<void>((resolve) => {
             const state = loginStore.getState();
             
             // Если проверка уже не в процессе, значит она завершена
             if (!state.isLoading) {
-                console.log('[Router] Auth check already complete');
                 this.isAuthCheckComplete = true;
                 resolve();
                 return;
@@ -63,10 +59,8 @@ export class Router {
             // Ждем завершения проверки авторизации
             const unsubscribe = loginStore.addListener(() => {
                 const newState = loginStore.getState();
-                console.log(`[Router] Auth check update - isLoading: ${newState.isLoading}, isLoggedIn: ${newState.isLoggedIn}`);
                 
                 if (!newState.isLoading) {
-                    console.log('[Router] Auth check completed');
                     this.isAuthCheckComplete = true;
                     resolve();
                 }
@@ -99,7 +93,6 @@ export class Router {
         }
 
         if (link.hasAttribute('data-router-ignore')) {
-            console.log('Ignoring link with data-router-ignore:', href);
             return;
         }
 
@@ -127,12 +120,10 @@ export class Router {
         const pathname = path.split('?')[0];
         const normalizedPath = pathname === '/' ? '/' : `/${pathname.replace(/^\/+/, '')}`;
         
-        console.log(`[Router] Finding route for: ${normalizedPath} (original: ${path})`);
         
         // Сначала ищем точное совпадение
         const exactMatch = this.routes.find(route => route.path === normalizedPath);
         if (exactMatch) {
-            console.log(`[Router] Exact match found: ${exactMatch.path}`);
             return exactMatch;
         }
 
@@ -143,13 +134,11 @@ export class Router {
                 const match = normalizedPath.match(routeRegex);
                 
                 if (match) {
-                    console.log(`[Router] Pattern match found: ${route.path} for ${normalizedPath}`);
                     return route;
                 }
             }
         }
 
-        console.log(`[Router] No route found for: ${normalizedPath}`);
         return null;
     }
 
@@ -173,7 +162,6 @@ export class Router {
                 params[key] = value;
             });
         } catch (e) {
-            console.warn('Failed to parse URL for params:', e);
         }
         
         return params;
@@ -185,19 +173,14 @@ export class Router {
     }
 
     private async renderView(route: Route, path?: string): Promise<void> {
-        console.log(`[Router] renderView called for route: ${route.path}, path: ${path}`);
-        console.log(`[Router] Route requires auth: ${route.requiresAuth}, Auth check complete: ${this.isAuthCheckComplete}`);
         
         // Если проверка авторизации еще не завершена, ждем
         if (!this.isAuthCheckComplete && this.authCheckPromise) {
-            console.log(`[Router] Waiting for auth check to complete...`);
             await this.authCheckPromise;
-            console.log(`[Router] Auth check completed, user authenticated: ${this.isUserAuthenticated()}`);
         }
 
         // Проверяем, требует ли маршрут авторизации
         if (route.requiresAuth && !this.isUserAuthenticated()) {
-            console.log(`[Router] Route ${route.path} requires auth, showing login form`);
             
             this.pendingRoute = { route, path };
             
@@ -207,7 +190,6 @@ export class Router {
             return;
         }
 
-        console.log(`[Router] User authenticated or route doesn't require auth, rendering view`);
         
         if (this.currentView && typeof this.currentView.destroy === 'function') {
             this.currentView.destroy();
@@ -223,7 +205,6 @@ export class Router {
             let params = {};
             if (path) {
                 params = this.extractParams(route.path, path);
-                console.log(`[Router] Extracted params:`, params);
             }
             
             const content = document.getElementById('root');
@@ -237,9 +218,7 @@ export class Router {
                 }
             }
 
-            console.log(`Rendered view for route: ${route.path}`, params);
         } catch (error) {
-            console.error('Error rendering view:', error);
             await this.show404();
         }
     }
@@ -251,11 +230,9 @@ export class Router {
 
     private handleLoginStoreChange(): void {
         const state = loginStore.getState();
-        console.log(`[Router] Login store changed, isLoggedIn: ${state.isLoggedIn}, isLoading: ${state.isLoading}`);
         
         // Если пользователь авторизовался и есть ожидающий маршрут
         if (state.isLoggedIn && this.pendingRoute) {
-            console.log(`[Router] User logged in, navigating to pending route: ${this.pendingRoute.path}`);
             
             const { route, path } = this.pendingRoute;
             this.pendingRoute = null;

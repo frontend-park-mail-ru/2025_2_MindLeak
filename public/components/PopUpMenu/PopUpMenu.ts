@@ -37,11 +37,9 @@ async function getPopUpMenuTemplate(): Promise<Handlebars.TemplateDelegate> {
 }
 
 async function handleLogout(): Promise<void> {
-    console.log('Попытка выхода через Flux...');
     try {
         dispatcher.dispatch('LOGOUT_REQUEST');
     } catch (err) {
-        console.error('Ошибка при выходе:', err);
     }
 }
 
@@ -80,7 +78,6 @@ export class PopUpMenu {
             userMenuBlock.style.cursor = 'pointer';
             userMenuBlock.addEventListener('click', (e: Event) => {
                 e.preventDefault();
-                console.log('[PopUpMenu] Клик по пользователю - переход в профиль');
                 
                 if (popUpMenu.parentNode) {
                     popUpMenu.remove();
@@ -97,8 +94,6 @@ export class PopUpMenu {
                 e.preventDefault();
                 const key = (item as HTMLElement).dataset.key;
 
-                console.log(`[PopUpMenu] Клик по пункту: ${key}`);
-
                 if (popUpMenu.parentNode) {
                     popUpMenu.remove();
                 }
@@ -108,17 +103,14 @@ export class PopUpMenu {
                         handleLogout();
                         break;
                     case 'settings':
-                        console.log('[PopUpMenu] Переход в настройки');
                         window.history.pushState({}, '', '/settings');
                         window.dispatchEvent(new PopStateEvent('popstate'));
                         break;
                     case 'profile':
-                        console.log('[PopUpMenu] Переход в профиль');
                         window.history.pushState({}, '', '/profile');
                         window.dispatchEvent(new PopStateEvent('popstate'));
                         break;
                     default:
-                        console.log(`[PopUpMenu] Обработка пункта: ${key}`);
                 }
             });
         });

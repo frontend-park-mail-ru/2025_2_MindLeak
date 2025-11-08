@@ -8,7 +8,6 @@ let partialsLoaded = false;
 async function loadAllPartials(): Promise<void> {
     if (partialsLoaded) return;
 
-    console.log(' Loading all partials for Profile...');
     
     const partials = [
         { name: 'post-card', path: '/components/PostCard/PostCard.hbs' },
@@ -22,7 +21,6 @@ async function loadAllPartials(): Promise<void> {
 
     const loadPromises = partials.map(async (partial) => {
         if (Handlebars.partials[partial.name]) {
-            console.log(`${partial.name} partial already loaded`);
             return;
         }
         
@@ -31,18 +29,13 @@ async function loadAllPartials(): Promise<void> {
             if (response.ok) {
                 const source = await response.text();
                 Handlebars.registerPartial(partial.name, Handlebars.compile(source));
-                console.log(`${partial.name} partial loaded successfully`);
-            } else {
-                console.warn(`Failed to load ${partial.name} partial: ${response.status}`);
             }
         } catch (error) {
-            console.error(`Error loading ${partial.name} partial:`, error);
         }
     });
 
     await Promise.all(loadPromises);
     partialsLoaded = true;
-    console.log('All partials loaded for Profile');
 }
 
 async function getProfileTemplate(): Promise<Handlebars.TemplateDelegate> {
@@ -75,10 +68,6 @@ interface ProfileProps {
 function transformPostForProfile(apiPost: any, isMyProfile: boolean): any {
     if (!apiPost) return {};
     
-    console.log('🔍 [Profile] Transforming post data:', {
-        apiPostId: apiPost.id,
-        apiPost: apiPost
-    });
     
     // СОЗДАЕМ menuItems ТАК ЖЕ КАК В POSTCARD.TS
     let menuItems = [
@@ -154,29 +143,21 @@ export class Profile {
 
     private initializePostCardMenus(container: HTMLElement): void {
         const postCards = container.querySelectorAll('.post-card');
-        console.log(`[Profile] Found ${postCards.length} post cards for menu initialization`);
         
         postCards.forEach((postCard, index) => {
             const menuButton = postCard.querySelector('.post-card__menu-button') as HTMLElement;
             const menuPopup = postCard.querySelector('.post-card-menu') as HTMLElement;
             
-            console.log(`[Profile] Post card ${index}:`, { 
-                hasMenuButton: !!menuButton, 
-                hasMenuPopup: !!menuPopup 
-            });
             
             if (menuButton && menuPopup) {
                 const postId = this.extractPostId(postCard);
-                console.log(`[Profile] Initializing PostCardMenu for post: ${postId}`);
                 
                 if (postId) {
                     try {
                         new PostCardMenu(menuButton, menuPopup, postId, (key: string, postId: string) => {
                             this.handlePostAction(key, postId);
                         });
-                        console.log(`[Profile] PostCardMenu initialized successfully for post: ${postId}`);
                     } catch (error) {
-                        console.error(`[Profile] Failed to initialize PostCardMenu for post ${postId}:`, error);
                     }
                 }
             }
@@ -208,12 +189,10 @@ export class Profile {
             return innerPostCard.getAttribute('data-post-id');
         }
         
-        console.warn('[Profile] Could not extract post ID from element:', postCard);
         return null;
     }
 
     private handlePostAction(action: string, postId: string): void {
-        console.log(`[Profile] Post action: ${action} for post: ${postId}`);
         
         switch (action) {
             case 'edit':
@@ -233,7 +212,6 @@ export class Profile {
     }
     
     private async handleDeletePost(postId: string): Promise<void> {
-        console.log(`[Profile] Deleting post: ${postId}`);
         
         // Динамически импортируем DeletePostModal
         const { DeletePostModal } = await import('../DeletePostModal/DeletePostModal');
@@ -246,12 +224,10 @@ export class Profile {
         const confirmed = await deleteModal.waitForResult();
         
         if (confirmed) {
-            console.log(`[Profile] User confirmed deletion, dispatching POST_DELETE_REQUEST`);
             dispatcher.dispatch('POST_DELETE_REQUEST', { postId });
             
             // После удаления запускаем перезагрузку профиля
             setTimeout(() => {
-                console.log(`[Profile] Reloading profile after delete`);
                 dispatcher.dispatch('PROFILE_RELOAD_AFTER_DELETE');
             }, 500); // Небольшая задержка чтобы API успел обработать удаление
         }

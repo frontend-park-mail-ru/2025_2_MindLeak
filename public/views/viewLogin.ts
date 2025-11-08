@@ -72,8 +72,6 @@ export class LoginFormView {
         const email = (formData.get('email') as string)?.trim();
         const password = formData.get('password') as string;
 
-        console.log('Login attempt with:', { email, password });
-
         this.clearErrors(form);
 
         // валидация

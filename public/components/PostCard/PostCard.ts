@@ -202,7 +202,6 @@ export class PostCard {
     }
 
     private handleMenuAction(key: string, postId: string): void {
-        console.log(`[PostCard] Menu action: ${key} for post: ${postId}`);
         
         switch (key) {
             case 'edit':
@@ -233,13 +232,11 @@ export class PostCard {
             e.preventDefault();
             e.stopPropagation();
             
-            console.log(`[PostCard] Переход в профиль автора: ${this.user.name}, ${this.user.id}`);
             
             const authState = loginStore.getState();
             const authorId = this.user.id;
             
             if (!authorId) {
-                console.warn('Author ID not available');
                 return;
             }
             
@@ -247,11 +244,9 @@ export class PostCard {
             
             if (!authState.isLoggedIn) {
                 // Показываем форму логина с редиректом на профиль автора
-                console.log(`[PostCard] User not logged in, showing login form for profile: ${targetUrl}`);
                 this.showLoginForm(targetUrl);
             } else {
                 // Переходим сразу на профиль
-                console.log(`[PostCard] User logged in, navigating to profile: ${targetUrl}`);
                 router.navigate(targetUrl);
             }
         };

@@ -59,7 +59,6 @@ export class MenuItem {
 
         menuItemEl.addEventListener('click', (e: Event) => {
             e.preventDefault();
-            console.log(`[MenuItem] Выбран: ${this.key}`);
             setActive();
         });
 

@@ -208,9 +208,6 @@ export class PostCard {
             case 'edit':
                 this.handleEditPost();
                 break;
-            case 'delete':
-                this.onMenuAction?.(key);
-                break;
             default:
                 this.onMenuAction?.(key);
         }

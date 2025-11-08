@@ -1,5 +1,6 @@
 import { dispatcher } from '../../dispatcher/dispatcher';
 import { CreatePostFormView } from '../../views/viewCreatePostForm';
+import { DeletePostModal } from '../DeletePostModal/DeletePostModal';
 
 export class PostCardMenu {
     private element: HTMLElement;
@@ -25,19 +26,25 @@ export class PostCardMenu {
         });
 
         this.element.querySelectorAll('[data-key]').forEach(item => {
-            item.addEventListener('click', (e) => {
+            item.addEventListener('click', async (e) => {
                 e.preventDefault();
                 const key = item.getAttribute('data-key');
-                this.handleMenuItemClick(key);
+                await this.handleMenuItemClick(key);
                 this.close();
             });
         });
     }
 
-    private handleMenuItemClick(key: string | null) {
+    private async handleMenuItemClick(key: string | null) {
         if (!key) return;
         
-        // Вызываем колбэк вместо прямой обработки
+        // Для действия "delete" всегда показываем модалку подтверждения
+        if (key === 'delete') {
+            await this.handleDelete();
+            return;
+        }
+        
+        // Для остальных действий вызываем колбэк
         if (this.onMenuItemClick) {
             this.onMenuItemClick(key, this.postId);
         } else {
@@ -46,8 +53,9 @@ export class PostCardMenu {
                 case 'edit':
                     this.handleEdit();
                     break;
-                case 'delete':
-                    this.handleDelete();
+                case 'hide':
+                case 'report':
+                    // Эти действия можно передавать через колбэк
                     break;
             }
         }
@@ -60,14 +68,24 @@ export class PostCardMenu {
         // НЕ открываем форму здесь - это сделает store
     }
 
-    private async openEditPostForm(): Promise<void> {
-        const createPostForm = new CreatePostFormView();
-        const formElement = await createPostForm.render();
-        document.body.appendChild(formElement);
-    }
+    private async handleDelete(): Promise<void> {
+        console.log('[PostCardMenu] Показ модалки удаления поста:', this.postId);
+        
+        // Создаем и показываем модалку подтверждения
+        const deleteModal = new DeletePostModal();
+        const modalElement = await deleteModal.render();
+        document.body.appendChild(modalElement);
 
-    private handleDelete() {
-        // ... существующий код для удаления
+        // Ждем результата от пользователя
+        const confirmed = await deleteModal.waitForResult();
+        
+        if (confirmed) {
+            console.log('[PostCardMenu] Пользователь подтвердил удаление поста:', this.postId);
+            // Отправляем запрос на удаление поста
+            dispatcher.dispatch('POST_DELETE_REQUEST', { postId: this.postId });
+        } else {
+            console.log('[PostCardMenu] Пользователь отменил удаление поста:', this.postId);
+        }
     }
 
     private handleClickOutside = (e: MouseEvent) => {

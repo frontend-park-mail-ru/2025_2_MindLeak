@@ -239,11 +239,6 @@ export class PostsView {
             case 'edit':
                 dispatcher.dispatch('POST_EDIT_REQUEST', { postId });
                 break;
-            case 'delete':
-                if (confirm('Вы уверены, что хотите удалить пост?')) {
-                    dispatcher.dispatch('POST_DELETE_REQUEST', { postId });
-                }
-                break;
             case 'hide':
                 dispatcher.dispatch('POST_HIDE_REQUEST', { postId });
                 break;

@@ -105,6 +105,11 @@ export class CreatePostFormView {
         }
 
         if (state.success) {
+            console.log('[View] Post created/edited successfully, triggering posts reload');
+            
+            // Запускаем перезагрузку ленты постов
+            this.triggerPostsReload();
+            
             this.destroy();
             const message = state.isEditing 
                 ? 'Пост успешно отредактирован!' 
@@ -121,6 +126,12 @@ export class CreatePostFormView {
         }
 
         this.updateUIFromState(state);
+    }
+
+    private triggerPostsReload(): void {
+        console.log('[View] Triggering posts reload after create/edit');
+        // Отправляем действие для перезагрузки ленты
+        dispatcher.dispatch('POSTS_RELOAD_AFTER_CREATE');
     }
 
     private async openForm(): Promise<void> {

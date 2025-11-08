@@ -478,39 +478,40 @@ class API {
     }
     
     private async createPost(payload: { title: string; content: string; topic_id: number }): Promise<void> {
-    const response = await ajax.createPost(payload);
+        const response = await ajax.createPost(payload);
 
-    switch (response.status) {
-        case STATUS.ok:
-        case 201:
-            if (response.data) {
-                this.sendAction('CREATE_POST_SUCCESS', response.data);
-                
-                this.sendAction('POSTS_RELOAD_AFTER_CREATE');
-            } else {
+        switch (response.status) {
+            case STATUS.ok:
+            case 201:
+                if (response.data) {
+                    this.sendAction('CREATE_POST_SUCCESS', response.data);
+                    
+                    // Запускаем перезагрузку ленты
+                    this.sendAction('POSTS_RELOAD_AFTER_CREATE');
+                } else {
+                    this.sendAction('CREATE_POST_FAIL', { 
+                        error: 'Пост создан, но данные не возвращены' 
+                    });
+                }
+                break;
+            case STATUS.badRequest:
+                this.sendAction('CREATE_POST_FAIL', {
+                    error: response.data?.globalError || 
+                        response.data?.message || 
+                        'Некорректные данные поста'
+                });
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
                 this.sendAction('CREATE_POST_FAIL', { 
-                    error: 'Пост создан, но данные не возвращены' 
+                    error: 'Требуется авторизация для создания постов' 
+                });
+                break;
+            default:
+                this.sendAction('CREATE_POST_FAIL', {
+                    error: response.message || 'Не удалось создать пост'
                 });
             }
-            break;
-        case STATUS.badRequest:
-            this.sendAction('CREATE_POST_FAIL', {
-                error: response.data?.globalError || 
-                       response.data?.message || 
-                       'Некорректные данные поста'
-            });
-            break;
-        case STATUS.unauthorized:
-            this.sendAction('USER_UNAUTHORIZED');
-            this.sendAction('CREATE_POST_FAIL', { 
-                error: 'Требуется авторизация для создания постов' 
-            });
-            break;
-        default:
-            this.sendAction('CREATE_POST_FAIL', {
-                error: response.message || 'Не удалось создать пост'
-            });
-        }
     }
 
     private async deletePost(postId: string): Promise<void> {

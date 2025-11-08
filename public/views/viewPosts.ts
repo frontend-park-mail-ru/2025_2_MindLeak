@@ -101,8 +101,11 @@ export class PostsView {
     private handleStoreChange(): void {
         const state = postsStore.getState();
 
+        console.log(`[PostsView] Store changed. Posts: ${state.posts.length}, Loading: ${state.isLoading}, Filter: ${state.currentFilter}`);
+
         // Сброс при смене фильтра
         if (this.currentFilter !== state.currentFilter) {
+            console.log(`[PostsView] Filter changed from ${this.currentFilter} to ${state.currentFilter}`);
             this.currentFilter = state.currentFilter;
             this.virtualPostIndex = 0;
             
@@ -114,12 +117,20 @@ export class PostsView {
             }
         }
 
-        if (state.posts.length > 0) {
+        // Если посты изменились или это первая загрузка
+        if (state.posts.length > 0 && !state.isLoading) {
+            console.log(`[PostsView] Received ${state.posts.length} posts`);
             this.allPosts = [...state.posts];
-            // При первой загрузке рендерим первые посты
-            if (this.virtualPostIndex === 0) {
-                this.renderNextPosts();
+            
+            // Всегда полностью перерисовываем при получении новых данных
+            if (this.feedWrapper) {
+                this.feedWrapper.innerHTML = '';
+                if (this.sentinel) {
+                    this.feedWrapper.appendChild(this.sentinel);
+                }
             }
+            this.virtualPostIndex = 0;
+            this.renderNextPosts();
         }
 
         if (state.error) {
@@ -161,17 +172,18 @@ export class PostsView {
         const POSTS_PER_LOAD = 10;
         const fragment = document.createDocumentFragment();
         
-        console.log(`🔍 [PostsView] Rendering next ${POSTS_PER_LOAD} posts from index ${this.virtualPostIndex}`);
+        console.log(`[PostsView] Rendering next ${POSTS_PER_LOAD} posts from index ${this.virtualPostIndex}`);
         
+        let postsRendered = 0;
         for (let i = 0; i < POSTS_PER_LOAD; i++) {
-            // Циклическая логика: если дошли до конца массива, начинаем сначала
+            // Если дошли до конца массива, останавливаемся
             if (this.virtualPostIndex >= this.allPosts.length) {
-                this.virtualPostIndex = 0;
-                console.log('🔍 [PostsView] Restarting from beginning of posts array');
+                console.log('[PostsView] Reached end of posts array');
+                break;
             }
             
             const apiPost = this.allPosts[this.virtualPostIndex];
-            console.log(`🔍 [PostsView] Rendering post ${this.virtualPostIndex}:`, apiPost.id, apiPost.title);
+            console.log(`[PostsView] Rendering post ${this.virtualPostIndex}:`, apiPost.id, apiPost.title);
             
             const postData = this.transformPost(apiPost);
             
@@ -182,6 +194,7 @@ export class PostsView {
                 });
                 const postElement = await postCard.render();
                 fragment.appendChild(postElement);
+                postsRendered++;
             } catch (error) {
                 console.error('Error rendering post:', error);
             }
@@ -189,13 +202,14 @@ export class PostsView {
             this.virtualPostIndex++;
         }
 
-        if (this.sentinel) {
-            this.feedWrapper.insertBefore(fragment, this.sentinel);
-        } else {
-            this.feedWrapper.appendChild(fragment);
+        if (postsRendered > 0) {
+            if (this.sentinel) {
+                this.feedWrapper.insertBefore(fragment, this.sentinel);
+            } else {
+                this.feedWrapper.appendChild(fragment);
+            }
+            console.log(`[PostsView] ${postsRendered} posts rendered, new index: ${this.virtualPostIndex}`);
         }
-        
-        console.log(`🔍 [PostsView] Next posts rendered, new index: ${this.virtualPostIndex}`);
     }
 
     private showError(message: string): void {

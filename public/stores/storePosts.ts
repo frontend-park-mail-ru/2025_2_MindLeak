@@ -1,7 +1,6 @@
 import { BaseStore } from './store';
 import { dispatcher } from '../dispatcher/dispatcher';
 
-
 //Интерфейс поста
 export interface Post {
     id?: string;
@@ -84,10 +83,21 @@ class PostsStore extends BaseStore<PostsState> {
                 isLoading: true,
                 error: null
             });
+            // Запускаем перезагрузку постов с текущим фильтром
             dispatcher.dispatch('POSTS_LOAD_REQUEST', { filter: this.state.currentFilter });
         });
 
         this.registerAction('POSTS_RELOAD_AFTER_DELETE', () => {
+            this.setState({
+                posts: [],
+                isLoading: true,
+                error: null
+            });
+            dispatcher.dispatch('POSTS_LOAD_REQUEST', { filter: this.state.currentFilter });
+        });
+
+        // Добавляем обработку принудительного обновления
+        this.registerAction('POSTS_FORCE_REFRESH', () => {
             this.setState({
                 posts: [],
                 isLoading: true,

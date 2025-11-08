@@ -113,6 +113,11 @@ export class PostCardMenu {
             console.log('[PostCardMenu] Пользователь подтвердил удаление поста:', this.postId);
             // Отправляем запрос на удаление поста
             dispatcher.dispatch('POST_DELETE_REQUEST', { postId: this.postId });
+
+            setTimeout(() => {
+                console.log('[PostCardMenu] Triggering profile reload after delete');
+                dispatcher.dispatch('PROFILE_RELOAD_AFTER_DELETE');
+            }, 1000); // Задержка чтобы API успел обработать удаление
         } else {
             console.log('[PostCardMenu] Пользователь отменил удаление поста:', this.postId);
         }

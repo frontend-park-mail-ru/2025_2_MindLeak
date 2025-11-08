@@ -91,6 +91,29 @@ class ProfileStore extends BaseStore<ProfileState> {
             }
         });
 
+        this.registerAction('PROFILE_RELOAD_AFTER_DELETE', () => {
+            console.log('[ProfileStore] Reloading profile after delete');
+            const state = this.getState();
+            if (state.profile) {
+                // Перезагружаем профиль чтобы обновить посты
+                dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
+                    userId: state.profile.id 
+                });
+            }
+        });
+
+        this.registerAction('POSTS_RELOAD_AFTER_CREATE', () => {
+            console.log('[ProfileStore] Reloading posts after create');
+            const state = this.getState();
+            if (state.profile) {
+                // Перезагружаем профиль чтобы обновить посты
+                dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
+                    userId: state.profile.id 
+                });
+            }
+        });
+
+
         this.registerAction('PROFILE_CHANGE_TAB', (payload: { tab: 'posts' | 'comments' }) => {
             this.setState({
                 activeTab: payload.tab

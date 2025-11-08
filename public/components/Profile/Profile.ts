@@ -221,6 +221,7 @@ export class Profile {
                 break;
             case 'delete':
                 // Удаление обрабатывается внутри PostCardMenu
+                this.handleDeletePost(postId);
                 break;
             case 'hide':
                 dispatcher.dispatch('POST_HIDE_REQUEST', { postId });
@@ -228,6 +229,31 @@ export class Profile {
             case 'report':
                 dispatcher.dispatch('POST_REPORT_REQUEST', { postId });
                 break;
+        }
+    }
+    
+    private async handleDeletePost(postId: string): Promise<void> {
+        console.log(`[Profile] Deleting post: ${postId}`);
+        
+        // Динамически импортируем DeletePostModal
+        const { DeletePostModal } = await import('../DeletePostModal/DeletePostModal');
+        
+        // Показываем модалку подтверждения удаления
+        const deleteModal = new DeletePostModal();
+        const modalElement = await deleteModal.render();
+        document.body.appendChild(modalElement);
+
+        const confirmed = await deleteModal.waitForResult();
+        
+        if (confirmed) {
+            console.log(`[Profile] User confirmed deletion, dispatching POST_DELETE_REQUEST`);
+            dispatcher.dispatch('POST_DELETE_REQUEST', { postId });
+            
+            // После удаления запускаем перезагрузку профиля
+            setTimeout(() => {
+                console.log(`[Profile] Reloading profile after delete`);
+                dispatcher.dispatch('PROFILE_RELOAD_AFTER_DELETE');
+            }, 500); // Небольшая задержка чтобы API успел обработать удаление
         }
     }
 }

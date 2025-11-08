@@ -106,21 +106,16 @@ export class CreatePostFormView {
             return;
         }
 
-        // СБРАСЫВАЕМ ФЛАГ когда редактирование завершено и форма закрыта
-        if (!state.isEditing && this.isAutoOpened && !this.formElement) {
-            console.log('[CreatePostFormView] Resetting auto-open flag');
-            this.isAutoOpened = false;
-        }
-
-        if (state.success) {
-            console.log('[View] Post created/edited successfully, triggering posts reload');
+        // ВАЖНО: Автоматически закрываем форму после успешного создания/редактирования
+        if (state.success && this.formElement) {
+            console.log('[CreatePostFormView] Success, closing form');
             
-            // СБРАСЫВАЕМ ФЛАГ при успешном сохранении
-            this.isAutoOpened = false;
+            // ЗАКРЫВАЕМ ФОРМУ ПЕРЕД перезагрузкой
+            this.destroy();
             
+            // Затем запускаем перезагрузку
             this.triggerPostsReload();
             
-            this.destroy();
             const message = state.isEditing 
                 ? 'Пост успешно отредактирован!' 
                 : 'Пост успешно опубликован!';
@@ -129,6 +124,8 @@ export class CreatePostFormView {
                 type: 'success',
                 message: message
             });
+            
+            return; // Выходим чтобы не выполнять остальной код
         }
 
         if (state.error) {
@@ -141,6 +138,7 @@ export class CreatePostFormView {
     private triggerPostsReload(): void {
         console.log('[View] Triggering posts reload after create/edit');
         // Отправляем действие для перезагрузки ленты
+        dispatcher.dispatch('POSTS_RELOAD_AFTER_CREATE');
         dispatcher.dispatch('POSTS_RELOAD_AFTER_CREATE');
     }
 

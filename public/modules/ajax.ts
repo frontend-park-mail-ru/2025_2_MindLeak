@@ -20,13 +20,11 @@ class Ajax {
     private async request(url: string, options: RequestInit = {}): Promise<ApiResponse> {
         try {
             const fullUrl = `${BASE_URL}${url}`;
-            console.log(`AJAX Making request to: ${fullUrl}`, options);
 
             /*
             todo РАССКОМИТИТЬ ДЛЯ ДЕПЛОЯ
             // Получаем CSRF токен из куки
             const csrfToken = this.getCookie('csrf_token');
-            console.log('CSRF Token from cookie:', csrfToken);
             
             // Базовые заголовки*/
             const headers: Record<string, string> = {};
@@ -41,7 +39,6 @@ class Ajax {
             if (options.method && options.method !== 'GET' && options.method !== 'HEAD') {
                 if (csrfToken) {
                     headers['X-CSRF-Token'] = csrfToken;
-                    console.log('Adding CSRF token to headers');
                 }
                 console.warn('No CSRF token found for non-GET request');
             }*/
@@ -62,7 +59,7 @@ class Ajax {
                 try {
                     data = await response.json();
                 } catch (parseError) {
-                    console.warn(`AJAX Failed to parse JSON from ${url}:`, parseError);
+                    
                 }
             }
 
@@ -72,7 +69,6 @@ class Ajax {
                 message: response.statusText
             };
 
-            console.log(`AJAX Response from ${url}:`, result);
             return result;
 
         } catch (error) {

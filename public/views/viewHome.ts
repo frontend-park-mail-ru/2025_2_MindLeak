@@ -128,10 +128,8 @@ export class HomeView {
         try {
             if (this.postsView) {
                 await this.postsView.init(this.feedWrapper);
-                console.log('PostsView initialized successfully for category:', this.currentCategory);
             }
         } catch (error) {
-            console.error('Failed to initialize PostsView:', error);
             const errorEl = document.createElement('div');
             errorEl.className = 'feed-error';
             errorEl.textContent = 'Не удалось загрузить ленту постов';

@@ -12,7 +12,6 @@ const STATUS = {
 
 class API {
     handleAction(actionType: string, payload?: any): void {
-        console.log(`API action: ${actionType}`, payload);
 
         switch (actionType) {
             case 'LOGIN_CHECK_REQUEST':
@@ -234,8 +233,6 @@ class API {
             response = await ajax.get(`/feed?offset=${offset}`);
         }
 
-        console.log('🔍 [API] Ответ от сервера:', response);
-
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
@@ -291,23 +288,19 @@ class API {
         let url = `/posts?author_id=${userId}`;
         
         const response = await ajax.get(url);
-        console.log('🔍 [API] loadUserPosts response:', response);
         
         if (response.status === STATUS.ok && response.data) {
             // ОБЕСПЕЧИВАЕМ ТАКОЙ ЖЕ ФОРМАТ, КАК В ЛЕНТЕ
             const postsArray = response.data.articles || response.data || [];
-            console.log('🔍 [API] User posts raw data:', postsArray);
             
             const normalizedPosts = postsArray.map((post: any) => {
                 const normalized = this.normalizePostData(post);
-                console.log('🔍 [API] Normalized user post:', normalized);
                 return normalized;
             });
             
             return normalizedPosts;
         }
         
-        console.warn('🔍 [API] No user posts data or error:', response);
         return [];
     }
 
@@ -391,11 +384,9 @@ class API {
         
         const response = await ajax.put('/profile', updateData);
 
-        console.log('🔍 [API] Update profile response:', response);
         
         switch (response.status) {
             case STATUS.ok:
-                console.log('🔍 [API] Description updated successfully');
                 this.sendAction('PROFILE_UPDATE_DESCRIPTION_SUCCESS', { 
                     description: description 
                 });

@@ -76,7 +76,6 @@ export class UserMenu {
             userMenu.addEventListener('click', (e: Event) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log(`[UserMenu] Клик по пользователю: ${this.name}`);
                 
                 this.openUserMenu(userMenu);
             });
@@ -89,10 +88,8 @@ export class UserMenu {
                 e.stopPropagation();
                 
                 if (this.isSubscribed) {
-                    console.log('Выход из аккаунта...');
                     window.location.href = '/logout';
                 } else {
-                    console.log('Показываем форму входа...');
                     const loginForm = new LoginForm();
                     loginForm.render().then((modal: HTMLElement) => {
                         document.body.appendChild(modal);
@@ -105,7 +102,6 @@ export class UserMenu {
     }
 
     private openUserMenu(userMenuElement: HTMLElement): void {
-        console.log('[UserMenu] Открытие PopUpMenu');
         
         const existingMenu = document.querySelector('.popUp-menu');
         if (existingMenu) {

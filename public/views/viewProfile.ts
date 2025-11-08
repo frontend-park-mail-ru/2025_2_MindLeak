@@ -23,18 +23,14 @@ export class ProfileView {
         this.headerInstance = new Header();
         this.createPostFormView = new CreatePostFormView(); // ИНИЦИАЛИЗИРУЕМ
         
-        console.log(`[ProfileView] Constructor called with params:`, params);
         
         // Получаем userId из параметров маршрута или query строки
         if (params && params.id) {
             this.userId = params.id;
-            console.log(`[ProfileView] User ID from route params: ${this.userId}`);
         } else if (params && params.query && params.query.id) {
             this.userId = params.query.id;
-            console.log(`[ProfileView] User ID from query params: ${this.userId}`);
         } else {
             // Если нет ID, загружаем текущего пользователя
-            console.log(`[ProfileView] No user ID provided, loading current user`);
         }
         
         this.boundStoreHandler = this.handleStoreChange.bind(this);
@@ -42,7 +38,6 @@ export class ProfileView {
     }
 
     async render(): Promise<HTMLElement> {
-        console.log(`[ProfileView] render called, userId: ${this.userId}`);
         await this.renderFullPage();
         
         profileStore.addListener(this.boundStoreHandler);
@@ -136,8 +131,6 @@ export class ProfileView {
         const state = profileStore.getState();
         const loginState = loginStore.getState();
         
-        console.log(`[ProfileView] renderProfileContent, userId: ${this.userId}, loginState user id: ${loginState.user?.id}`);
-        
         // ПРАВИЛЬНОЕ определение isMyProfile
         let isMyProfile = false;
         
@@ -149,7 +142,6 @@ export class ProfileView {
             isMyProfile = true;
         }
         
-        console.log(`[ProfileView] isMyProfile: ${isMyProfile}, userId from params: ${this.userId}, current user id: ${loginState.user?.id}`);
 
         const profileComponent = new Profile({
             profile: state.profile,
@@ -168,13 +160,11 @@ export class ProfileView {
     }
 
     private handleStoreChange(): void {
-        console.log('Store changed:', profileStore.getState());
         const mainContent = this.container.querySelector('.main-content');
         if (mainContent) {
             this.renderProfileContent().then(newContent => {
                 mainContent.innerHTML = '';
                 mainContent.appendChild(newContent);
-                console.log('Profile content UPDATED');
             });
         }
     }

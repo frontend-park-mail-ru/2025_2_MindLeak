@@ -170,7 +170,6 @@ export class PostView {
             wrapper.innerHTML = '';
             wrapper.appendChild(postElement);
         } catch (error) {
-            console.error('Ошибка рендеринга поста:', error);
             wrapper.innerHTML = `
                 <div class="post-view__error" style="text-align: center; padding: 40px; color: var(--text-failure);">
                     Не удалось отобразить пост

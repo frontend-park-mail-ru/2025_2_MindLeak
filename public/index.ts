@@ -38,7 +38,6 @@ async function initApp(): Promise<void> {
     router.addRoute('/settings/privacy', SettingsPrivacyView, 'Mindleak - Конфиденциальность', true);
 
     router.init();
-    console.log('App initialized with routing');
 }
 
 initApp().catch(console.error);

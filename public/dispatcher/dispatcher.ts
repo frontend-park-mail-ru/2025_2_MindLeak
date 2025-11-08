@@ -13,7 +13,6 @@ class Dispatcher {
     }
 
     dispatch(actionType: string, payload?: any): void {
-        console.log(`[Dispatcher] Dispatching: ${actionType}`, payload);
         
         // API обрабатывает действия
         api.handleAction(actionType, payload);

@@ -38,5 +38,4 @@ app.get(/\/(?!api|dist|node_modules).*/, (req, res) => {
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-    console.log(`Server listening on http://localhost:${port}`);
 });

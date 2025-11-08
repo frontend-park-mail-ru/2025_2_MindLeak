@@ -101,11 +101,8 @@ export class PostsView {
     private handleStoreChange(): void {
         const state = postsStore.getState();
 
-        console.log(`[PostsView] Store changed. Posts: ${state.posts.length}, Loading: ${state.isLoading}, Filter: ${state.currentFilter}`);
-
         // Сброс при смене фильтра
         if (this.currentFilter !== state.currentFilter) {
-            console.log(`[PostsView] Filter changed from ${this.currentFilter} to ${state.currentFilter}`);
             this.currentFilter = state.currentFilter;
             this.virtualPostIndex = 0;
             
@@ -119,7 +116,6 @@ export class PostsView {
 
         // Если посты изменились или это первая загрузка
         if (state.posts.length > 0 && !state.isLoading) {
-            console.log(`[PostsView] Received ${state.posts.length} posts`);
             this.allPosts = [...state.posts];
             
             // Всегда полностью перерисовываем при получении новых данных
@@ -172,18 +168,15 @@ export class PostsView {
         const POSTS_PER_LOAD = 10;
         const fragment = document.createDocumentFragment();
         
-        console.log(`[PostsView] Rendering next ${POSTS_PER_LOAD} posts from index ${this.virtualPostIndex}`);
         
         let postsRendered = 0;
         for (let i = 0; i < POSTS_PER_LOAD; i++) {
             // Если дошли до конца массива, останавливаемся
             if (this.virtualPostIndex >= this.allPosts.length) {
-                console.log('[PostsView] Reached end of posts array');
                 break;
             }
             
             const apiPost = this.allPosts[this.virtualPostIndex];
-            console.log(`[PostsView] Rendering post ${this.virtualPostIndex}:`, apiPost.id, apiPost.title);
             
             const postData = this.transformPost(apiPost);
             
@@ -196,7 +189,6 @@ export class PostsView {
                 fragment.appendChild(postElement);
                 postsRendered++;
             } catch (error) {
-                console.error('Error rendering post:', error);
             }
             
             this.virtualPostIndex++;
@@ -208,7 +200,6 @@ export class PostsView {
             } else {
                 this.feedWrapper.appendChild(fragment);
             }
-            console.log(`[PostsView] ${postsRendered} posts rendered, new index: ${this.virtualPostIndex}`);
         }
     }
 

@@ -82,7 +82,6 @@ export class SidebarMenu {
                 const key = (item as HTMLElement).dataset.key;
                 if (!key) return;
 
-                console.log(`[Sidebar] Переключение на раздел: ${key}`);
                 setActiveItem(key);
                 this.onSelect(key);
             });

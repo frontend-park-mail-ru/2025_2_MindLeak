@@ -50,7 +50,16 @@ class ProfileStore extends BaseStore<ProfileState> {
 
         this.registerAction('PROFILE_LOAD_SUCCESS', (payload: { profile: ProfileData; posts: Post[] }) => {
             const loginState = loginStore.getState();
-            const isMyProfile = loginState.user && loginState.user.id === payload.profile.id;
+            
+            // ПРАВИЛЬНАЯ логика определения isMyProfile
+            let isMyProfile = false;
+            
+            if (payload.profile && loginState.user) {
+                // Сравниваем ID профиля с ID текущего пользователя
+                isMyProfile = payload.profile.id === loginState.user.id;
+            }
+            
+            console.log(`[ProfileStore] isMyProfile: ${isMyProfile}, profile id: ${payload.profile?.id}, user id: ${loginState.user?.id}`);
             
             this.setState({
                 profile: payload.profile,

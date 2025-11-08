@@ -90,13 +90,13 @@ class API {
      */
     private normalizePostData(post: any): any {
         return {
-            id: post.id || post.ID,
+            id: post.id || post.ID || post.postId,
             authorId: post.author_id || post.AuthorID,
             authorName: post.author_name || post.AuthorName,
             authorAvatar: post.author_avatar || post.AuthorAvatar,
             title: post.title || post.Title,
             content: post.content || post.Content,
-            image: post.media_url || post.MediaURL || '',
+            image: post.media_url || post.MediaURL || post.image || '',
             commentsCount: post.comments_count || post.CommentsCount || 0,
             repostsCount: post.reposts_count || post.RepostsCount || 0,
             viewsCount: post.views_count || post.ViewsCount || 0,
@@ -291,11 +291,23 @@ class API {
         let url = `/posts?author_id=${userId}`;
         
         const response = await ajax.get(url);
+        console.log('🔍 [API] loadUserPosts response:', response);
+        
         if (response.status === STATUS.ok && response.data) {
+            // ОБЕСПЕЧИВАЕМ ТАКОЙ ЖЕ ФОРМАТ, КАК В ЛЕНТЕ
             const postsArray = response.data.articles || response.data || [];
-            return postsArray.map((post: any) => this.normalizePostData(post));
+            console.log('🔍 [API] User posts raw data:', postsArray);
+            
+            const normalizedPosts = postsArray.map((post: any) => {
+                const normalized = this.normalizePostData(post);
+                console.log('🔍 [API] Normalized user post:', normalized);
+                return normalized;
+            });
+            
+            return normalizedPosts;
         }
         
+        console.warn('🔍 [API] No user posts data or error:', response);
         return [];
     }
 

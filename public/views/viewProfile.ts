@@ -135,10 +135,18 @@ export class ProfileView {
         
         console.log(`[ProfileView] renderProfileContent, userId: ${this.userId}, loginState user id: ${loginState.user?.id}`);
         
-        // Упрощенная проверка - если нет данных пользователя, считаем что это не мой профиль
-        const isMyProfile = loginState.user?.id?.toString() === this.userId?.toString();
+        // ПРАВИЛЬНОЕ определение isMyProfile
+        let isMyProfile = false;
         
-        console.log(`[ProfileView] isMyProfile: ${isMyProfile}`);
+        if (this.userId) {
+            // Если передан конкретный userId, сравниваем с текущим пользователем
+            isMyProfile = loginState.user?.id?.toString() === this.userId.toString();
+        } else {
+            // Если userId не передан, значит это профиль текущего пользователя
+            isMyProfile = true;
+        }
+        
+        console.log(`[ProfileView] isMyProfile: ${isMyProfile}, userId from params: ${this.userId}, current user id: ${loginState.user?.id}`);
 
         const profileComponent = new Profile({
             profile: state.profile,
@@ -147,7 +155,7 @@ export class ProfileView {
             isLoading: state.isLoading,
             error: state.error,
             isEditingDescription: state.isEditingDescription,
-            isMyProfile: isMyProfile
+            isMyProfile: isMyProfile // Передаем правильное значение
         });
 
         const profileElement = await profileComponent.render();
@@ -155,6 +163,7 @@ export class ProfileView {
         
         return profileElement;
     }
+
     private handleStoreChange(): void {
         console.log('Store changed:', profileStore.getState());
         const mainContent = this.container.querySelector('.main-content');

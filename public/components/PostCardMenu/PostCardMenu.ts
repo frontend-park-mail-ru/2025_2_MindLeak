@@ -8,8 +8,15 @@ export class PostCardMenu {
     private isOpen = false;
     private postId: string;
     private onMenuItemClick?: (key: string, postId: string) => void;
+    private isInitialized = false;
 
     constructor(menuButton: HTMLElement, menuElement: HTMLElement, postId: string, onMenuItemClick?: (key: string, postId: string) => void) {
+        // Проверяем, не инициализирован ли уже этот элемент
+        if (menuButton.hasAttribute('data-postcard-menu-initialized')) {
+            console.log(`[PostCardMenu] Menu already initialized for post: ${postId}`);
+            return;
+        }
+
         this.menuButton = menuButton;
         this.element = menuElement;
         this.postId = postId;
@@ -19,6 +26,14 @@ export class PostCardMenu {
     }
 
     private init() {
+        if (this.isInitialized) {
+            return;
+        }
+
+        // Помечаем элемент как инициализированный
+        this.menuButton.setAttribute('data-postcard-menu-initialized', 'true');
+        this.isInitialized = true;
+
         this.menuButton.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -33,6 +48,8 @@ export class PostCardMenu {
                 this.close();
             });
         });
+
+        console.log(`[PostCardMenu] Initialized for post: ${this.postId}`);
     }
 
     private async handleMenuItemClick(key: string | null) {

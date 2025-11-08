@@ -15,6 +15,7 @@ export class ProfileView {
     private topBloggers: TopBloggers | null = null;
     private headerInstance: Header;
     private pageWrapper: HTMLElement | null = null;
+    private profileInstance: Profile | null = null;
 
     constructor(container: HTMLElement, params?: any) {
         this.container = container;
@@ -140,7 +141,12 @@ export class ProfileView {
         
         console.log(`[ProfileView] isMyProfile: ${isMyProfile}`);
 
-        const profileComponent = new Profile({
+        // Очищаем предыдущий экземпляр профиля
+        if (this.profileInstance) {
+            (this.profileInstance as any).destroy?.();
+        }
+
+        this.profileInstance = new Profile({
             profile: state.profile,
             posts: state.posts,
             activeTab: state.activeTab,
@@ -150,11 +156,12 @@ export class ProfileView {
             isMyProfile: isMyProfile
         });
 
-        const profileElement = await profileComponent.render();
+        const profileElement = await this.profileInstance.render();
         this.attachEventListeners(profileElement);
         
         return profileElement;
     }
+    
     private handleStoreChange(): void {
         console.log('Store changed:', profileStore.getState());
         const mainContent = this.container.querySelector('.main-content');
@@ -236,5 +243,11 @@ export class ProfileView {
         profileStore.removeListener(this.boundStoreHandler);
         loginStore.removeListener(this.boundLoginStoreHandler);
         this.headerInstance.destroy();
+        
+        // Очищаем экземпляр профиля
+        if (this.profileInstance) {
+            (this.profileInstance as any).destroy?.();
+            this.profileInstance = null;
+        }
     }
 }

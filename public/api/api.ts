@@ -293,6 +293,7 @@ class API {
         const response = await ajax.get(url);
         if (response.status === STATUS.ok && response.data) {
             const postsArray = response.data.articles || response.data || [];
+            // Используем ту же нормализацию, что и в loadPosts
             return postsArray.map((post: any) => this.normalizePostData(post));
         }
         

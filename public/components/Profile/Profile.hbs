@@ -72,17 +72,24 @@
                     <div class="profile__posts">
                         {{#if posts.length}}
                             {{#each posts}}
-                                {{> post-card 
-                                    user=this.user
-                                    title=this.title
-                                    text=this.text
-                                    image=this.image
-                                    tags=this.tags
-                                    commentsCount=this.commentsCount
-                                    repostsCount=this.repostsCount
-                                    viewsCount=this.viewsCount
-                                    isOwnPost=this.isOwnPost
-                                }}
+                                <div data-post-id="{{this.postId}}">
+                                    {{> post-card 
+                                        user=this.user
+                                        title=this.title
+                                        text=this.text
+                                        image=this.image
+                                        tags=this.tags
+                                        commentsCount=this.commentsCount
+                                        repostsCount=this.repostsCount
+                                        viewsCount=this.viewsCount
+                                        isOwnPost=this.isOwnPost
+                                        canEdit=this.canEdit
+                                        postId=this.postId
+                                        createdAt=this.createdAt
+                                        isLiked=this.isLiked
+                                        isBookmarked=this.isBookmarked
+                                    }}
+                                </div>
                             {{/each}}
                         {{else}}
                             <div class="profile__empty">

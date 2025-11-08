@@ -85,6 +85,7 @@ function transformPostForProfile(apiPost: any): any {
         },
         title: apiPost.title || '',
         text: apiPost.content || '',
+        image: apiPost.media_url || apiPost.image || '', // Добавлено изображение
         tags: Array.isArray(apiPost.tags) ? apiPost.tags : [],
         commentsCount: apiPost.commentsCount || 0,
         repostsCount: apiPost.repostsCount || 0,

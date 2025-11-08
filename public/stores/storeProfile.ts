@@ -1,6 +1,8 @@
 import { BaseStore } from './store';
 import { Post } from './storePosts';
 import { loginStore } from './storeLogin';
+import { dispatcher } from '../dispatcher/dispatcher';
+
 
 export interface ProfileData {
     id: string;
@@ -74,6 +76,24 @@ class ProfileStore extends BaseStore<ProfileState> {
             this.setState({
                 isLoading: false,
                 error: payload.error
+            });
+        });
+
+        // ДОБАВЛЯЕМ: Обновление постов после редактирования
+        this.registerAction('POSTS_RELOAD_AFTER_EDIT', () => {
+            console.log('[ProfileStore] Reloading posts after edit');
+            const state = this.getState();
+            if (state.profile) {
+                // Перезагружаем профиль чтобы обновить посты
+                dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
+                    userId: state.profile.id 
+                });
+            }
+        });
+
+        this.registerAction('PROFILE_CHANGE_TAB', (payload: { tab: 'posts' | 'comments' }) => {
+            this.setState({
+                activeTab: payload.tab
             });
         });
 

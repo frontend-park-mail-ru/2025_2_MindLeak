@@ -14,6 +14,12 @@ export class PostCardMenu {
         // Проверяем, не инициализирован ли уже этот элемент
         if (menuButton.hasAttribute('data-postcard-menu-initialized')) {
             console.log(`[PostCardMenu] Menu already initialized for post: ${postId}`);
+            // НО ДАЕМ ВОЗМОЖНОСТЬ ПЕРЕИНИЦИАЛИЗАЦИИ ДЛЯ НОВОГО РЕДАКТИРОВАНИЯ
+            this.menuButton = menuButton;
+            this.element = menuElement;
+            this.postId = postId;
+            this.onMenuItemClick = onMenuItemClick;
+            this.init();
             return;
         }
 
@@ -59,6 +65,13 @@ export class PostCardMenu {
         if (key === 'delete') {
             await this.handleDelete();
             return;
+        }
+        
+        // ПЕРЕД редактированием сбрасываем возможные предыдущие состояния
+        if (key === 'edit') {
+            console.log('[PostCardMenu] Preparing for edit, resetting form state');
+            // Сбрасываем состояние формы перед новым редактированием
+            dispatcher.dispatch('CREATE_POST_FORM_INIT');
         }
         
         // Для остальных действий вызываем колбэк

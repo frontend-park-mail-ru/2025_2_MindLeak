@@ -60,13 +60,17 @@ class CreatePostStore extends BaseStore<CreatePostState> {
         });
 
         this.registerAction('POST_EDIT_LOAD_SUCCESS', (payload: { post: any }) => {
+            console.log('[CreatePostStore] Post data loaded for editing:', payload.post);
+            // ПЕРЕД загрузкой новых данных сбрасываем success флаг
             this.setState({
                 draftTitle: payload.post.title || '',
                 draftContent: payload.post.content || '',
                 currentTheme: payload.post.theme || 'Без темы',
                 currentThemeId: payload.post.topic_id || 0,
                 isEditing: true,
-                editingPostId: payload.post.id
+                editingPostId: payload.post.id,
+                success: false, // СБРАСЫВАЕМ success флаг
+                error: null
             });
         });
 
@@ -87,12 +91,24 @@ class CreatePostStore extends BaseStore<CreatePostState> {
         });
 
         this.registerAction('EDIT_POST_SUCCESS', () => {
+            console.log('[CreatePostStore] Edit post success');
             this.setState({ 
                 isCreating: false, 
                 success: true, 
                 error: null,
+                isEditing: false, // СБРАСЫВАЕМ флаг редактирования
+                editingPostId: null // СБРАСЫВАЕМ ID редактируемого поста
+            });
+        });
+
+        // ДОБАВЛЯЕМ: Сброс при закрытии формы без сохранения
+        this.registerAction('CREATE_POST_FORM_CLOSE', () => {
+            console.log('[CreatePostStore] Form closed manually');
+            this.setState({
                 isEditing: false,
-                editingPostId: null
+                editingPostId: null,
+                success: false,
+                error: null
             });
         });
 

@@ -96,18 +96,28 @@ export class CreatePostFormView {
     private handleStoreChange(): void {
         const state = createPostStore.getState();
 
-        // Автоматически открываем форму при загрузке данных для редактирования
+        console.log('[CreatePostFormView] Store changed:', state);
+
+        // ВАЖНО: Автоматически открываем форму при загрузке данных для редактирования
         if (state.isEditing && state.editingPostId && !this.formElement && !this.isAutoOpened) {
-            console.log('[View] Auto-opening edit form for post:', state.editingPostId);
+            console.log('[CreatePostFormView] Auto-opening edit form for post:', state.editingPostId);
             this.isAutoOpened = true;
             this.openForm();
             return;
         }
 
+        // СБРАСЫВАЕМ ФЛАГ когда редактирование завершено и форма закрыта
+        if (!state.isEditing && this.isAutoOpened && !this.formElement) {
+            console.log('[CreatePostFormView] Resetting auto-open flag');
+            this.isAutoOpened = false;
+        }
+
         if (state.success) {
             console.log('[View] Post created/edited successfully, triggering posts reload');
             
-            // Запускаем перезагрузку ленты постов
+            // СБРАСЫВАЕМ ФЛАГ при успешном сохранении
+            this.isAutoOpened = false;
+            
             this.triggerPostsReload();
             
             this.destroy();
@@ -323,6 +333,6 @@ export class CreatePostFormView {
         }
         // Сбрасываем состояние формы
         dispatcher.dispatch('CREATE_POST_FORM_INIT');
-        this.isAutoOpened = false;
+        this.isAutoOpened = false; // СБРАСЫВАЕМ ФЛАГ
     }
 }

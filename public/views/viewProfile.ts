@@ -6,6 +6,7 @@ import { dispatcher } from '../dispatcher/dispatcher';
 import { loginStore } from '../stores/storeLogin';
 import { router } from '../router/router';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
+import { CreatePostFormView } from '../views/viewCreatePostForm'; // ДОБАВЛЯЕМ ИМПОРТ
 
 export class ProfileView {
     private container: HTMLElement;
@@ -15,10 +16,12 @@ export class ProfileView {
     private topBloggers: TopBloggers | null = null;
     private headerInstance: Header;
     private pageWrapper: HTMLElement | null = null;
+    private createPostFormView: CreatePostFormView | null = null; // ДОБАВЛЯЕМ
 
     constructor(container: HTMLElement, params?: any) {
         this.container = container;
         this.headerInstance = new Header();
+        this.createPostFormView = new CreatePostFormView(); // ИНИЦИАЛИЗИРУЕМ
         
         console.log(`[ProfileView] Constructor called with params:`, params);
         
@@ -245,5 +248,10 @@ export class ProfileView {
         profileStore.removeListener(this.boundStoreHandler);
         loginStore.removeListener(this.boundLoginStoreHandler);
         this.headerInstance.destroy();
+        // ДОБАВЛЯЕМ уничтожение CreatePostFormView
+        if (this.createPostFormView) {
+            this.createPostFormView.destroy();
+            this.createPostFormView = null;
+        }
     }
 }

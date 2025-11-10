@@ -78,20 +78,28 @@ export class SignUpFormView {
 
         if (!name) {
             errors.push({ field: 'username', message: 'Название аккаунта обязательно' });
-        } else if (name.length < 4 || /\s/.test(name)) {
-            errors.push({ field: 'username', message: 'Название аккаунта должно быть не короче 4 символов и без пробелов' });
+        } else if (name.length < 4) {
+            errors.push({ field: 'username', message: 'Название аккаунта должно быть не короче 4 символов' });
+        } else if (name.length > 32) {
+            errors.push({ field: 'username', message: 'Название аккаунта должно быть короче 33 символов' });
         }
 
         if (!email) {
             errors.push({ field: 'email', message: 'Email обязателен' });
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             errors.push({ field: 'email', message: 'Некорректный email' });
+        }else if (email.length > 320) {
+            errors.push({ field: 'email', message: 'email должен быть короче 320 символов' });
         }
 
         if (!password) {
             errors.push({ field: 'password', message: 'Пароль обязателен' });
-        } else if (password.length < 4 || /\s/.test(password)) {
+        } else if (/\s/.test(password)) {
+            errors.push({ field: 'password', message: 'Пароль должен быть без пробелов' });
+        } else if (password.length < 4) {
             errors.push({ field: 'password', message: 'Пароль должен быть не короче 4 символов и без пробелов' });
+        } else if (password.length > 64) {
+            errors.push({ field: 'password', message: 'Пароль должен быть короче 65 символов и без пробелов' });
         }
 
         if (!confirmPassword) {

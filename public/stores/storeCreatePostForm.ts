@@ -88,6 +88,20 @@ class CreatePostStore extends BaseStore<CreatePostState> {
             this.setState({ isCreating: true, error: null });
         });
 
+        this.registerAction('POST_EDIT_REQUEST', (payload: { postId: string }) => {
+            // Устанавливаем флаг редактирования ДО загрузки данных
+            this.setState({
+                isEditing: true,
+                editingPostId: payload.postId,
+                success: false,
+                error: null,
+                isCreating: false
+            });
+            
+            // ЗАПУСКАЕМ ЗАГРУЗКУ ДАННЫХ ПОСТА
+            dispatcher.dispatch('POST_EDIT_LOAD_REQUEST', { postId: payload.postId });
+        });
+
         this.registerAction('EDIT_POST_SUCCESS', () => {
             this.setState({ 
                 isCreating: false, 
@@ -105,6 +119,29 @@ class CreatePostStore extends BaseStore<CreatePostState> {
                 editingPostId: null,
                 success: false,
                 error: null
+            });
+        });
+
+        this.registerAction('POST_EDIT_LOAD_SUCCESS', (payload: { post: any }) => {
+            // ПЕРЕД загрузкой новых данных сбрасываем success флаг
+            this.setState({
+                draftTitle: payload.post.title || '',
+                draftContent: payload.post.content || '',
+                currentTheme: payload.post.theme || 'Без темы',
+                currentThemeId: payload.post.topic_id || 0,
+                isEditing: true,
+                editingPostId: payload.post.id,
+                success: false, // СБРАСЫВАЕМ success флаг
+                error: null
+            });
+        });
+
+        // Добавьте также обработчик ошибки
+        this.registerAction('POST_EDIT_LOAD_FAIL', (payload: { error: string }) => {
+            this.setState({
+                isEditing: false,
+                editingPostId: null,
+                error: payload.error
             });
         });
 

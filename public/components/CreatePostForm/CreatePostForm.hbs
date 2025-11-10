@@ -3,25 +3,28 @@
         <button type="button" class="create-post-form__close" data-key="close-button" aria-label="Закрыть">
             &times;
         </button>
+        
+        {{#if this.isEditing}}
+            <div class="create-post-form__edit-mode-header">Режим редактирования</div>
+        {{/if}}
+        
         <div class="create-post-form__header">
-            {{> user-menu 
-                name=this.name 
-                subtitle=this.subtitle 
-                avatar=this.avatar 
-                isSubscribed=false
-                hideSubscribeButton=true
-            }}
-            
-            {{#if this.isEditing}}
-                <div class="create-post-form__edit-mode">Режим редактирования</div>
-            {{/if}}
-            
-            {{> menu-item
-                key="select-theme"
-                text="Выбрать тему"
-                extraClass="create-post-form__theme-button"
-                data-key="select-theme"
-            }}
+            <div class="create-post-form__header-left">
+                {{> user-menu 
+                    name=this.name 
+                    subtitle=this.subtitle 
+                    avatar=this.avatar 
+                    isSubscribed=false
+                    hideSubscribeButton=true
+                }}
+                
+                {{> menu-item
+                    key="select-theme"
+                    text="Выбрать тему"
+                    extraClass="create-post-form__theme-button"
+                    data-key="select-theme"
+                }}
+            </div>
         </div>
 
         <form class="create-post-form__content" data-key="create-post-form">

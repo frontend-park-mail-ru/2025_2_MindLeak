@@ -22,30 +22,76 @@ body .create-post-form__overlay {
 
 .create-post-form__header {
     display: flex;
-    gap: 10px;
+    justify-content: space-between;
+    align-items: flex-start;
     margin-bottom: 10px;
+    width: 100%;
+    position: relative;
+}
+
+.create-post-form__header-left {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.create-post-form__header-right {
+    display: none;
+}
+
+.create-post-form__edit-mode-header {
+    font-size: 14px;
+    color: var(--text-color);
+    margin-bottom: 15px;
+    text-align: center;
+    padding: 0;
+    background: transparent;
+    font-weight: var(--font-weight-normal);
+}
+
+.create-post-form__edit-mode {
+    display: none !important;
 }
 
 .create-post-form__theme-button {
     display: flex;
     align-items: center;
-    text-align: center;
-    height: 20px;
-    width: 101px;
+    justify-content: center;
+    height: 24px;
+    min-width: 80px;
     background: var(--section-color);
     border: 1px solid var(--section-hover);
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 11px;
     cursor: pointer;
     transition: all 0.2s ease;
     color: var(--text-lighter);
-    margin-top: 4px;
+    padding: 0 8px;
+    white-space: nowrap;
 }
 
 .create-post-form__theme-button:hover,
 .create-post-form__theme-button:active {
     background: var(--section-hover);
     color: var(--text-color);
+}
+
+.user-menu {
+    max-width: 300px;
+}
+
+.user-menu__info {
+    min-width: 0;
+}
+
+.user-menu__name,
+.user-menu__subtitle {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
 }
 
 .create-post-form__title-input {

@@ -135,6 +135,15 @@ export class CreatePostFormView {
         dispatcher.dispatch('POSTS_RELOAD_AFTER_CREATE');
     }
 
+    public async openForEdit(): Promise<void> {
+        if (this.formElement) {
+            return; // Форма уже открыта
+        }
+        
+        this.isAutoOpened = true;
+        await this.openForm();
+    }
+
     private async openForm(): Promise<void> {
         const formElement = await this.render();
         document.body.appendChild(formElement);
@@ -177,19 +186,6 @@ export class CreatePostFormView {
         const charCounter = this.formElement.querySelector('.char-counter__number');
         if (charCounter) {
             charCounter.textContent = (this.maxChars - state.draftContent.length).toString();
-        }
-
-        const header = this.formElement.querySelector('.create-post-form__header');
-        if (header) {
-            let editIndicator = header.querySelector('.create-post-form__edit-mode');
-            if (state.isEditing && !editIndicator) {
-                editIndicator = document.createElement('div');
-                editIndicator.className = 'create-post-form__edit-mode';
-                editIndicator.textContent = 'Режим редактирования';
-                header.appendChild(editIndicator);
-            } else if (!state.isEditing && editIndicator) {
-                editIndicator.remove();
-            }
         }
     }
 

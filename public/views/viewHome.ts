@@ -3,17 +3,20 @@ import { TopBloggers } from '../components/TopBloggers/TopBloggers';
 import { dispatcher } from '../dispatcher/dispatcher';
 import { PostsView } from './viewPosts';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
+import { CreatePostFormView } from '../views/viewCreatePostForm';
 
 export class HomeView {
     private headerInstance: Header;
     private postsView: PostsView | null = null;
     private feedWrapper: HTMLElement | null = null;
     private currentCategory: string = 'fresh';
+    private createPostFormView: CreatePostFormView | null = null; 
 
     constructor() {
         this.headerInstance = new Header();
         this.postsView = new PostsView();
         this.determineCurrentCategory();
+        this.createPostFormView = new CreatePostFormView();
     }
 
     private determineCurrentCategory(): void {
@@ -32,6 +35,8 @@ export class HomeView {
     }
 
     async render(): Promise<HTMLElement> {
+
+        window.scrollTo(0, 0);
         // Определяем категорию перед рендером
         this.determineCurrentCategory();
 
@@ -146,6 +151,10 @@ export class HomeView {
         if (this.postsView) {
             this.postsView.destroy();
             this.postsView = null;
+        }
+        if (this.createPostFormView) {
+            this.createPostFormView.destroy();
+            this.createPostFormView = null;
         }
     }
 }

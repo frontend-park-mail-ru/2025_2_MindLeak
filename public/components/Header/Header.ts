@@ -156,8 +156,8 @@ export class Header {
 
                 const menuEl = await popUpMenu.render();
                 const rect = userMenu.getBoundingClientRect();
-                menuEl.style.position = 'absolute';
-                menuEl.style.top = `${rect.bottom + 10}px`;
+                menuEl.style.position = 'fixed'; // ← вместо 'absolute'
+                menuEl.style.top = `${rect.bottom + 10}px`; // ← учитываем скролл
                 menuEl.style.right = `${window.innerWidth - rect.right}px`;
                 menuEl.style.zIndex = '1000';
 

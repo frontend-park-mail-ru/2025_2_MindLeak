@@ -85,8 +85,12 @@ export class LoginFormView {
 
         if (!password) {
             errors.push({ field: 'password', message: 'Пароль обязателен' });
-        } else if (password.length < 4 || /\s/.test(password)) {
+        } else if (/\s/.test(password)) {
+            errors.push({ field: 'password', message: 'Пароль должен быть без пробелов' });
+        } else if (password.length < 4) {
             errors.push({ field: 'password', message: 'Пароль должен быть не короче 4 символов и без пробелов' });
+        } else if (password.length > 64) {
+            errors.push({ field: 'password', message: 'Пароль должен быть короче 65 символов и без пробелов' });
         }
 
         if (errors.length > 0) {

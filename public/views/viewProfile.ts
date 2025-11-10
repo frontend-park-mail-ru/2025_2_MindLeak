@@ -6,7 +6,7 @@ import { dispatcher } from '../dispatcher/dispatcher';
 import { loginStore } from '../stores/storeLogin';
 import { router } from '../router/router';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
-import { CreatePostFormView } from '../views/viewCreatePostForm'; // ДОБАВЛЯЕМ ИМПОРТ
+import { CreatePostFormView } from '../views/viewCreatePostForm';
 
 export class ProfileView {
     private container: HTMLElement;
@@ -16,21 +16,21 @@ export class ProfileView {
     private topBloggers: TopBloggers | null = null;
     private headerInstance: Header;
     private pageWrapper: HTMLElement | null = null;
-    private createPostFormView: CreatePostFormView | null = null; // ДОБАВЛЯЕМ
+    private createPostFormView: CreatePostFormView | null = null;
+    private hasRendered: boolean = false;
+    private sidebarEl1: HTMLElement | null = null;
+    private sidebarEl2: HTMLElement | null = null;
+    private isDestroyed: boolean = false; // Флаг для отслеживания уничтожения
 
     constructor(container: HTMLElement, params?: any) {
         this.container = container;
         this.headerInstance = new Header();
-        this.createPostFormView = new CreatePostFormView(); // ИНИЦИАЛИЗИРУЕМ
+        this.createPostFormView = new CreatePostFormView();
         
-        
-        // Получаем userId из параметров маршрута или query строки
         if (params && params.id) {
             this.userId = params.id;
         } else if (params && params.query && params.query.id) {
             this.userId = params.query.id;
-        } else {
-            // Если нет ID, загружаем текущего пользователя
         }
         
         this.boundStoreHandler = this.handleStoreChange.bind(this);
@@ -38,110 +38,155 @@ export class ProfileView {
     }
 
     async render(): Promise<HTMLElement> {
-        await this.renderFullPage();
-        
-        profileStore.addListener(this.boundStoreHandler);
-        loginStore.addListener(this.boundLoginStoreHandler);
-        
-        // Всегда передаем userId, даже если undefined (тогда API вернет текущего пользователя)
-        dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
-            userId: this.userId 
-        });
+        if (this.isDestroyed) {
+            console.warn('⚠️ [PROFILE] Attempted to render destroyed view');
+            return document.createElement('div'); // Возвращаем пустой элемент
+        }
 
-        return this.pageWrapper!;
-    }
+        window.scrollTo(0, 0);
+        
+        // Если уже отрендерено, возвращаем существующий wrapper
+        if (this.hasRendered && this.pageWrapper) {
+            return this.pageWrapper;
+        }
 
-    private async renderFullPage(): Promise<void> {
+        // Очищаем контейнер
         this.container.innerHTML = '';
-
+        
+        // Создаем основной wrapper ДО вызова renderPageLayout
         this.pageWrapper = document.createElement('div');
         
+        try {
+            // Рендерим базовую структуру страницы
+            await this.renderPageLayout();
+            
+            // Добавляем слушатели
+            profileStore.addListener(this.boundStoreHandler);
+            loginStore.addListener(this.boundLoginStoreHandler);
+            
+            // Загружаем данные профиля
+            dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
+                userId: this.userId 
+            });
+
+            this.hasRendered = true;
+            
+            // Добавляем в контейнер
+            this.container.appendChild(this.pageWrapper);
+            return this.pageWrapper;
+        } catch (error) {
+            console.error('❌ [PROFILE] Error rendering profile:', error);
+            // В случае ошибки возвращаем пустой элемент
+            const errorDiv = document.createElement('div');
+            errorDiv.textContent = 'Ошибка загрузки профиля';
+            return errorDiv;
+        }
+    }
+
+    private async renderPageLayout(): Promise<void> {
+        // Убеждаемся, что pageWrapper существует и view не уничтожен
+        if (!this.pageWrapper || this.isDestroyed) {
+            console.error('❌ [PROFILE] pageWrapper is null or view destroyed in renderPageLayout');
+            return;
+        }
+
         // Header
         const headerContainer = document.createElement('header');
         const headerEl = await this.headerInstance.render(headerContainer);
-        headerContainer.appendChild(headerEl);
-        this.pageWrapper.appendChild(headerContainer);
+        if (headerEl) {
+            headerContainer.appendChild(headerEl);
+            this.pageWrapper.appendChild(headerContainer);
+        }
 
         // Основной контент
         const contentContainer = document.createElement('div');
         contentContainer.className = 'content-layout';
         
-        // Левое меню — ДВА сайдбара
+        // Левое меню
         const leftMenu = document.createElement('aside');
         leftMenu.className = 'sidebar-left';
 
-        // Сохраняем ссылки на DOM-элементы сайдбаров
-        let sidebarEl1: HTMLElement | null = null;
-        let sidebarEl2: HTMLElement | null = null;
-
-        // Функция для сброса активности
-        const deactivateAll = (sidebarEl: HTMLElement) => {
-            sidebarEl.querySelectorAll('.menu-item').forEach(item => {
-                item.classList.remove('menu-item--active');
-            });
-        };
-
-        // левое меню
+        // Создаем сайдбары
         const sidebar1 = new SidebarMenu(
             MAIN_MENU_ITEMS,
             'fresh',
             (key) => {
-                if (sidebarEl2) deactivateAll(sidebarEl2);
                 dispatcher.dispatch('POSTS_SET_FILTER', { filter: key });
             }
         );
-        sidebarEl1 = await sidebar1.render();
 
-        // Нижнее меню
         const sidebar2 = new SidebarMenu(
             SECONDARY_MENU_ITEMS,
             '',
             (key) => {
-                if (sidebarEl1) deactivateAll(sidebarEl1);
                 dispatcher.dispatch('POSTS_SET_FILTER', { filter: key });
             }
         );
-        sidebarEl2 = await sidebar2.render();
 
-        leftMenu.appendChild(sidebarEl1);
-        leftMenu.appendChild(sidebarEl2);
+        this.sidebarEl1 = await sidebar1.render();
+        this.sidebarEl2 = await sidebar2.render();
 
-        // Центральная область с профилем
+        if (this.sidebarEl1) leftMenu.appendChild(this.sidebarEl1);
+        if (this.sidebarEl2) leftMenu.appendChild(this.sidebarEl2);
+
+        // Центральная область
         const mainContent = document.createElement('main');
         mainContent.className = 'main-content';
-        const profileContent = await this.renderProfileContent();
-        mainContent.appendChild(profileContent);
+        
+        // Инициализируем с загрузочным состоянием
+        const loadingContent = await this.renderProfileContent();
+        if (loadingContent) {
+            mainContent.appendChild(loadingContent);
+        }
 
         // Правое меню
         const rightMenu = document.createElement('aside');
         rightMenu.className = 'sidebar-right';
+        
         this.topBloggers = new TopBloggers();
         const bloggersElement = await this.topBloggers.render();
-        rightMenu.appendChild(bloggersElement);
+        if (bloggersElement) {
+            rightMenu.appendChild(bloggersElement);
+        }
 
         contentContainer.appendChild(leftMenu);
         contentContainer.appendChild(mainContent);
         contentContainer.appendChild(rightMenu);
         
         this.pageWrapper.appendChild(contentContainer);
-        this.container.appendChild(this.pageWrapper);
     }
 
     private async renderProfileContent(): Promise<HTMLElement> {
+        if (this.isDestroyed) {
+            return document.createElement('div');
+        }
+
         const state = profileStore.getState();
         const loginState = loginStore.getState();
         
+        // Если данные еще не загружены, показываем скелетон
+        if (state.isLoading || !state.profile) {
+            const skeleton = document.createElement('div');
+            skeleton.className = 'profile';
+            skeleton.innerHTML = `
+                <div class="profile__loading">
+                    <div style="text-align: center; padding: 40px;">
+                        <div style="font-size: 18px; margin-bottom: 20px;">Загрузка профиля...</div>
+                        <div style="display: inline-block; width: 50px; height: 50px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    </div>
+                </div>
+            `;
+            return skeleton;
+        }
+
         // ПРАВИЛЬНОЕ определение isMyProfile
         let isMyProfile = false;
         
         if (this.userId) {
-            // Если передан конкретный userId, сравниваем с текущим пользователем
             isMyProfile = loginState.user?.id?.toString() === this.userId.toString();
         } else {
-            // Если userId не передан, значит это профиль текущего пользователя
             isMyProfile = true;
         }
-        
 
         const profileComponent = new Profile({
             profile: state.profile,
@@ -150,7 +195,7 @@ export class ProfileView {
             isLoading: state.isLoading,
             error: state.error,
             isEditingDescription: state.isEditingDescription,
-            isMyProfile: isMyProfile // Передаем правильное значение
+            isMyProfile: isMyProfile
         });
 
         const profileElement = await profileComponent.render();
@@ -160,16 +205,27 @@ export class ProfileView {
     }
 
     private handleStoreChange(): void {
-        const mainContent = this.container.querySelector('.main-content');
-        if (mainContent) {
-            this.renderProfileContent().then(newContent => {
-                mainContent.innerHTML = '';
-                mainContent.appendChild(newContent);
-            });
+        if (this.isDestroyed) return;
+
+        const state = profileStore.getState();
+        
+        // Если данные загружены (успешно или с ошибкой), обновляем контент
+        if (!state.isLoading) {
+            const mainContent = this.container.querySelector('.main-content');
+            if (mainContent) {
+                this.renderProfileContent().then(newContent => {
+                    if (!this.isDestroyed && newContent) {
+                        mainContent.innerHTML = '';
+                        mainContent.appendChild(newContent);
+                    }
+                });
+            }
         }
     }
 
     private handleLoginStoreChange(): void {
+        if (this.isDestroyed) return;
+
         const loginState = loginStore.getState();
         
         if (!loginState.isLoggedIn) {
@@ -178,6 +234,8 @@ export class ProfileView {
     }
 
     private attachEventListeners(container: HTMLElement): void {
+        if (this.isDestroyed) return;
+
         const tabButtons = container.querySelectorAll('[data-tab]');
         tabButtons.forEach(button => {
             button.addEventListener('click', (e) => {
@@ -188,7 +246,17 @@ export class ProfileView {
             });
         });
 
+        this.attachPostEditListeners(container);
         this.attachDescriptionEventListeners(container);
+    }
+
+    private attachPostEditListeners(container: HTMLElement): void {
+        const menuButtons = container.querySelectorAll('.post-card__menu-button');
+        menuButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        });
     }
 
     private attachDescriptionEventListeners(container: HTMLElement): void {
@@ -225,23 +293,44 @@ export class ProfileView {
     }
 
     private startEditingDescription(): void {
+        if (this.isDestroyed) return;
         dispatcher.dispatch('PROFILE_START_EDIT_DESCRIPTION');
     }
 
     private saveDescription(description: string): void {
+        if (this.isDestroyed) return;
         dispatcher.dispatch('PROFILE_UPDATE_DESCRIPTION_REQUEST', {
             description: description.trim()
         });
     }
 
     destroy(): void {
+        this.isDestroyed = true;
+        
         profileStore.removeListener(this.boundStoreHandler);
         loginStore.removeListener(this.boundLoginStoreHandler);
-        this.headerInstance.destroy();
-        // ДОБАВЛЯЕМ уничтожение CreatePostFormView
-        if (this.createPostFormView) {
+        
+        // Уничтожаем только те компоненты, у которых есть метод destroy
+        if (this.headerInstance && typeof this.headerInstance.destroy === 'function') {
+            this.headerInstance.destroy();
+        }
+        
+        if (this.createPostFormView && typeof this.createPostFormView.destroy === 'function') {
             this.createPostFormView.destroy();
             this.createPostFormView = null;
         }
+        
+        // Очищаем ссылки на DOM элементы
+        this.sidebarEl1 = null;
+        this.sidebarEl2 = null;
+        this.topBloggers = null;
+        
+        // Удаляем pageWrapper из DOM
+        if (this.pageWrapper && this.pageWrapper.parentNode) {
+            this.pageWrapper.parentNode.removeChild(this.pageWrapper);
+        }
+        
+        this.pageWrapper = null;
+        this.hasRendered = false;
     }
 }

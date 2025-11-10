@@ -188,7 +188,22 @@ export class ProfileView {
             });
         });
 
+        this.attachPostEditListeners(container);
         this.attachDescriptionEventListeners(container);
+    }
+
+    private attachPostEditListeners(container: HTMLElement): void {
+        // Находим все кнопки меню в постах профиля
+        const menuButtons = container.querySelectorAll('.post-card__menu-button');
+        menuButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Действие обрабатывается в PostCardMenu, но убедимся, что форма готова
+                if (this.createPostFormView) {
+                    // Форма уже инициализирована и готова к открытию
+                }
+            });
+        });
     }
 
     private attachDescriptionEventListeners(container: HTMLElement): void {

@@ -216,10 +216,6 @@ export class PostCard {
         // Отправляем запрос на загрузку данных поста для редактирования
         dispatcher.dispatch('POST_EDIT_REQUEST', { postId: this.postId });
         
-        // Открываем форму редактирования
-        const createPostForm = new CreatePostFormView();
-        const formElement = await createPostForm.render();
-        document.body.appendChild(formElement);
     }
 
     private setupAuthorClickHandlers(postCard: HTMLElement): void {

@@ -15,10 +15,10 @@ export class Router {
     private isInitialized: boolean = false;
     private pendingRoute: { route: Route; path?: string } | null = null;
     private isAuthCheckComplete: boolean = false;
-    private authCheckPromise: Promise<void> | null = null;
+    private authCheckPromise: Promise<boolean> | null = null; // Теперь возвращает boolean
     private isFirstRoute: boolean = true;
     private isRendering: boolean = false;
-    private loginModal: HTMLElement | null = null; // Референс на модальное окно
+    private loginModal: HTMLElement | null = null;
 
     constructor() {
         this.handleRouteChange = this.handleRouteChange.bind(this);
@@ -40,26 +40,32 @@ export class Router {
         document.addEventListener('click', this.handleLinkClick);
         loginStore.addListener(this.handleLoginStoreChange);
 
-        // Не вызываем handleRouteChange сразу - ждем завершения проверки авторизации
-        this.authCheckPromise?.then(() => {
+        // Ждем завершения проверки авторизации перед первым роутингом
+        this.authCheckPromise?.then((isAuthenticated) => {
+            console.log('[ROUTER] Initial auth check complete, isAuthenticated:', isAuthenticated);
             this.handleRouteChange();
         });
 
         this.isInitialized = true;
     }
 
-    private startAuthCheck(): void {
-        if (this.authCheckPromise) return;
+    private startAuthCheck(): Promise<boolean> {
+        if (this.authCheckPromise) {
+            return this.authCheckPromise;
+        }
         
-        this.authCheckPromise = new Promise<void>((resolve) => {
+        this.authCheckPromise = new Promise<boolean>((resolve) => {
             const state = loginStore.getState();
             
             // Если проверка уже не в процессе, значит она завершена
             if (!state.isLoading) {
                 this.isAuthCheckComplete = true;
-                resolve();
+                console.log('[ROUTER] Auth check already complete, isLoggedIn:', state.isLoggedIn);
+                resolve(state.isLoggedIn);
                 return;
             }
+
+            console.log('[ROUTER] Starting auth check...');
 
             // Создаем обработчик для отслеживания изменений
             const authCheckHandler = () => {
@@ -67,14 +73,11 @@ export class Router {
                 
                 if (!newState.isLoading) {
                     this.isAuthCheckComplete = true;
-                    // Отписываемся после завершения проверки
-                    loginStore.removeListener(authCheckHandler);
-                    resolve();
+                    console.log('[ROUTER] Auth check completed, isLoggedIn:', newState.isLoggedIn);
                     
-                    // Если пользователь авторизовался и есть модальное окно - закрываем его
-                    if (newState.isLoggedIn && this.loginModal) {
-                        this.closeLoginModal();
-                    }
+                    // Отписываемся от слушателя
+                    loginStore.removeListener(authCheckHandler);
+                    resolve(newState.isLoggedIn);
                 }
             };
 
@@ -84,23 +87,39 @@ export class Router {
 
         // Запускаем проверку авторизации через API
         dispatcher.dispatch('LOGIN_CHECK_REQUEST');
+        
+        return this.authCheckPromise;
     }
 
     private closeLoginModal(): void {
         if (this.loginModal && this.loginModal.parentNode) {
             this.loginModal.parentNode.removeChild(this.loginModal);
             this.loginModal = null;
+            console.log('[ROUTER] Login modal closed');
         }
+    }
+
+    private async ensureAuthCheck(): Promise<boolean> {
+        if (!this.isAuthCheckComplete) {
+            console.log('[ROUTER] Waiting for auth check to complete...');
+            const isAuthenticated = await this.startAuthCheck();
+            console.log('[ROUTER] Auth check completed in ensureAuthCheck, isAuthenticated:', isAuthenticated);
+            return isAuthenticated;
+        }
+        
+        const isAuthenticated = this.isUserAuthenticated();
+        console.log('[ROUTER] Auth already checked, isAuthenticated:', isAuthenticated);
+        return isAuthenticated;
     }
 
     private async handleRouteChange(): Promise<void> {
         const path = window.location.pathname + window.location.search;
         
-        // Если это первая загрузка и проверка авторизации еще не завершена, ждем
-        if (this.isFirstRoute && !this.isAuthCheckComplete && this.authCheckPromise) {
-            await this.authCheckPromise;
+        // Для первого маршрута всегда ждем проверку авторизации
+        if (this.isFirstRoute) {
+            await this.ensureAuthCheck();
+            this.isFirstRoute = false;
         }
-        this.isFirstRoute = false;
         
         await this.navigate(path, false);
     }
@@ -150,12 +169,11 @@ export class Router {
         const normalizedPath = pathname === '/' ? '/' : `/${pathname.replace(/^\/+/, '')}`;
         
         console.log('🔍 [ROUTER] Searching route for path:', normalizedPath);
-        console.log('📋 [ROUTER] Available routes:', this.routes.map(r => ({path: r.path, requiresAuth: r.requiresAuth})));
         
         // Сначала ищем точное совпадение
         const exactMatch = this.routes.find(route => route.path === normalizedPath);
         if (exactMatch) {
-            console.log('✅ [ROUTER] Exact match found:', exactMatch.path);
+            console.log('[ROUTER] Exact match found:', exactMatch.path);
             return exactMatch;
         }
 
@@ -166,13 +184,13 @@ export class Router {
                 const match = normalizedPath.match(routeRegex);
                 
                 if (match) {
-                    console.log('✅ [ROUTER] Pattern match found:', route.path, 'for', normalizedPath);
+                    console.log('[ROUTER] Pattern match found:', route.path, 'for', normalizedPath);
                     return route;
                 }
             }
         }
 
-        console.log('❌ [ROUTER] No route found for:', normalizedPath);
+        console.log('[ROUTER] No route found for:', normalizedPath);
         return null;
     }
 
@@ -210,25 +228,32 @@ export class Router {
     private async renderView(route: Route, path?: string): Promise<void> {
         // Защита от параллельного рендеринга
         if (this.isRendering) {
-            console.log('⏳ [ROUTER] Render already in progress, skipping...');
+            console.log('[ROUTER] Render already in progress, skipping...');
             return;
         }
 
-        console.log('🔵 [ROUTER] renderView started for route:', route.path, 'path:', path);
+        console.log('[ROUTER] renderView started for route:', route.path, 'path:', path);
         
         this.isRendering = true;
 
         try {
-            // Всегда ждем завершения проверки авторизации перед рендерингом
-            if (!this.isAuthCheckComplete && this.authCheckPromise) {
-                console.log('⏳ [ROUTER] Waiting for auth check...');
-                await this.authCheckPromise;
-                console.log('✅ [ROUTER] Auth check complete');
+            // Для защищенных маршрутов всегда ждем завершения проверки авторизации
+            let isAuthenticated = this.isUserAuthenticated();
+            
+            if (route.requiresAuth && !this.isAuthCheckComplete) {
+                console.log('⏳ [ROUTER] Protected route, waiting for auth check...');
+                isAuthenticated = await this.ensureAuthCheck();
             }
 
+            console.log('[ROUTER] Auth status:', { 
+                isAuthenticated, 
+                requiresAuth: route.requiresAuth,
+                isAuthCheckComplete: this.isAuthCheckComplete 
+            });
+
             // Проверяем, требует ли маршрут авторизации
-            if (route.requiresAuth && !this.isUserAuthenticated()) {
-                console.log('🔐 [ROUTER] Route requires auth, showing login');
+            if (route.requiresAuth && !isAuthenticated) {
+                console.log('[ROUTER] Route requires auth, showing login');
                 this.pendingRoute = { route, path };
                 
                 // Закрываем предыдущее модальное окно, если есть
@@ -242,12 +267,13 @@ export class Router {
 
             // Если мы дошли сюда и есть модальное окно - закрываем его
             if (this.loginModal) {
+                console.log('[ROUTER] Closing login modal - user can access protected route');
                 this.closeLoginModal();
             }
 
             // Уничтожаем предыдущий view
             if (this.currentView && typeof this.currentView.destroy === 'function') {
-                console.log('🗑️ [ROUTER] Destroying previous view');
+                console.log('[ROUTER] Destroying previous view');
                 this.currentView.destroy();
             }
 
@@ -261,30 +287,30 @@ export class Router {
                 let params = {};
                 if (path) {
                     params = this.extractParams(route.path, path);
-                    console.log('📦 [ROUTER] Extracted params:', params);
+                    console.log('[ROUTER] Extracted params:', params);
                 }
                 
                 const content = document.getElementById('root');
                 if (content) {
-                    console.log('🛠️ [ROUTER] Creating new view instance');
+                    console.log('[ROUTER] Creating new view instance');
                     this.currentView = new ViewClass(content, params);
-                    console.log('🔄 [ROUTER] Clearing content and rendering...');
+                    console.log('[ROUTER] Clearing content and rendering...');
                     content.innerHTML = '';
                     
                     if (typeof this.currentView.render === 'function') {
-                        console.log('🎨 [ROUTER] Calling view.render()...');
+                        console.log('[ROUTER] Calling view.render()...');
                         const element = await this.currentView.render();
                         content.appendChild(element);
-                        console.log('✅ [ROUTER] View rendered successfully');
+                        console.log('[ROUTER] View rendered successfully');
                     } else {
-                        console.log('❌ [ROUTER] View has no render method');
+                        console.log('[ROUTER] View has no render method');
                     }
                 } else {
-                    console.log('❌ [ROUTER] No root element found');
+                    console.log('[ROUTER] No root element found');
                 }
 
             } catch (error) {
-                console.error('❌ [ROUTER] Error rendering view:', error);
+                console.error('[ROUTER] Error rendering view:', error);
                 await this.show404();
             }
         } finally {
@@ -301,19 +327,21 @@ export class Router {
         const state = loginStore.getState();
         
         // Если пользователь авторизовался и есть ожидающий маршрут
-        if (state.isLoggedIn && this.pendingRoute) {
+        if (state.isLoggedIn && this.pendingRoute && !state.isLoading) {
+            console.log('[ROUTER] User logged in with pending route');
             const { route, path } = this.pendingRoute;
             this.pendingRoute = null;
             
             // Закрываем модальное окно авторизации
             this.closeLoginModal();
             
-            // Не вызываем renderView напрямую, а используем navigate для правильной обработки
+            // Переходим на ожидающий маршрут
             this.navigate(path || route.path, false);
         }
         
         // Если пользователь разлогинился и есть модальное окно - закрываем его
         if (!state.isLoggedIn && this.loginModal) {
+            console.log('[ROUTER] User logged out, closing modal');
             this.closeLoginModal();
         }
     }

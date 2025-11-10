@@ -35,6 +35,8 @@ export class HomeView {
     }
 
     async render(): Promise<HTMLElement> {
+
+        window.scrollTo(0, 0);
         // Определяем категорию перед рендером
         this.determineCurrentCategory();
 

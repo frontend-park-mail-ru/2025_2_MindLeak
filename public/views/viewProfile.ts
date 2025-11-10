@@ -38,6 +38,7 @@ export class ProfileView {
     }
 
     async render(): Promise<HTMLElement> {
+        window.scrollTo(0, 0);
         await this.renderFullPage();
         
         profileStore.addListener(this.boundStoreHandler);

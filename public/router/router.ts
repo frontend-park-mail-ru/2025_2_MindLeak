@@ -14,9 +14,6 @@ export class Router {
     private currentView: any = null;
     private isInitialized: boolean = false;
     private pendingRoute: { route: Route; path?: string } | null = null;
-    private isAuthCheckComplete: boolean = false;
-    private authCheckPromise: Promise<boolean> | null = null; // Теперь возвращает boolean
-    private isFirstRoute: boolean = true;
     private isRendering: boolean = false;
     private loginModal: HTMLElement | null = null;
 
@@ -33,94 +30,56 @@ export class Router {
     init(): void {
         if (this.isInitialized) return;
 
-        // Запускаем проверку авторизации при инициализации роутера
-        this.startAuthCheck();
-
         window.addEventListener('popstate', this.handleRouteChange);
         document.addEventListener('click', this.handleLinkClick);
         loginStore.addListener(this.handleLoginStoreChange);
 
-        // Ждем завершения проверки авторизации перед первым роутингом
-        this.authCheckPromise?.then((isAuthenticated) => {
-            console.log('[ROUTER] Initial auth check complete, isAuthenticated:', isAuthenticated);
-            this.handleRouteChange();
-        });
+        // Сразу проверяем авторизацию и запускаем роутинг
+        this.checkAuthAndRoute();
 
         this.isInitialized = true;
     }
 
-    private startAuthCheck(): Promise<boolean> {
-        if (this.authCheckPromise) {
-            return this.authCheckPromise;
-        }
+    private async checkAuthAndRoute(): Promise<void> {
+        const state = loginStore.getState();
         
-        this.authCheckPromise = new Promise<boolean>((resolve) => {
-            const state = loginStore.getState();
-            
-            // Если проверка уже не в процессе, значит она завершена
-            if (!state.isLoading) {
-                this.isAuthCheckComplete = true;
-                console.log('[ROUTER] Auth check already complete, isLoggedIn:', state.isLoggedIn);
-                resolve(state.isLoggedIn);
-                return;
-            }
+        // Если уже есть сохраненное состояние авторизации, используем его
+        if (state.isLoggedIn) {
+            console.log('✅ [ROUTER] User already logged in from store');
+            this.handleRouteChange();
+            return;
+        }
 
-            console.log('[ROUTER] Starting auth check...');
-
-            // Создаем обработчик для отслеживания изменений
+        // Если нет сохраненного состояния, запускаем проверку
+        console.log('⏳ [ROUTER] Checking auth status...');
+        dispatcher.dispatch('LOGIN_CHECK_REQUEST');
+        
+        // Ждем завершения проверки авторизации
+        await new Promise<void>((resolve) => {
             const authCheckHandler = () => {
                 const newState = loginStore.getState();
-                
                 if (!newState.isLoading) {
-                    this.isAuthCheckComplete = true;
-                    console.log('[ROUTER] Auth check completed, isLoggedIn:', newState.isLoggedIn);
-                    
-                    // Отписываемся от слушателя
                     loginStore.removeListener(authCheckHandler);
-                    resolve(newState.isLoggedIn);
+                    console.log('✅ [ROUTER] Auth check completed, isLoggedIn:', newState.isLoggedIn);
+                    resolve();
                 }
             };
-
-            // Подписываемся на изменения store
             loginStore.addListener(authCheckHandler);
         });
 
-        // Запускаем проверку авторизации через API
-        dispatcher.dispatch('LOGIN_CHECK_REQUEST');
-        
-        return this.authCheckPromise;
+        this.handleRouteChange();
     }
 
     private closeLoginModal(): void {
         if (this.loginModal && this.loginModal.parentNode) {
             this.loginModal.parentNode.removeChild(this.loginModal);
             this.loginModal = null;
-            console.log('[ROUTER] Login modal closed');
+            console.log('🚪 [ROUTER] Login modal closed');
         }
-    }
-
-    private async ensureAuthCheck(): Promise<boolean> {
-        if (!this.isAuthCheckComplete) {
-            console.log('[ROUTER] Waiting for auth check to complete...');
-            const isAuthenticated = await this.startAuthCheck();
-            console.log('[ROUTER] Auth check completed in ensureAuthCheck, isAuthenticated:', isAuthenticated);
-            return isAuthenticated;
-        }
-        
-        const isAuthenticated = this.isUserAuthenticated();
-        console.log('[ROUTER] Auth already checked, isAuthenticated:', isAuthenticated);
-        return isAuthenticated;
     }
 
     private async handleRouteChange(): Promise<void> {
         const path = window.location.pathname + window.location.search;
-        
-        // Для первого маршрута всегда ждем проверку авторизации
-        if (this.isFirstRoute) {
-            await this.ensureAuthCheck();
-            this.isFirstRoute = false;
-        }
-        
         await this.navigate(path, false);
     }
 
@@ -237,18 +196,10 @@ export class Router {
         this.isRendering = true;
 
         try {
-            // Для защищенных маршрутов всегда ждем завершения проверки авторизации
-            let isAuthenticated = this.isUserAuthenticated();
-            
-            if (route.requiresAuth && !this.isAuthCheckComplete) {
-                console.log('⏳ [ROUTER] Protected route, waiting for auth check...');
-                isAuthenticated = await this.ensureAuthCheck();
-            }
-
+            const isAuthenticated = this.isUserAuthenticated();
             console.log('[ROUTER] Auth status:', { 
                 isAuthenticated, 
-                requiresAuth: route.requiresAuth,
-                isAuthCheckComplete: this.isAuthCheckComplete 
+                requiresAuth: route.requiresAuth 
             });
 
             // Проверяем, требует ли маршрут авторизации
@@ -372,7 +323,6 @@ export class Router {
         }
         
         this.isInitialized = false;
-        this.authCheckPromise = null;
         this.isRendering = false;
     }
 }

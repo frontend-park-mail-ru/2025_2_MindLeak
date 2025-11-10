@@ -18,7 +18,6 @@ interface Route {
 
 async function initApp(): Promise<void> {
 
-    dispatcher.dispatch('LOGIN_CHECK_REQUEST');
 
     // Общедоступные маршруты
     router.addRoute('/', HomeView, 'Mindleak - Главная');

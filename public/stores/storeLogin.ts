@@ -1,85 +1,137 @@
 import { BaseStore } from './store';
-import { dispatcher } from '../dispatcher/dispatcher';
 
-//Интерфейс пользователя
 export interface User {
-    id: string;
+    id: number;
     name: string;
     avatar: string;
-    subtitle?: string;
+    subtitle: string;
 }
 
-//Интерфейс состояния аутентификации
 export interface LoginState {
-    isLoggedIn: boolean;
     user: User | null;
+    isLoggedIn: boolean;
     isLoading: boolean;
     error: string | null;
 }
 
 class LoginStore extends BaseStore<LoginState> {
     constructor() {
-        // Передаем начальное состояние в родительский класс
+        // Сначала вызываем super с начальным состоянием
         super({
-            isLoggedIn: false,
             user: null,
+            isLoggedIn: false,
             isLoading: false,
             error: null
         });
+        
+        // Затем восстанавливаем состояние из localStorage
+        this.restoreAuthState();
     }
 
-    //Регистрирует обработчики actions
     protected registerActions(): void {
-        // Исп вспомогат метод registerAction
-        this.registerAction('LOGIN_REQUEST', () => {
-            this.setState({
-                isLoading: true,
+        this.registerAction('USER_LOGIN_CHECKED', (payload: { user: User }) => {
+            const newState = {
+                user: payload.user,
+                isLoggedIn: true,
+                isLoading: false,
                 error: null
-            });
-        });
-
-        this.registerAction('USER_LOGIN_START', () => {
-            this.setState({
-                isLoading: true,
-                error: null
-            });
+            };
+            this.setState(newState);
+            this.saveAuthState(newState);
         });
 
         this.registerAction('USER_LOGIN_SUCCESS', (payload: { user: User }) => {
-            this.setState({
-                isLoggedIn: true,
+            const newState = {
                 user: payload.user,
+                isLoggedIn: true,
                 isLoading: false,
                 error: null
-            });
+            };
+            this.setState(newState);
+            this.saveAuthState(newState);
         });
 
         this.registerAction('USER_LOGIN_FAIL', (payload: { error: string }) => {
-            this.setState({
-                isLoggedIn: false,
+            const newState = {
                 user: null,
+                isLoggedIn: false,
                 isLoading: false,
                 error: payload.error
-            });
+            };
+            this.setState(newState);
+            this.clearAuthState();
         });
 
         this.registerAction('USER_LOGOUT', () => {
-            this.setState({
-                isLoggedIn: false,
+            const newState = {
                 user: null,
+                isLoggedIn: false,
+                isLoading: false,
                 error: null
-            });
+            };
+            this.setState(newState);
+            this.clearAuthState();
         });
 
-        this.registerAction('USER_LOGIN_CHECKED', (payload: { user: User | null }) => {
-            this.setState({
-                isLoggedIn: !!payload.user,
-                user: payload.user,
-                isLoading: false
-            });
+        this.registerAction('USER_UNAUTHORIZED', () => {
+            const newState = {
+                user: null,
+                isLoggedIn: false,
+                isLoading: false,
+                error: 'Сессия истекла'
+            };
+            this.setState(newState);
+            this.clearAuthState();
         });
+    }
+
+    private restoreAuthState(): void {
+        try {
+            const saved = localStorage.getItem('authState');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // Проверяем, не устарели ли данные (например, больше суток)
+                const savedTime = localStorage.getItem('authStateTime');
+                if (savedTime) {
+                    const timeDiff = Date.now() - parseInt(savedTime);
+                    // Если прошло больше 24 часов, считаем данные устаревшими
+                    if (timeDiff > 24 * 60 * 60 * 1000) {
+                        this.clearAuthState();
+                        return;
+                    }
+                }
+                
+                // Восстанавливаем состояние
+                this.setState({
+                    user: parsed.user,
+                    isLoggedIn: parsed.isLoggedIn
+                });
+            }
+        } catch (error) {
+            console.error('Error loading auth state from localStorage:', error);
+        }
+    }
+
+    private saveAuthState(state: LoginState): void {
+        try {
+            localStorage.setItem('authState', JSON.stringify({
+                user: state.user,
+                isLoggedIn: state.isLoggedIn
+            }));
+            localStorage.setItem('authStateTime', Date.now().toString());
+        } catch (error) {
+            console.error('Error saving auth state to localStorage:', error);
+        }
+    }
+
+    private clearAuthState(): void {
+        try {
+            localStorage.removeItem('authState');
+            localStorage.removeItem('authStateTime');
+        } catch (error) {
+            console.error('Error clearing auth state from localStorage:', error);
+        }
     }
 }
 
-// Созд единственный экземпляр
 export const loginStore = new LoginStore();

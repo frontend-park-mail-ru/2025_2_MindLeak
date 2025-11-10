@@ -58,7 +58,7 @@ class ProfileStore extends BaseStore<ProfileState> {
             
             if (payload.profile && loginState.user) {
                 // Сравниваем ID профиля с ID текущего пользователя
-                isMyProfile = payload.profile.id === loginState.user.id;
+                isMyProfile = payload.profile.id === loginState.user.id.toString();
             }
             
             

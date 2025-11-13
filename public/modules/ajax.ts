@@ -24,7 +24,7 @@ class Ajax {
 
             // todo РАССКОМИТИТЬ ДЛЯ ДЕПЛОЯ
             // Получаем CSRF токен из куки
-            const csrfToken = this.getCookie('csrf_token');
+            const csrfToken = this.getCookie('csrftoken');
             
             // Базовые заголовки*/
             const headers: Record<string, string> = {};

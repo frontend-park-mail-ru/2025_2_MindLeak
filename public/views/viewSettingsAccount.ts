@@ -18,6 +18,7 @@ export class SettingsAccountView {
     private deleteModal: DeleteAccountModal | null = null;
     private boundLoginStoreHandler: () => void;
     private boundFormSubmitHandler: (e: SubmitEvent) => void;
+    private currentCategory: string = '';
 
     constructor(container: HTMLElement) {
         this.container = container;
@@ -25,9 +26,27 @@ export class SettingsAccountView {
         this.boundStoreHandler = this.handleStoreChange.bind(this);
         this.boundLoginStoreHandler = this.handleLoginStoreChange.bind(this);
         this.boundFormSubmitHandler = this.handleFormSubmit.bind(this);
+        this.determineCurrentCategory();
+        
+    }
+
+
+    private determineCurrentCategory(): void {
+        const url = new URL(window.location.href);
+        const pathname = url.pathname;
+        
+        if (pathname === '/' || pathname === '/feed') {
+            this.currentCategory = 'fresh';
+        } else if (pathname === '/feed/category') {
+            const topicParam = url.searchParams.get('topic');
+            this.currentCategory = topicParam || 'fresh';
+        }
+
     }
 
     async render(): Promise<HTMLElement> {
+        this.determineCurrentCategory();
+
         await this.renderFullPage();
         
         settingsAccountStore.addListener(this.boundStoreHandler);
@@ -65,32 +84,42 @@ export class SettingsAccountView {
             });
         };
 
-        // левое меню
+// левое меню
         const sidebar1 = new SidebarMenu(
             MAIN_MENU_ITEMS,
-            'fresh',
+            this.currentCategory,
             (key) => {
-            if (sidebarEl2) deactivateAll(sidebarEl2);
-            
-            const newUrl = key === 'fresh' ? '/feed' : `/feed?filter=${encodeURIComponent(key)}`;
-            window.history.pushState({}, '', newUrl);
-            
-            window.dispatchEvent(new PopStateEvent('popstate'));
+                if (sidebarEl2) deactivateAll(sidebarEl2);
+                
+                let newUrl = '';
+                if (key === 'fresh') {
+                    newUrl = '/feed';
+                } else {
+                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
+                }
+                
+                window.history.pushState({}, '', newUrl);
+                window.dispatchEvent(new PopStateEvent('popstate'));
             }
         );
         sidebarEl1 = await sidebar1.render();
 
-        // Нижнее меню
+        // нижнее меню
         const sidebar2 = new SidebarMenu(
             SECONDARY_MENU_ITEMS,
-            '',
+            this.currentCategory,
             (key) => {
-            if (sidebarEl1) deactivateAll(sidebarEl2);
-            
-            const newUrl = key === '' ? '/feed' : `/feed?filter=${encodeURIComponent(key)}`;
-            window.history.pushState({}, '', newUrl);
-            
-            window.dispatchEvent(new PopStateEvent('popstate'));
+                if (sidebarEl1) deactivateAll(sidebarEl1);
+                
+                let newUrl = '';
+                if (key === 'fresh') {
+                    newUrl = '/feed';
+                } else {
+                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
+                }
+                
+                window.history.pushState({}, '', newUrl);
+                window.dispatchEvent(new PopStateEvent('popstate'));
             }
         );
         sidebarEl2 = await sidebar2.render();

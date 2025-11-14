@@ -3,21 +3,22 @@ import { TopBloggers } from '../components/TopBloggers/TopBloggers';
 import { dispatcher } from '../dispatcher/dispatcher';
 import { PostsView } from './viewPosts';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
-import { CreatePostFormView } from '../views/viewCreatePostForm';
 
 export class HomeView {
     private headerInstance: Header;
-    private postsView: PostsView | null = null;
+    private postsView: PostsView;
     private feedWrapper: HTMLElement | null = null;
     private currentCategory: string = 'fresh';
-    private createPostFormView: CreatePostFormView | null = null; 
+    private topBloggersInstance: TopBloggers;
+    private topBloggersElement: HTMLElement | null = null;
 
     constructor() {
         this.headerInstance = new Header();
         this.postsView = new PostsView();
+        this.topBloggersInstance = new TopBloggers();
         this.determineCurrentCategory();
-        this.createPostFormView = new CreatePostFormView();
     }
+
 
     private determineCurrentCategory(): void {
         const url = new URL(window.location.href);
@@ -29,15 +30,10 @@ export class HomeView {
             const topicParam = url.searchParams.get('topic');
             this.currentCategory = topicParam || 'fresh';
         }
-        
-        // Отправляем в store текущий фильтр
-        dispatcher.dispatch('POSTS_SET_FILTER', { filter: this.currentCategory });
+
     }
 
     async render(): Promise<HTMLElement> {
-
-        window.scrollTo(0, 0);
-        // Определяем категорию перед рендером
         this.determineCurrentCategory();
 
         const rootElem = document.createElement('div');
@@ -65,7 +61,7 @@ export class HomeView {
             });
         };
 
-        // левое меню - передаем текущую категорию для подсветки
+        // левое меню
         const sidebar1 = new SidebarMenu(
             MAIN_MENU_ITEMS,
             this.currentCategory,
@@ -85,7 +81,7 @@ export class HomeView {
         );
         sidebarEl1 = await sidebar1.render();
 
-        // нижнее меню - также передаем текущую категорию
+        // нижнее меню
         const sidebar2 = new SidebarMenu(
             SECONDARY_MENU_ITEMS,
             this.currentCategory,
@@ -121,9 +117,10 @@ export class HomeView {
         // правое меню
         const rightMenu = document.createElement('aside');
         rightMenu.className = 'sidebar-right';
-        const topBloggers = new TopBloggers();
-        const topBloggersEl = await topBloggers.render();
-        rightMenu.appendChild(topBloggersEl);
+ 
+        
+        this.topBloggersElement = await this.topBloggersInstance.render();
+        rightMenu.appendChild(this.topBloggersElement);
 
         contentContainer.appendChild(leftMenu);
         contentContainer.appendChild(pageElement);
@@ -131,10 +128,10 @@ export class HomeView {
 
         // инициализация feed
         try {
-            if (this.postsView) {
-                await this.postsView.init(this.feedWrapper);
-            }
+            await this.postsView.init(this.feedWrapper);
+            console.log('PostsView initialized successfully for category:', this.currentCategory);
         } catch (error) {
+            console.error('Failed to initialize PostsView:', error);
             const errorEl = document.createElement('div');
             errorEl.className = 'feed-error';
             errorEl.textContent = 'Не удалось загрузить ленту постов';
@@ -148,13 +145,6 @@ export class HomeView {
 
     destroy(): void {
         this.headerInstance.destroy();
-        if (this.postsView) {
-            this.postsView.destroy();
-            this.postsView = null;
-        }
-        if (this.createPostFormView) {
-            this.createPostFormView.destroy();
-            this.createPostFormView = null;
-        }
+        this.postsView.destroy();
     }
 }

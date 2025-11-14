@@ -36,21 +36,25 @@
 .settings-account__field {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 2px;
+}
+
+.upload_group {
+    display: flex;
+    gap: 100px;
 }
 
 .settings-account__label {
-    font-size: var(--text-sm);
+    font-size: 16px;
     font-weight: var(--font-weight-medium);
-    color: var(--text-lighter);
+    color: var(--text-color);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 .settings-account__value {
-    font-size: var(--text-base);
-    color: var(--text-color);
-    padding: 12px 0;
+    font-size: 12px;
+    color: var(--text-lighter);
+    padding: 3px 0;
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -110,20 +114,21 @@
 .avatar-actions,
 .cover-actions {
     display: flex;
-    gap: 12px;
+    flex-direction: column;
+    gap: 5px;
 }
 
 .avatar-change-btn,
 .cover-change-btn,
 .avatar-delete-btn,
 .cover-delete-btn {
-    padding: 8px 16px;
-    border: 1px solid var(--border-color);
+    padding: 4px 10px;
+    border: 1px solid var(--section-hover);
     border-radius: 6px;
-    background-color: var(--bg-color);
+    background-color: var(--secrion-color);
     color: var(--text-color);
     cursor: pointer;
-    font-size: var(--text-sm);
+    font-size: 12px;
     transition: all 0.3s ease;
 }
 
@@ -161,22 +166,18 @@
 }
 
 .settings-account__actions {
-    margin-top: 32px;
-    padding-top: 24px;
-    border-top: 1px solid var(--border-color);
     text-align: center;
     display: flex;
-    flex-direction: column;
     gap: 16px;
-    align-items: center;
+    margin-bottom: 60px;
 }
 
 .settings-account__save-button {
-    background-color: var(--primary-color);
+    background-color: var(--accent-color);
     color: white;
     border: none;
     border-radius: 8px;
-    padding: 12px 24px;
+    padding: 6px 12px;
     font-size: var(--text-base);
     font-weight: var(--font-weight-medium);
     cursor: pointer;
@@ -185,7 +186,7 @@
 }
 
 .settings-account__save-button:hover:not(:disabled) {
-    background-color: var(--primary-dark);
+    background-color: var(--primary-hover);
 }
 
 .settings-account__save-button:disabled {

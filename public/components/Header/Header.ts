@@ -123,7 +123,7 @@ export class Header {
             });
         }
 
-        const userMenu = this.headerElement.querySelector('[data-key="user-menu"]') as HTMLElement;
+        const userMenu = this.headerElement.querySelector('.user_info_header') as HTMLElement;
             if (userMenu) {
                 userMenu.addEventListener('click', async (e: Event) => {
                 e.stopPropagation();

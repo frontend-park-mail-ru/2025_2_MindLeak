@@ -9,6 +9,7 @@ import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../component
 import { CreatePostFormView } from '../views/viewCreatePostForm';
 
 export class ProfileView {
+    private currentCategory: string = '';
     private container: HTMLElement;
     private userId?: string;
     private boundStoreHandler: () => void;
@@ -109,7 +110,7 @@ export class ProfileView {
         // Создаем сайдбары
         const sidebar1 = new SidebarMenu(
             MAIN_MENU_ITEMS,
-            'fresh',
+            '',
             (key) => {
                 dispatcher.dispatch('POSTS_SET_FILTER', { filter: key });
             }

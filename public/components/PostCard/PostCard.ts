@@ -173,6 +173,7 @@ export class PostCard {
             });
         }
 
+        /*
         const titleEl = postCard.querySelector('.post-card__title') as HTMLElement;
         if (titleEl) {
             titleEl.style.cursor = 'pointer';
@@ -186,7 +187,7 @@ export class PostCard {
                 window.history.pushState({}, '', postUrl);
                 window.dispatchEvent(new PopStateEvent('popstate'));
             });
-        }
+        } */
 
         const menuButton = postCard.querySelector('.post-card__menu-button') as HTMLElement;
         const menuPopup = postCard.querySelector('.post-card-menu') as HTMLElement;

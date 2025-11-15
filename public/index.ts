@@ -36,7 +36,7 @@ async function initApp(): Promise<void> {
     router.addRoute('/settings/account', SettingsAccountView, 'Mindleak - Учетная запись', true);
     router.addRoute('/settings/notifications', SettingsNotificationsView, 'Mindleak - Уведомления', true);
     router.addRoute('/settings/privacy', SettingsPrivacyView, 'Mindleak - Конфиденциальность', true);
-    router.addRoute('/support/statistics', StatisticsView, 'Статистика', true);
+    router.addRoute('/appeals/statistics', StatisticsView, 'Статистика', true);
     
 
     router.init();

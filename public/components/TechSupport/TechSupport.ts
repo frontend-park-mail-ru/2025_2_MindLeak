@@ -1,11 +1,24 @@
 // components/TechSupport/TechSupportIframe.ts
+
 interface SupportFormData {
-    accountEmail: string;
-    topic: string;
-    description: string;
-    contactName: string;
-    contactEmail: string;
+    email_registered: string;
+    category_id: string;
+    problem_description: string;
+    name: string;
+    email_for_connection: string;
     attachment?: File;
+}
+
+interface Appeal {
+    id: string;
+    email_registered: string;
+    status: 'created' | 'in_work' | 'solved';
+    problem_description: string;
+    name: string;
+    category_id: string;
+    emailForConnect: string;
+    screenshot_url?: string;
+    createdAt?: string;
 }
 
 interface FormError {
@@ -27,27 +40,37 @@ class TechSupportIframe {
     };
     private form: HTMLFormElement | null = null;
     private template: Handlebars.TemplateDelegate | null = null;
+    private historyTemplate: Handlebars.TemplateDelegate | null = null;
     private currentFile: File | null = null;
+    private appeals: Appeal[] = [];
+    private isSubmitting: boolean = false;
 
     constructor() {
         this.init();
     }
 
     async init(): Promise<void> {
-        await this.loadTemplate();
+        await this.loadTemplates();
         this.renderForm();
         
         window.addEventListener('message', this.handleParentMessage.bind(this));
         window.parent.postMessage({ type: 'IFRAME_READY', source: 'tech-support' }, '*');
+        
+        // Загружаем историю обращений при инициализации
+        this.loadAppealsHistory();
     }
 
-    async loadTemplate(): Promise<void> {
+    async loadTemplates(): Promise<void> {
         try {
             const response = await fetch('/components/TechSupport/TechSupport.hbs');
             const templateSource = await response.text();
             this.template = Handlebars.compile(templateSource);
+
+            const historyResponse = await fetch('/components/TechSupport/TechSupportHistory.hbs');
+            const historyTemplateSource = await historyResponse.text();
+            this.historyTemplate = Handlebars.compile(historyTemplateSource);
         } catch (error) {
-            console.error('Failed to load template:', error);
+            console.error('Failed to load templates:', error);
         }
     }
 
@@ -58,7 +81,6 @@ class TechSupportIframe {
         
         switch (type) {
             case 'INIT_DATA':
-                // Получаем данные пользователя из профиля
                 this.userData = {
                     userEmail: payload.userEmail || '',
                     userName: payload.userName || '',
@@ -75,38 +97,46 @@ class TechSupportIframe {
             case 'TICKET_ERROR':
                 this.showError(payload.error);
                 break;
+            case 'APPEALS_LOAD_SUCCESS':
+                // Получаем обращения из API
+                this.appeals = payload.appeals || [];
+                console.log('📋 Loaded appeals:', this.appeals);
+                break;
+            case 'APPEALS_LOAD_FAIL':
+                console.error('Failed to load appeals:', payload.error);
+                break;
+            case 'SUPPORT_TICKET_SUBMIT_SUCCESS':
+                // Обращение успешно отправлено, показываем историю
+                this.showSuccessAndHistory();
+                break;
+            case 'SUPPORT_TICKET_SUBMIT_FAIL':
+                this.showError(payload.error);
+                this.setLoading(false);
+                this.isSubmitting = false;
+                break;
         }
     }
 
-    private autoFillForm(): void {
-        if (!this.form) return;
+private autoFillForm(): void {
+    if (!this.form) return;
 
-        console.log('🔄 Auto-filling form with:', this.userData);
+    const accountEmailInput = this.form.querySelector('[name="email_registered"]') as HTMLInputElement;
+    const contactNameInput = this.form.querySelector('[name="name"]') as HTMLInputElement;
+    const contactEmailInput = this.form.querySelector('[name="email_for_connection"]') as HTMLInputElement;
 
-        // Автозаполнение полей
-        const accountEmailInput = this.form.querySelector('[name="accountEmail"]') as HTMLInputElement;
-        const contactNameInput = this.form.querySelector('[name="contactName"]') as HTMLInputElement;
-        const contactEmailInput = this.form.querySelector('[name="contactEmail"]') as HTMLInputElement;
-
-        if (accountEmailInput) {
-            accountEmailInput.value = this.userData.userEmail;
-            console.log('📧 Account email set to:', this.userData.userEmail);
-        }
-        
-        if (contactNameInput) {
-            contactNameInput.value = this.userData.userName;
-            console.log('👤 Contact name set to:', this.userData.userName);
-        }
-        
-        if (contactEmailInput) {
-            // Используем userContactEmail если он есть, иначе основной email
-            const emailToUse = this.userData.userContactEmail || this.userData.userEmail;
-            contactEmailInput.value = emailToUse;
-            console.log('📨 Contact email set to:', emailToUse);
-        }
-
-        console.log('✅ Form auto-filled with user data');
+    if (accountEmailInput) {
+        accountEmailInput.value = this.userData.userEmail;
     }
+    
+    if (contactNameInput) {
+        contactNameInput.value = this.userData.userName;
+    }
+    
+    if (contactEmailInput) {
+        const emailToUse = this.userData.userContactEmail || this.userData.userEmail;
+        contactEmailInput.value = emailToUse;
+    }
+}
 
     private renderForm(): void {
         console.log('🔄 Rendering form...');
@@ -134,7 +164,7 @@ class TechSupportIframe {
                 console.log('✅ Form found and setup');
                 this.form.addEventListener('submit', this.handleSubmit.bind(this));
                 this.setupFileUpload();
-                this.autoFillForm(); // Автозаполнение после рендера
+                this.autoFillForm();
             } else {
                 console.error('❌ Form element not found');
             }
@@ -150,13 +180,11 @@ class TechSupportIframe {
         const fileLabel = this.form?.querySelector('.file-upload__label') as HTMLElement;
 
         if (fileInput && filePreview && fileUpload && fileLabel) {
-            // Обработчик выбора файла через кнопку
             fileInput.addEventListener('change', (e: Event) => {
                 const file = (e.target as HTMLInputElement).files?.[0];
                 if (file) this.handleFileSelect(file, filePreview, fileLabel);
             });
 
-            // Drag & Drop функциональность
             fileUpload.addEventListener('dragover', (e: DragEvent) => {
                 e.preventDefault();
                 fileUpload.classList.add('drag-over');
@@ -178,14 +206,12 @@ class TechSupportIframe {
                 }
             });
 
-            // Клик по всей области загрузки
             fileUpload.addEventListener('click', (e: Event) => {
                 if (e.target !== fileInput && !(e.target as Element).closest('.file-remove-btn')) {
                     fileInput.click();
                 }
             });
 
-            // Вставка из буфера обмена
             document.addEventListener('paste', (e: ClipboardEvent) => {
                 const items = e.clipboardData?.items;
                 if (items) {
@@ -211,7 +237,6 @@ class TechSupportIframe {
     }
 
     private handleFileSelect(file: File, previewElement: HTMLElement, labelElement: HTMLElement): void {
-        // Валидация файла
         if (!file.type.startsWith('image/')) {
             this.showFieldError('attachment', 'Только изображения (JPEG, PNG, GIF)');
             return;
@@ -225,10 +250,8 @@ class TechSupportIframe {
         this.clearFieldError('attachment');
         this.currentFile = file;
         
-        // Обновляем текст лейбла
         labelElement.textContent = `📎 ${file.name} (${this.formatFileSize(file.size)})`;
         
-        // Показываем превью
         const reader = new FileReader();
         reader.onload = (e: ProgressEvent<FileReader>) => {
             if (e.target?.result) {
@@ -239,7 +262,6 @@ class TechSupportIframe {
                     </div>
                 `;
                 
-                // Добавляем обработчик для удаления файла
                 const removeBtn = previewElement.querySelector('.file-remove-btn');
                 if (removeBtn) {
                     removeBtn.addEventListener('click', (e) => {
@@ -273,61 +295,135 @@ class TechSupportIframe {
 
     private async handleSubmit(e: Event): Promise<void> {
         e.preventDefault();
-        if (!this.form) return;
-
-        const formData = new FormData(this.form);
+        e.stopPropagation();
         
-        // Добавляем файл если есть
-        if (this.currentFile) {
-            formData.set('attachment', this.currentFile);
+        console.log('🔄 Form submission started');
+        
+        if (!this.form || this.isSubmitting) {
+            console.log('❌ Form not ready or already submitting');
+            return;
         }
 
+        const formData = new FormData(this.form);
         const data: SupportFormData = {
-            accountEmail: formData.get('accountEmail') as string,
-            topic: formData.get('topic') as string,
-            description: formData.get('description') as string,
-            contactName: formData.get('contactName') as string,
-            contactEmail: formData.get('contactEmail') as string,
+            email_registered: formData.get('email_registered') as string,
+            category_id: formData.get('category_id') as string,
+            problem_description: formData.get('problem_description') as string,
+            name: formData.get('name') as string,
+            email_for_connection: formData.get('email_for_connection') as string,
             attachment: this.currentFile || undefined
         };
 
+        console.log('📝 Form data prepared:', data);
+
         const errors = this.validateForm(data);
         if (errors.length > 0) {
+            console.log('❌ Form validation errors:', errors);
             this.showFieldErrors(errors);
             return;
         }
 
+        console.log('✅ Form validation passed, sending to parent...');
+        
         this.clearErrors();
         this.setLoading(true);
+        this.isSubmitting = true;
 
         try {
             window.parent.postMessage({ 
-                type: 'SUPPORT_TICKET_SUBMIT', 
-                payload: data 
+                type: 'SUPPORT_TICKET_SUBMIT_REQUEST', 
+                payload: data,
+                source: 'tech-support'
             }, '*');
+            
+            console.log('📤 Message sent to parent window:', { 
+                type: 'SUPPORT_TICKET_SUBMIT_REQUEST', 
+                payload: data,
+                source: 'tech-support'
+            });
+            
         } catch (error) {
-            this.showError('Ошибка отправки');
+            console.error('❌ Error sending message:', error);
+            this.showError('Ошибка отправки: ' + (error as Error).message);
             this.setLoading(false);
+            this.isSubmitting = false;
         }
+    }
+
+    private loadAppealsHistory(): void {
+        // Запрашиваем загрузку обращений через API
+        window.parent.postMessage({ 
+            type: 'APPEALS_LOAD_REQUEST' 
+        }, '*');
+    }
+
+    private showSuccessAndHistory(): void {
+        const contentEl = document.getElementById('tech-support-content');
+        if (!contentEl || !this.historyTemplate) return;
+
+        const appealsWithFormattedData = this.appeals.map(appeal => ({
+            ...appeal,
+            statusColor: this.getStatusColor(appeal.status),
+            statusText: this.getStatusText(appeal.status),
+            categoryName: this.getCategoryName(appeal.category_id),
+            formattedDate: new Date(appeal.createdAt || '').toLocaleDateString('ru-RU')
+        }));
+
+        const html = this.historyTemplate({
+            appeals: appealsWithFormattedData,
+            hasAppeals: this.appeals.length > 0
+        });
+        
+        contentEl.innerHTML = html;
+    }
+
+    private getStatusColor(status: string): string {
+        switch (status) {
+            case 'created': return '#0E7AF6';
+            case 'in_work': return '#FFA500';
+            case 'solved': return '#4CAF50';
+            default: return '#6B6B6B';
+        }
+    }
+
+    private getStatusText(status: string): string {
+        switch (status) {
+            case 'created': return 'Отправлен';
+            case 'in_work': return 'В работе';
+            case 'solved': return 'Решен';
+            default: return status;
+        }
+    }
+
+    private getCategoryName(categoryID: string): string {
+        const categories: { [key: string]: string } = {
+            '1': 'Баг или техническая проблема',
+            '2': 'Проблема с аккаунтом/авторизацией',
+            '3': 'Предложение по функционалу',
+            '4': 'Вопрос по использованию сервиса',
+            '5': 'Жалоба или обратная связь',
+            '6': 'Другое'
+        };
+        return categories[categoryID] || 'Другое';
     }
 
     private validateForm(data: SupportFormData): FormError[] {
         const errors: FormError[] = [];
         
-        if (!data.topic) {
-            errors.push({ field: 'topic', message: 'Выберите тему' });
+        if (!data.category_id) {
+            errors.push({ field: 'category_id', message: 'Выберите тему' });
         }
         
-        if (!data.description || data.description.trim().length < 10) {
-            errors.push({ field: 'description', message: 'Не менее 10 символов' });
+        if (!data.problem_description || data.problem_description.trim().length < 10) {
+            errors.push({ field: 'problem_description', message: 'Не менее 10 символов' });
         }
         
-        if (!data.contactName) {
-            errors.push({ field: 'contactName', message: 'Укажите имя' });
+        if (!data.name) {
+            errors.push({ field: 'name', message: 'Укажите имя' });
         }
         
-        if (!data.contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.contactEmail)) {
-            errors.push({ field: 'contactEmail', message: 'Некорректный email' });
+        if (!data.email_for_connection || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email_for_connection)) {
+            errors.push({ field: 'email_for_connection', message: 'Некорректный email' });
         }
         
         return errors;
@@ -404,7 +500,6 @@ class TechSupportIframe {
     }
 }
 
-// Инициализация когда DOM готов
 document.addEventListener('DOMContentLoaded', () => {
     new TechSupportIframe();
 });

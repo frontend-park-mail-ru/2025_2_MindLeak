@@ -11,20 +11,21 @@
                 <input 
                     type="email" 
                     class="form__input" 
-                    name="accountEmail" 
+                    name="email_registered" 
                     value="{{userEmail}}"
                 />
             </div>
 
             <div class="support-form__group">
                 <label class="support-form__label">Тема обращения *</label>
-                <select class="support-form__select" name="topic" required>
+                <select class="support-form__select" name="category_id" required>
                     <option value="">Выберите тему</option>
-                    <option value="technical">Технические проблемы</option>
-                    <option value="payment">Оплата и подписка</option>
-                    <option value="feature">Предложения по улучшению</option>
-                    <option value="bug">Сообщение об ошибке</option>
-                    <option value="other">Другое</option>
+                    <option value="1">Баг или техническая проблема</option>
+                    <option value="2">Проблема с аккаунтом/авторизацией</option>
+                    <option value="3">Предложение по функционалу</option>
+                    <option value="4">Вопрос по использованию сервиса</option>
+                    <option value="5">Жалоба или обратная связь</option>
+                    <option value="6" selected>Другое</option>
                 </select>
             </div>
 
@@ -32,7 +33,7 @@
                 <label class="support-form__label">Описание проблемы *</label>
                 <textarea 
                     class="support-form__textarea" 
-                    name="description" 
+                    name="problem_description" 
                     placeholder="Опишите проблему как можно подробнее..."
                     required
                 ></textarea>
@@ -51,11 +52,11 @@
                 <h3>Оставьте свои контакты</h3>
                 <div class="support-form__group">
                     <label class="support-form__label">Ваше имя *</label>
-                    <input type="text" class="form__input" name="contactName" placeholder="Введите ваше имя" required>
+                    <input type="text" class="form__input" name="name" placeholder="Введите ваше имя" required>
                 </div>
                 <div class="support-form__group">
                     <label class="support-form__label">Email для ответа *</label>
-                    <input type="email" class="form__input" name="contactEmail" placeholder="example@mail.xyz" required>
+                    <input type="email" class="form__input" name="email_for_connection" placeholder="example@mail.xyz" required>
                 </div>
             </div>
 

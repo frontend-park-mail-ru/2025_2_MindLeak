@@ -68,7 +68,6 @@ class API {
             case 'EDIT_POST_REQUEST':
                 this.editPost(payload.postId, payload);
                 break;
-
             case 'AVATAR_UPLOAD_REQUEST':
                 this.uploadAvatar(payload.file);
                 break;
@@ -81,11 +80,172 @@ class API {
             case 'COVER_DELETE_REQUEST':
                 this.deleteCover();
                 break;
+            // Добавляем обработку обращений в поддержку
+            case 'SUPPORT_TICKET_SUBMIT_REQUEST':
+                console.log('🔄 Processing support ticket submit request');
+                this.submitSupportTicket(payload);
+                break;
+            case 'APPEALS_LOAD_REQUEST':
+                console.log('🔄 Processing appeals load request');
+                this.loadAppeals();
+                break;
         }
     }
 
+private async submitSupportTicket(payload: any): Promise<void> {
+    try {
+        console.log('📤 Submitting support ticket with payload:', payload);
+        
+        // Сначала загружаем файл если есть
+        let screenshot_url = '';
+        if (payload.attachment) {
+            console.log('📎 Uploading attachment...');
+            screenshot_url = await this.uploadSupportFile(payload.attachment);
+            console.log('✅ Attachment uploaded, URL:', screenshot_url);
+        }
+
+        // Подготавливаем данные для отправки согласно структуре бэкенда
+        const appealData = {
+            email_registered: payload.email_registered,
+            status: 'created',
+            problem_description: payload.problem_description,
+            name: payload.name,
+            category_id: payload.category_id || 6, // По умолчанию "Другое"
+            email_for_connection: payload.email_for_connection,
+            screenshot_url: screenshot_url || ''
+        };
+
+        console.log('📝 Final appeal data for backend:', appealData);
+
+        const response = await ajax.submitAppeal(appealData);
+        console.log('📨 Backend response:', response);
+
+        switch (response.status) {
+            case STATUS.ok:
+            case 201:
+                console.log('✅ Support ticket submitted successfully');
+                this.sendAction('SUPPORT_TICKET_SUBMIT_SUCCESS');
+                this.sendMessageToIframe('SUPPORT_TICKET_SUBMIT_SUCCESS');
+                this.loadAppeals();
+                break;
+            case STATUS.badRequest:
+                console.error('❌ Bad request:', response);
+                this.sendAction('SUPPORT_TICKET_SUBMIT_FAIL', {
+                    error: 'Некорректные данные обращения'
+                });
+                this.sendMessageToIframe('SUPPORT_TICKET_SUBMIT_FAIL', {
+                    error: 'Некорректные данные обращения'
+                });
+                break;
+            case STATUS.unauthorized:
+                console.error('❌ Unauthorized:', response);
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('SUPPORT_TICKET_SUBMIT_FAIL', {
+                    error: 'Требуется авторизация'
+                });
+                this.sendMessageToIframe('SUPPORT_TICKET_SUBMIT_FAIL', {
+                    error: 'Требуется авторизация'
+                });
+                break;
+            default:
+                console.error('❌ Other error:', response);
+                this.sendAction('SUPPORT_TICKET_SUBMIT_FAIL', {
+                    error: response.message || 'Ошибка отправки обращения'
+                });
+                this.sendMessageToIframe('SUPPORT_TICKET_SUBMIT_FAIL', {
+                    error: response.message || 'Ошибка отправки обращения'
+                });
+        }
+    } catch (error) {
+        console.error('❌ Exception in submitSupportTicket:', error);
+        this.sendAction('SUPPORT_TICKET_SUBMIT_FAIL', {
+            error: 'Ошибка при отправке обращения'
+        });
+        this.sendMessageToIframe('SUPPORT_TICKET_SUBMIT_FAIL', {
+            error: 'Ошибка при отправке обращения'
+        });
+    }
+}
+
+    private sendMessageToIframe(type: string, payload?: any): void {
+        const iframe = document.querySelector('.iframe-modal iframe') as HTMLIFrameElement;
+        if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage({
+                type: type,
+                payload: payload
+            }, window.location.origin);
+            console.log('📤 Sent message to iframe:', type, payload);
+        }
+    }
+
+    private async uploadSupportFile(file: File): Promise<string> {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await ajax.uploadSupportFile(formData);
+        
+        if (response.status === STATUS.ok && response.data?.url) {
+            return response.data.url;
+        }
+        throw new Error('Failed to upload file');
+    }
+
+    private async loadAppeals(): Promise<void> {
+        const response = await ajax.getAppeals();
+
+        switch (response.status) {
+            case STATUS.ok:
+                if (response.data) {
+                    const appeals = Array.isArray(response.data) ? response.data : response.data.items || [];
+                    
+                    // Нормализуем данные обращений
+                    const normalizedAppeals = appeals.map((appeal: any) => this.normalizeAppealData(appeal));
+                    
+                    this.sendAction('APPEALS_LOAD_SUCCESS', {
+                        appeals: normalizedAppeals
+                    });
+                     // Отправляем данные в iframe
+                    this.sendMessageToIframe('APPEALS_LOAD_SUCCESS', {
+                        appeals: normalizedAppeals
+                    });
+                } else {
+                    this.sendAction('APPEALS_LOAD_FAIL', {
+                        error: 'Нет данных обращений'
+                    });
+                }
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('APPEALS_LOAD_FAIL', {
+                    error: 'Требуется авторизация'
+                });
+                break;
+            default:
+                this.sendAction('APPEALS_LOAD_FAIL', {
+                    error: response.message || 'Ошибка загрузки обращений'
+                });
+        }
+    }
+
+    /**
+     * Нормализует данные обращения, приводя их к единой структуре
+     */
+    private normalizeAppealData(appeal: any): any {
+    return {
+        id: appeal.appeal_id || appeal.id || appeal.ID,
+        email_registered: appeal.email_registered || appeal.EmailRegistered, // добавьте это поле
+        status: appeal.status || appeal.Status || 'created',
+        problem_description: appeal.problem_description || appeal.ProblemDescription, // и это
+        name: appeal.name || appeal.Name,
+        category_id: appeal.category_id || appeal.CategoryID, // и это
+        email_for_connection: appeal.email_for_connection || appeal.EmailForConnect, // и это
+        screenshot_url: appeal.screenshot_url || appeal.ScreenshotURL, // и это
+        createdAt: appeal.created_at || appeal.CreatedAt
+    };
+}
+
     private async loadStatistics(): Promise<void> {
-        const response = await ajax.get('/api/statistics');
+        const response = await ajax.get('/appeals/statistics');
 
         switch (response.status) {
             case STATUS.ok:
@@ -115,7 +275,7 @@ class API {
     }
 
     private async loadSupportRequests(): Promise<void> {
-        const response = await ajax.get('/api/support-requests');
+        const response = await ajax.get('/support-requests');
 
         switch (response.status) {
             case STATUS.ok:
@@ -199,7 +359,7 @@ class API {
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
-                    console.log('📧 User data from login:', response.data); // ← И ЭТУ
+                    console.log('📧 User data from login:', response.data);
                     const userData = {
                         id: response.data.id,
                         name: response.data.name,
@@ -256,7 +416,6 @@ class API {
     private async loadPostForEdit(postId: string): Promise<void> {
         const response = await ajax.get(`/post?id=${postId}`);
         if (response.status === 200 && response.data) {
-            // Нормализуем данные поста для редактирования
             const normalizedPost = this.normalizePostData(response.data);
             this.sendAction('POST_EDIT_LOAD_SUCCESS', { post: normalizedPost });
         } else {
@@ -355,7 +514,6 @@ class API {
         const response = await ajax.get(url);
         
         if (response.status === STATUS.ok && response.data) {
-            // ОБЕСПЕЧИВАЕМ ТАКОЙ ЖЕ ФОРМАТ, КАК В ЛЕНТЕ
             const postsArray = response.data.articles || response.data || [];
             
             const normalizedPosts = postsArray.map((post: any) => {
@@ -468,7 +626,7 @@ class API {
                 });
         }
     }
-    //Сведения об аккаунте
+
     private async loadSettingsAccount(): Promise<void> {
         const response = await ajax.get('/profile');
         
@@ -553,8 +711,6 @@ class API {
             case 201:
                 if (response.data) {
                     this.sendAction('CREATE_POST_SUCCESS', response.data);
-                    
-                    // Запускаем перезагрузку ленты
                     this.sendAction('POSTS_RELOAD_AFTER_CREATE');
                 } else {
                     this.sendAction('CREATE_POST_FAIL', { 
@@ -685,6 +841,5 @@ class API {
     }
 }
 
-// cозд и экспорт единственный экземпляр
 export const api = new API();
 export default api;

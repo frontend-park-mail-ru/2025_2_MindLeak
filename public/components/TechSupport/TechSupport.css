@@ -319,3 +319,39 @@ body {
     color: var(--text-lighter);
     cursor: not-allowed;
 }
+
+/* Стили для истории обращений */
+.appeals-history {
+    margin-top: 24px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 24px;
+}
+
+.appeals-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.appeal-item {
+    transition: transform 0.2s ease;
+}
+
+.appeal-item:hover {
+    transform: translateY(-2px);
+}
+
+.status-badge {
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 480px) {
+    .appeal-item {
+        padding: 12px;
+    }
+    
+    .appeals-list {
+        max-height: 300px;
+    }
+}

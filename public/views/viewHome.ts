@@ -141,12 +141,6 @@ export class HomeView {
             }
         }
 
-        const errorButton = new ErrorButton(() => {
-            //openTechSupportModal();
-        });
-        const errorButtonEl = await errorButton.render();
-        rootElem.appendChild(errorButtonEl);
-
         return rootElem;
     }
 

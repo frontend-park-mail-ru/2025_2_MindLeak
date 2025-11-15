@@ -62,6 +62,7 @@ function openTechSupportModal(): void {
     
     const iframe = document.createElement('iframe');
     iframe.src = window.location.origin + '/TechSupport.html';
+    console.log('🔗 Iframe URL:', iframe.src);
     iframe.style.width = '100%';
     iframe.style.height = '100%';
     iframe.style.border = 'none';
@@ -80,7 +81,7 @@ function openTechSupportModal(): void {
                 payload: {
                     userEmail: userEmail,
                     userName: userName,
-                    userContactEmail: userContactEmail // Добавляем эту строку
+                    userContactEmail: userContactEmail
                 }
             }, '*');
             console.log('✅ User data sent to iframe:', {
@@ -168,6 +169,7 @@ async function handleLogout(): Promise<void> {
     try {
         dispatcher.dispatch('LOGOUT_REQUEST');
     } catch (err) {
+        console.error('Logout error:', err);
     }
 }
 
@@ -176,6 +178,7 @@ export class PopUpMenu {
     private menuItems: MenuItem[];
 
     constructor({ user, menuItems }: PopUpMenuProps) {
+        console.log('🎯 PopUpMenu constructor called');
         this.user = user;
         this.menuItems = menuItems || [
             { key: 'bookmarks', icon: '/img/icons/note_icon.svg', text: 'Черновики' },
@@ -183,9 +186,52 @@ export class PopUpMenu {
             { key: 'settings', icon: '/img/icons/settings_icon.svg', text: 'Настройки' },
             { key: 'subscription', icon: '/img/icons/premium_icon.svg', text: 'Подписка' },
             { key: 'TechSupport', icon: '/img/icons/chat_icon.svg', text: 'Техподдержка' },
-            { key: 'Statistics', icon: '/img/icons/chat_icon.svg', text: 'Статистика' },
+            { key: 'Statistics', icon: '/img/icons/statistics_icon.svg', text: 'Статистика' },
             { key: 'logout', icon: '/img/icons/exit_icon.svg', text: 'Выйти' }
         ];
+        
+        this.setupMessageHandler();
+    }
+
+    private setupMessageHandler(): void {
+        console.log('📡 Setting up message handler in PopUpMenu');
+        window.addEventListener('message', this.handleIframeMessage.bind(this));
+    }
+
+    private handleIframeMessage(event: MessageEvent): void {
+        console.log('📨 Raw message received:', event.data);
+        
+        if (event.origin !== window.location.origin) {
+            console.log('🚫 Message from different origin:', event.origin);
+            return;
+        }
+        
+        const { type, payload, source } = event.data;
+        
+        console.log('📨 Processing message:', { type, source, payload });
+        
+        if (source === 'tech-support') {
+            console.log('✅ Valid tech-support message received');
+            
+            switch (type) {
+                case 'IFRAME_READY':
+                    console.log('✅ Tech support iframe is ready');
+                    break;
+                case 'SUPPORT_TICKET_SUBMIT_REQUEST':
+                    console.log('🔄 Dispatching support ticket request:', payload);
+                    // Диспетчеризируем действие через API
+                    dispatcher.dispatch('SUPPORT_TICKET_SUBMIT_REQUEST', payload);
+                    break;
+                case 'APPEALS_LOAD_REQUEST':
+                    console.log('🔄 Dispatching appeals load request');
+                    dispatcher.dispatch('APPEALS_LOAD_REQUEST');
+                    break;
+                default:
+                    console.log('❓ Unknown message type from iframe:', type);
+            }
+        } else {
+            console.log('🚫 Message from unknown source:', source);
+        }
     }
 
     async render(): Promise<HTMLElement> {
@@ -220,7 +266,6 @@ export class PopUpMenu {
 
         const menuItems = popUpMenu.querySelectorAll('.menu-item');
 
-        //ОТЛАДКА УДАЛИТЬ ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.
         console.log('🔍 Checking all menu items data-key:');
         menuItems.forEach((item, index) => {
             const key = (item as HTMLElement).dataset.key;
@@ -228,12 +273,10 @@ export class PopUpMenu {
             console.log(`Item ${index}: data-key="${key}", text="${text}"`);
         });
 
-        //ОТЛАДКА УДАЛИТЬ ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.
         menuItems.forEach((item, index) => {
             const key = (item as HTMLElement).dataset.key;
             console.log(`🎯 Setting up handler for menu item ${index}:`, key, item);
             
-            // ДОБАВЬТЕ ЭТУ ПРОВЕРКУ ДО ОБРАБОТЧИКА
             if (!item || !(item instanceof HTMLElement)) {
                 console.error('❌ Invalid menu item:', item);
                 return;
@@ -272,7 +315,7 @@ export class PopUpMenu {
                         break;
                     case 'Statistics':
                         console.log('📊 Statistics clicked - executing');
-                        window.history.pushState({}, '', '/support/statistics');
+                        window.history.pushState({}, '', '/appeals/statistics');
                         window.dispatchEvent(new PopStateEvent('popstate'));
                         break;
                     case 'TechSupport':
@@ -284,6 +327,7 @@ export class PopUpMenu {
                 }
             });
         });
+
         console.log('🔍 Final menu structure:');
         menuItems.forEach((item, index) => {
             const element = item as HTMLElement;
@@ -294,7 +338,6 @@ export class PopUpMenu {
                 innerHTML: element.innerHTML
             });
         });
-        //ОТЛАДКА УДАЛИТЬ ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.
 
         popUpMenu.addEventListener('click', (e: Event) => {
             e.stopPropagation();

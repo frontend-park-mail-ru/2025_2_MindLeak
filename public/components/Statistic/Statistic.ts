@@ -1,4 +1,6 @@
 import Handlebars from 'handlebars';
+import { ajax } from '../../modules/ajax';
+import { loginStore } from '../../stores/storeLogin';
 
 let statisticsTemplate: Handlebars.TemplateDelegate | null = null;
 
@@ -21,7 +23,7 @@ interface StatisticData {
 }
 
 interface SupportRequest {
-    id: number;
+    id: string;
     authorName: string;
     authorId: number;
     category: string;
@@ -66,46 +68,59 @@ export class Statistic {
 
     async render(): Promise<HTMLElement> {
         try {
-            // 1. Запрашиваем агрегированную статистику
-            const statsRes = await fetch('/api/statistics');
-            if (!statsRes.ok) throw new Error(`Stats error: ${statsRes.status}`);
-            const stats: StatisticData = await statsRes.json();
+            // 1. Запрашиваем ВСЮ статистику (включая список обращений) с одного эндпоинта
+            const statsRes = await ajax.get('/appeals/statistics');
+            if (statsRes.status !== 200) {
+                throw new Error(`Stats error: ${statsRes.status}`);
+            }
+            const statsData = statsRes.data;
 
-            // 2. Запрашиваем список всех обращений
-            const requestsRes = await fetch('/api/support-requests');
+            if (!statsData) {
+                throw new Error('No data received from server');
+            }
+
+            const currentUser = loginStore.getState();
+
+            // 2. Подготавливаем контекст для шаблона
+            // Извлекаем данные из полученного объекта
+            const total = statsData.total || 0;
+            const byCategory = statsData.byCategory || {};
+            const byStatus = statsData.byStatus || {};
             let supportRequests: SupportRequest[] = [];
-            if (requestsRes.ok) {
-                const rawData = await requestsRes.json();
-                // Предполагаем, что ответ — { items: [...] } или просто массив
-                const rawList = Array.isArray(rawData) ? rawData : rawData.items || [];
 
-                supportRequests = rawList.map((req: any) => ({
-                    id: req.id,
-                    authorName: req.authorName || req.author_name || '—',
-                    authorId: req.authorId || req.author_id || 0,
-                    category: req.category || 'other',
-                    status: req.status || 'open',
-                    title: req.title || 'Без темы',
-                    createdAt: req.createdAt || req.created_at || '',
-                    // Добавляем читаемые метки и форматированную дату для шаблона
-                    categoryLabel: categoryLabels[req.category] || req.category || '—',
-                    statusLabel: statusLabels[req.status] || req.status || '—',
-                    createdAtFormatted: req.createdAt ? formatDateTime(req.createdAt) : '—'
-                }));
+            // Парсим список обращений из поля "Appeals"
+            if (Array.isArray(statsData.appeals)) {
+                supportRequests = statsData.appeals.map((req: any) => {
+                    // Создаем объект, который соответствует интерфейсу SupportRequest
+                    // Используем ТОЧНЫЕ имена полей, как они приходят с бэкенда (через json теги)
+                    return {
+                        // Обязательные поля
+                        id: req.appealId || 0, // ← Из json:"appealId"
+                        category: req.category || 'other', // ← Из json:"category"
+                        status: req.status || 'open', // ← Из json:"status"
+                        title: req.problemDescription || 'Без темы', // ← Из json:"problemDescription"
+                        createdAt: req.createdAt ? new Date(req.createdAt * 1000).toISOString() : '', // ← Из json:"createdAt" (int64)
+
+
+                        // Добавляем читаемые метки и форматированную дату для шаблона
+                        categoryLabel: categoryLabels[req.category] || req.category || '—',
+                        statusLabel: statusLabels[req.status] || req.status || '—',
+                        createdAtFormatted: req.createdAt ? formatDateTime(new Date(req.createdAt * 1000).toISOString()) : '—'
+                    };
+                });
             }
 
             // 3. Подготавливаем контекст для шаблона
             const context = {
-                total: stats.total,
-                byCategory: mapToLabeledList(stats.byCategory, categoryLabels),
-                byStatus: mapToLabeledList(stats.byStatus, statusLabels),
-                supportRequests // ← новое поле
+                total: total,
+                byCategory: mapToLabeledList(byCategory, categoryLabels),
+                byStatus: mapToLabeledList(byStatus, statusLabels),
+                supportRequests: supportRequests // ← Передаем список обращений
             };
 
-            // 4. Рендерим
+            // 4. Рендерим шаблон
             const template = await getStatisticsTemplate();
             const html = template(context);
-
             const div = document.createElement('div');
             div.innerHTML = html.trim();
             const element = div.firstElementChild as HTMLElement;
@@ -114,12 +129,15 @@ export class Statistic {
                 throw new Error('Statistics page element not created');
             }
 
-            // Если нужно добавить обработчики событий, сохраняем их ссылки
-            // this.attachEventListeners(element);
-
+            // Возвращаем отрендеренный элемент
             return element;
+
         } catch (err) {
             console.error('Failed to render Statistics:', err);
+
+            if (err instanceof Error && err.message.includes('Unexpected token')) {
+                console.log('⚠️ Server returned HTML instead of JSON. Check the network tab for the actual response.');
+            }
 
             const errorDiv = document.createElement('div');
             errorDiv.className = 'statistics-page';

@@ -1,0 +1,57 @@
+<div class="appeals-history">
+    <h3 style="margin-bottom: 20px; text-align: center; color: var(--text-color);">
+        История ваших обращений
+    </h3>
+    
+    {{#if hasAppeals}}
+        <div class="appeals-list">
+            {{#each appeals}}
+            <div class="appeal-item" style="
+                background: var(--background-secondary);
+                border-radius: 8px;
+                padding: 16px;
+                margin-bottom: 12px;
+                border-left: 4px solid {{this.statusColor}};
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                    <div>
+                        <h4 style="margin: 0 0 8px 0; color: var(--text-color);">
+                            {{this.categoryName}}
+                        </h4>
+                        <p style="margin: 0; font-size: 0.9rem; color: var(--text-lighter);">
+                            {{this.formattedDate}}
+                        </p>
+                    </div>
+                    <span class="status-badge" style="
+                        padding: 4px 12px;
+                        border-radius: 12px;
+                        font-size: 0.75rem;
+                        font-weight: 500;
+                        background: {{this.statusColor}};
+                        color: white;
+                    ">
+                        {{this.statusText}}
+                    </span>
+                </div>
+                
+                <p style="margin: 0 0 12px 0; color: var(--text-color); line-height: 1.4;">
+                    {{this.problemDescription}}
+                </p>
+                
+                {{#if this.screenshotURL}}
+                    <div style="margin-top: 12px;">
+                        <img src="{{this.screenshotURL}}" 
+                             alt="Прикрепленное изображение" 
+                             style="max-width: 200px; max-height: 150px; border-radius: 4px; border: 1px solid var(--border-color); cursor: pointer;"
+                             class="appeal-screenshot">
+                    </div>
+                {{/if}}
+            </div>
+            {{/each}}
+        </div>
+    {{else}}
+        <p style="text-align: center; color: var(--text-lighter); padding: 20px;">
+            У вас пока нет обращений
+        </p>
+    {{/if}}
+</div>

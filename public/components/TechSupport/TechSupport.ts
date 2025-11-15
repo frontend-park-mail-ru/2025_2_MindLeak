@@ -11,6 +11,7 @@ interface SupportFormData {
 
 interface Appeal {
     id: string;
+    appeal_id?: string;
     email_registered: string;
     status: 'created' | 'in_work' | 'solved';
     problem_description: string;
@@ -54,7 +55,10 @@ class TechSupportIframe {
         this.renderForm();
         
         window.addEventListener('message', this.handleParentMessage.bind(this));
-        window.parent.postMessage({ type: 'IFRAME_READY', source: 'tech-support' }, '*');
+        window.parent.postMessage({ 
+            type: 'IFRAME_READY', 
+            source: 'tech-support' 
+        }, '*');
         
         // Загружаем историю обращений при инициализации
         this.loadAppealsHistory();
@@ -75,70 +79,156 @@ class TechSupportIframe {
     }
 
     private handleParentMessage(event: MessageEvent): void {
-        if (event.origin !== window.location.origin) return;
+        // Разрешаем сообщения с того же origin или без origin (для локальной разработки)
+        if (event.origin && event.origin !== window.location.origin) {
+            console.log('🚫 Message from different origin:', event.origin);
+            return;
+        }
         
-        const { type, payload } = event.data;
+        const { type, payload, source } = event.data;
         
-        switch (type) {
-            case 'INIT_DATA':
-                this.userData = {
-                    userEmail: payload.userEmail || '',
-                    userName: payload.userName || '',
-                    userContactEmail: payload.userContactEmail || payload.userEmail || ''
-                };
-                
-                console.log('📧 Received user data:', this.userData);
-                
-                this.renderForm();
-                break;
-            case 'APPEALS_LOAD_SUCCESS':
-                // Получаем обращения из API
-                this.appeals = payload.appeals || [];
-                console.log('📋 Loaded appeals:', this.appeals);
-                
-                // Обновляем историю на форме
-                this.renderAppealsHistory();
-                break;
-            case 'APPEALS_LOAD_FAIL':
-                console.error('Failed to load appeals:', payload.error);
-                break;
-            case 'SUPPORT_TICKET_SUBMIT_SUCCESS':
-                console.log('✅ Ticket submitted successfully, reloading appeals...');
-                // Обращение успешно отправлено, перезагружаем историю
-                this.loadAppealsHistory();
-                
-                // Показываем успешное сообщение И историю
-                this.showSuccessAndHistory();
-                break;
-            case 'SUPPORT_TICKET_SUBMIT_FAIL':
-                console.error('❌ Ticket submission failed:', payload.error);
-                this.showError(payload.error);
-                this.setLoading(false);
-                this.isSubmitting = false;
-                break;
+        console.log('📨 Processing message:', { type, source, payload });
+        
+        // Принимаем сообщения от родительского окна или без указанного source
+        if (!source || source === 'main-window' || source === 'tech-support-parent') {
+            switch (type) {
+                case 'INIT_DATA':
+                    this.userData = {
+                        userEmail: payload.userEmail || '',
+                        userName: payload.userName || '',
+                        userContactEmail: payload.userContactEmail || payload.userEmail || ''
+                    };
+                    
+                    console.log('📧 Received user data:', this.userData);
+                    
+                    this.renderForm();
+                    break;
+                case 'APPEALS_LOAD_SUCCESS':
+                    // Получаем обращения из API и заменяем полностью старый список
+                    const newAppeals = payload.appeals || [];
+                    console.log('📋 Loaded appeals from API:', newAppeals);
+                    
+                    // Полностью заменяем старый список на новый (дедуплицированный)
+                    this.appeals = this.deduplicateAppeals(newAppeals);
+                    console.log('📋 Final appeals after deduplication:', this.appeals);
+                    
+                    // Обновляем историю на форме
+                    this.renderAppealsHistory();
+                    break;
+                case 'APPEALS_LOAD_FAIL':
+                    console.error('Failed to load appeals:', payload.error);
+                    break;
+                case 'SUPPORT_TICKET_SUBMIT_SUCCESS':
+                    console.log('✅ Ticket submitted successfully, reloading appeals...');
+                    // Обращение успешно отправлено, показываем успешное сообщение
+                    this.showSuccessMessage();
+                    break;
+                case 'SUPPORT_TICKET_SUBMIT_FAIL':
+                    console.error('❌ Ticket submission failed:', payload.error);
+                    this.showError(payload.error);
+                    this.setLoading(false);
+                    this.isSubmitting = false;
+                    break;
+            }
         }
     }
 
-private autoFillForm(): void {
-    if (!this.form) return;
+        private showSuccessMessage(): void {
+        const contentEl = document.getElementById('tech-support-content');
+        if (!contentEl) return;
 
-    const accountEmailInput = this.form.querySelector('[name="email_registered"]') as HTMLInputElement;
-    const contactNameInput = this.form.querySelector('[name="name"]') as HTMLInputElement;
-    const contactEmailInput = this.form.querySelector('[name="email_for_connection"]') as HTMLInputElement;
+        console.log('✅ Showing success message');
 
-    if (accountEmailInput) {
-        accountEmailInput.value = this.userData.userEmail;
+        // Создаем HTML для успешного сообщения
+        const successHtml = `
+            <div class="tech-support-iframe">
+                <div class="tech-support-modal">
+                    <div class="success-message">
+                        <div style="font-size: 48px; margin-bottom: 20px;">✅</div>
+                        <h2 style="margin-bottom: 16px;">Обращение отправлено</h2>
+                        <p style="color: var(--text-lighter); margin-bottom: 24px;">
+                            Ваше обращение успешно отправлено.<br>
+                            Мы ответим вам в ближайшее время.
+                        </p>
+                        <div class="button-container">
+                            <button type="button" class="form__button" id="newAppealAfterSuccess">
+                                Отправить новое обращение
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        contentEl.innerHTML = successHtml;
+        
+        // Добавляем обработчик для кнопки "Отправить новое обращение"
+        const newAppealBtn = contentEl.querySelector('#newAppealAfterSuccess') as HTMLButtonElement;
+        if (newAppealBtn) {
+            newAppealBtn.addEventListener('click', () => {
+                console.log('🔄 Creating new appeal after success');
+                this.reloadForm();
+            });
+        }
+        
+        console.log('✅ Success message displayed');
     }
-    
-    if (contactNameInput) {
-        contactNameInput.value = this.userData.userName;
+
+    /**
+     * Дедуплицирует обращения по ID
+     */
+    private deduplicateAppeals(appeals: Appeal[]): Appeal[] {
+        const uniqueMap = new Map();
+        
+        appeals.forEach(appeal => {
+            // Используем appeal_id или id как ключ для дедупликации
+            const key = appeal.appeal_id || appeal.id;
+            if (key) {
+                if (!uniqueMap.has(key)) {
+                    uniqueMap.set(key, appeal);
+                } else {
+                    console.log('🔄 Found duplicate appeal, skipping:', key);
+                }
+            } else {
+                console.warn('⚠️ Appeal without ID found:', appeal);
+                // Если нет ID, используем комбинацию полей как ключ
+                const fallbackKey = `${appeal.email_registered}_${appeal.problem_description}_${appeal.createdAt}`;
+                if (!uniqueMap.has(fallbackKey)) {
+                    uniqueMap.set(fallbackKey, appeal);
+                }
+            }
+        });
+        
+        const uniqueAppeals = Array.from(uniqueMap.values());
+        
+        // Сортируем по дате создания (новые сверху)
+        return uniqueAppeals.sort((a, b) => {
+            const dateA = new Date(a.createdAt || 0).getTime();
+            const dateB = new Date(b.createdAt || 0).getTime();
+            return dateB - dateA; // Новые сверху
+        });
     }
-    
-    if (contactEmailInput) {
-        const emailToUse = this.userData.userContactEmail || this.userData.userEmail;
-        contactEmailInput.value = emailToUse;
+
+    private autoFillForm(): void {
+        if (!this.form) return;
+
+        const accountEmailInput = this.form.querySelector('[name="email_registered"]') as HTMLInputElement;
+        const contactNameInput = this.form.querySelector('[name="name"]') as HTMLInputElement;
+        const contactEmailInput = this.form.querySelector('[name="email_for_connection"]') as HTMLInputElement;
+
+        if (accountEmailInput) {
+            accountEmailInput.value = this.userData.userEmail;
+        }
+        
+        if (contactNameInput) {
+            contactNameInput.value = this.userData.userName;
+        }
+        
+        if (contactEmailInput) {
+            const emailToUse = this.userData.userContactEmail || this.userData.userEmail;
+            contactEmailInput.value = emailToUse;
+        }
     }
-}
 
     private renderForm(): void {
         console.log('🔄 Rendering form...');
@@ -186,29 +276,56 @@ private autoFillForm(): void {
     }
 
     private renderAppealsHistory(): void {
-        if (!this.historyTemplate) return;
+        if (!this.historyTemplate) {
+            console.error('❌ History template not loaded');
+            return;
+        }
         
         const formContainer = this.form?.closest('.tech-support-modal');
-        if (!formContainer) return;
+        if (!formContainer) {
+            console.error('❌ Form container not found');
+            return;
+        }
 
         // Удаляем старую историю если есть
         const existingHistory = formContainer.querySelector('.appeals-history');
         if (existingHistory) {
+            console.log('🗑️ Removing existing history');
             existingHistory.remove();
         }
 
         // Если нет обращений, не показываем историю
-        if (this.appeals.length === 0) return;
+        if (this.appeals.length === 0) {
+            console.log('ℹ️ No appeals to display');
+            return;
+        }
 
         console.log('🔄 Rendering appeals history with:', this.appeals.length, 'appeals');
 
-        const appealsWithFormattedData = this.appeals.map(appeal => ({
-            ...appeal,
-            statusColor: this.getStatusColor(appeal.status),
-            statusText: this.getStatusText(appeal.status),
-            categoryName: this.getCategoryName(appeal.category_id),
-            formattedDate: new Date(appeal.createdAt || '').toLocaleDateString('ru-RU')
-        }));
+        const appealsWithFormattedData = this.appeals.map(appeal => {
+            // Форматируем дату с проверкой валидности
+            let formattedDate = 'Недавно';
+            if (appeal.createdAt) {
+                const date = new Date(appeal.createdAt);
+                if (!isNaN(date.getTime())) {
+                    formattedDate = date.toLocaleDateString('ru-RU', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+            }
+            
+            return {
+                ...appeal,
+                statusColor: this.getStatusColor(appeal.status),
+                statusText: this.getStatusText(appeal.status),
+                categoryName: this.getCategoryName(appeal.category_id),
+                formattedDate: formattedDate
+            };
+        });
 
         const historyHtml = this.historyTemplate({
             appeals: appealsWithFormattedData,
@@ -220,7 +337,7 @@ private autoFillForm(): void {
         historyElement.innerHTML = historyHtml;
         formContainer.appendChild(historyElement);
         
-        console.log('✅ Appeals history rendered');
+        console.log('✅ Appeals history rendered, element:', historyElement);
     }
 
     private setupFileUpload(): void {
@@ -403,7 +520,8 @@ private autoFillForm(): void {
     private loadAppealsHistory(): void {
         // Запрашиваем загрузку обращений через API
         window.parent.postMessage({ 
-            type: 'APPEALS_LOAD_REQUEST' 
+            type: 'APPEALS_LOAD_REQUEST',
+            source: 'tech-support'
         }, '*');
     }
 
@@ -413,13 +531,30 @@ private autoFillForm(): void {
 
         console.log('🔄 Showing success message and history with appeals:', this.appeals);
 
-        const appealsWithFormattedData = this.appeals.map(appeal => ({
-            ...appeal,
-            statusColor: this.getStatusColor(appeal.status),
-            statusText: this.getStatusText(appeal.status),
-            categoryName: this.getCategoryName(appeal.category_id),
-            formattedDate: new Date(appeal.createdAt || '').toLocaleDateString('ru-RU')
-        }));
+        const appealsWithFormattedData = this.appeals.map(appeal => {
+            // Форматируем дату с проверкой валидности
+            let formattedDate = 'Недавно';
+            if (appeal.createdAt) {
+                const date = new Date(appeal.createdAt);
+                if (!isNaN(date.getTime())) {
+                    formattedDate = date.toLocaleDateString('ru-RU', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+            }
+            
+            return {
+                ...appeal,
+                statusColor: this.getStatusColor(appeal.status),
+                statusText: this.getStatusText(appeal.status),
+                categoryName: this.getCategoryName(appeal.category_id),
+                formattedDate: formattedDate
+            };
+        });
 
         const html = this.historyTemplate({
             appeals: appealsWithFormattedData,
@@ -428,14 +563,17 @@ private autoFillForm(): void {
         
         contentEl.innerHTML = html;
         
-        // Добавляем обработчик для кнопки "Новое обращение"
-        const newAppealBtn = contentEl.querySelector('.form__button');
+        // Добавляем обработчик для кнопки "Отправить новое обращение"
+        const newAppealBtn = contentEl.querySelector('#newAppealAfterSuccess');
         if (newAppealBtn) {
             newAppealBtn.addEventListener('click', () => {
+                console.log('🔄 Creating new appeal after success');
                 this.renderForm();
-                this.loadAppealsHistory(); // Перезагружаем историю для новой формы
+                this.loadAppealsHistory();
             });
         }
+        
+        console.log('✅ Success message and history displayed');
     }
 
     private getStatusColor(status: string): string {
@@ -529,27 +667,6 @@ private autoFillForm(): void {
             button.disabled = isLoading;
             button.textContent = isLoading ? 'Отправка...' : 'Отправить обращение';
         }
-    }
-
-    private showSuccessMessage(): void {
-        const contentEl = document.getElementById('tech-support-content');
-        if (!contentEl) return;
-
-        contentEl.innerHTML = `
-            <div class="tech-support-modal">
-                <div class="success-message">
-                    <div style="font-size: 48px; margin-bottom: 20px;">✅</div>
-                    <h2 style="margin-bottom: 16px;">Обращение отправлено</h2>
-                    <p style="color: var(--text-lighter); margin-bottom: 24px;">
-                        Ваше обращение успешно отправлено.<br>
-                        Мы ответим вам в ближайшее время.
-                    </p>
-                    <button type="button" class="form__button" onclick="location.reload()">
-                        Новое обращение
-                    </button>
-                </div>
-            </div>
-        `;
     }
 
     private showError(message: string): void {

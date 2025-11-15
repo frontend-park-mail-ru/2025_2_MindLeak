@@ -172,9 +172,10 @@ private async submitSupportTicket(payload: any): Promise<void> {
         if (iframe && iframe.contentWindow) {
             iframe.contentWindow.postMessage({
                 type: type,
-                payload: payload
+                payload: payload,
+                source: 'main-window' // Добавляем source
             }, window.location.origin);
-            console.log('📤 Sent message to iframe:', type, payload);
+            console.log('📤 Sent message to iframe:', type, payload, 'source: main-window');
         }
     }
 
@@ -230,19 +231,36 @@ private async submitSupportTicket(payload: any): Promise<void> {
     /**
      * Нормализует данные обращения, приводя их к единой структуре
      */
-    private normalizeAppealData(appeal: any): any {
-    return {
+    /**
+ * Нормализует данные обращения, приводя их к единой структуре
+ */
+private normalizeAppealData(appeal: any): any {
+    const normalized = {
         id: appeal.appeal_id || appeal.id || appeal.ID,
-        email_registered: appeal.email_registered || appeal.EmailRegistered, // добавьте это поле
+        email_registered: appeal.email_registered || appeal.EmailRegistered,
         status: appeal.status || appeal.Status || 'created',
-        problem_description: appeal.problem_description || appeal.ProblemDescription, // и это
+        problem_description: appeal.problem_description || appeal.ProblemDescription,
         name: appeal.name || appeal.Name,
-        category_id: appeal.category_id || appeal.CategoryID, // и это
-        email_for_connection: appeal.email_for_connection || appeal.EmailForConnect, // и это
-        screenshot_url: appeal.screenshot_url || appeal.ScreenshotURL, // и это
+        category_id: appeal.category_id || appeal.CategoryID,
+        email_for_connection: appeal.email_for_connection || appeal.EmailForConnect,
+        screenshot_url: appeal.screenshot_url || appeal.ScreenshotURL,
         createdAt: appeal.created_at || appeal.CreatedAt
     };
+    
+    // Проверяем и форматируем дату
+    if (normalized.createdAt) {
+        const date = new Date(normalized.createdAt);
+        if (isNaN(date.getTime())) {
+            console.warn('⚠️ Invalid date found:', normalized.createdAt);
+            normalized.createdAt = new Date().toISOString(); // Устанавливаем текущую дату если невалидная
+        }
+    } else {
+        normalized.createdAt = new Date().toISOString(); // Устанавливаем текущую дату если нет даты
+    }
+    
+    return normalized;
 }
+
 
     private async loadStatistics(): Promise<void> {
         const response = await ajax.get('/appeals/statistics');

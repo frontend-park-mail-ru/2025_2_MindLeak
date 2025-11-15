@@ -252,3 +252,9 @@ body {
 .iframe-modal__close:hover {
     opacity: 0.8;
 }
+
+#tech-support-content {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}

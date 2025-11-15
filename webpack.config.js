@@ -6,7 +6,11 @@ module.exports = (env, argv) => {
   const isProduction = argv.mode === 'production';
   
   return {
-    entry: './public/index.ts',
+    // МНОЖЕСТВЕННЫЕ ТОЧКИ ВХОДА
+    entry: {
+      main: './public/index.ts',
+      TechSupport: './public/components/TechSupport/TechSupport.ts'
+    },
     
     mode: isProduction ? 'production' : 'development',
     
@@ -39,7 +43,6 @@ module.exports = (env, argv) => {
     resolve: {
       extensions: ['.ts', '.js', '.hbs'],
       alias: {
-        // Добавляем алиасы для удобства импортов
         '@stores': path.resolve(__dirname, 'public/stores'),
         '@components': path.resolve(__dirname, 'public/components'),
         '@views': path.resolve(__dirname, 'public/views')
@@ -47,9 +50,9 @@ module.exports = (env, argv) => {
     },
     
     output: {
-      filename: 'bundle.js',
+      filename: '[name].bundle.js', // ИСПОЛЬЗУЙТЕ [name]
       path: path.resolve(__dirname, 'dist'),
-      publicPath: '/', // Важно для корректных путей
+      publicPath: '/',
       clean: true,
     },
 
@@ -58,12 +61,14 @@ module.exports = (env, argv) => {
       new HtmlWebpackPlugin({
         template: './public/index.html',
         filename: 'index.html',
+        chunks: ['main'], // ТОЛЬКО main bundle
         inject: 'body'
       }),
       // Страница техподдержки
       new HtmlWebpackPlugin({
         template: './public/TechSupport.html',
         filename: 'TechSupport.html',
+        chunks: ['TechSupport'], // ТОЛЬКО TechSupport bundle
         inject: 'body'
       }),
       // Копируем статические файлы
@@ -75,15 +80,19 @@ module.exports = (env, argv) => {
             noErrorOnMissing: true
           },
           {
-            from: 'public/components/**/*.hbs',
-            to: '[name][ext]',
+            from: 'public/components/TechSupport/TechSupport.hbs',
+            to: 'components/TechSupport/[name][ext]',
+            noErrorOnMissing: true
+          },
+          {
+            from: 'public/components/TechSupport/TechSupport.css',
+            to: 'components/TechSupport/[name][ext]',
             noErrorOnMissing: true
           }
         ]
       })
     ],
 
-    // Dev server для разработки
     devServer: {
       static: {
         directory: path.join(__dirname, 'dist'),
@@ -91,10 +100,9 @@ module.exports = (env, argv) => {
       port: 3000,
       open: true,
       hot: true,
-      historyApiFallback: true // Для SPA
+      historyApiFallback: true
     },
 
-    //todo УБРАТЬ КОГДА УБЕЖДУСЬ, ЧТО ПРОБЛЕМА БЫЛА В ТОТ МОМЕНТ НА БЭКЕ А НЕ У МЕНЯ (Т К ТЕСТ ПРИШЕЛ НА АПДЕЙТ БЭКА)
     optimization: {
       splitChunks: false,
       runtimeChunk: false,

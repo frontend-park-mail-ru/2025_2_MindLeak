@@ -47,7 +47,8 @@ class TechSupportIframe {
         
         switch (type) {
             case 'INIT_DATA':
-                this.userEmail = payload.userEmail || '';
+                this.userEmail = payload.userEmail || 'email@example.com'; // fallback
+                console.log('📧 Received user email:', this.userEmail); // debug
                 this.renderForm();
                 break;
             case 'TICKET_SUBMITTED':
@@ -60,17 +61,37 @@ class TechSupportIframe {
     }
 
     private renderForm(): void {
-        if (!this.template) return;
+        console.log('🔄 Rendering form...');
+        console.log('📧 User email:', this.userEmail);
+        console.log('📋 Template available:', !!this.template);
+        
+        if (!this.template) {
+            console.error('❌ Template not loaded');
+            this.showError('Template not loaded');
+            return;
+        }
         
         const contentEl = document.getElementById('tech-support-content');
-        if (!contentEl) return;
+        if (!contentEl) {
+            console.error('❌ Content element not found');
+            return;
+        }
 
-        contentEl.innerHTML = this.template({ userEmail: this.userEmail });
-        
-        this.form = document.getElementById('supportForm') as HTMLFormElement;
-        if (this.form) {
-            this.form.addEventListener('submit', this.handleSubmit.bind(this));
-            this.setupFileUpload();
+        try {
+            const html = this.template({ userEmail: this.userEmail });
+            console.log('📝 Generated HTML length:', html.length);
+            contentEl.innerHTML = html;
+            
+            this.form = document.getElementById('supportForm') as HTMLFormElement;
+            if (this.form) {
+                console.log('✅ Form found and setup');
+                this.form.addEventListener('submit', this.handleSubmit.bind(this));
+                this.setupFileUpload();
+            } else {
+                console.error('❌ Form element not found');
+            }
+        } catch (error) {
+            console.error('❌ Error rendering template:', error);
         }
     }
 

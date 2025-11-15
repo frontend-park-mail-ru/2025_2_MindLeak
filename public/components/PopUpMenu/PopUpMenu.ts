@@ -52,7 +52,7 @@ function openTechSupportModal(): void {
     modal.className = 'iframe-modal';
     
     const iframe = document.createElement('iframe');
-    iframe.src = '/TechSupport.html';
+    iframe.src = window.location.origin + '/TechSupport.html';
     iframe.style.width = '100%';
     iframe.style.height = '100%';
     iframe.style.border = 'none';

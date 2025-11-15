@@ -14,8 +14,11 @@ class API {
     handleAction(actionType: string, payload?: any): void {
 
         switch (actionType) {
-            case 'SUPPORT_STATISTICS_LOAD_REQUEST':
+            case 'STATISTICS_LOAD_REQUEST':
                 this.loadStatistics();
+                break;
+            case 'SUPPORT_REQUESTS_LOAD_REQUEST':
+                this.loadSupportRequests();
                 break;
             case 'LOGIN_CHECK_REQUEST':
                 this.checkAuth();
@@ -82,31 +85,56 @@ class API {
     }
 
     private async loadStatistics(): Promise<void> {
-        const response = await ajax.get('/Statistics');
+        const response = await ajax.get('/api/statistics');
 
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
-                    this.sendAction('SUPPORT_STATISTICS_LOAD_SUCCESS', {
+                    this.sendAction('STATISTICS_LOAD_SUCCESS', {
                         total: response.data.total,
                         byCategory: response.data.byCategory,
                         byStatus: response.data.byStatus
                     });
                 } else {
-                    this.sendAction('SUPPORT_STATISTICS_LOAD_FAIL', {
+                    this.sendAction('STATISTICS_LOAD_FAIL', {
                         error: 'Нет данных статистики'
                     });
                 }
                 break;
             case STATUS.unauthorized:
                 this.sendAction('USER_UNAUTHORIZED');
-                this.sendAction('SUPPORT_STATISTICS_LOAD_FAIL', {
+                this.sendAction('STATISTICS_LOAD_FAIL', {
                     error: 'Требуется авторизация'
                 });
                 break;
             default:
-                this.sendAction('SUPPORT_STATISTICS_LOAD_FAIL', {
+                this.sendAction('STATISTICS_LOAD_FAIL', {
                     error: response.message || 'Ошибка загрузки статистики'
+                });
+        }
+    }
+
+    private async loadSupportRequests(): Promise<void> {
+        const response = await ajax.get('/api/support-requests');
+
+        switch (response.status) {
+            case STATUS.ok:
+                const rawData = response.data;
+                const rawList = Array.isArray(rawData) ? rawData : rawData.items || [];
+                
+                this.sendAction('SUPPORT_REQUESTS_LOAD_SUCCESS', {
+                    supportRequests: rawList
+                });
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('SUPPORT_REQUESTS_LOAD_FAIL', {
+                    error: 'Требуется авторизация'
+                });
+                break;
+            default:
+                this.sendAction('SUPPORT_REQUESTS_LOAD_FAIL', {
+                    error: response.message || 'Ошибка загрузки списка обращений'
                 });
         }
     }

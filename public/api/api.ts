@@ -14,6 +14,9 @@ class API {
     handleAction(actionType: string, payload?: any): void {
 
         switch (actionType) {
+            case 'SUPPORT_STATISTICS_LOAD_REQUEST':
+                this.loadStatistics();
+                break;
             case 'LOGIN_CHECK_REQUEST':
                 this.checkAuth();
                 break;
@@ -75,6 +78,36 @@ class API {
             case 'COVER_DELETE_REQUEST':
                 this.deleteCover();
                 break;
+        }
+    }
+
+    private async loadStatistics(): Promise<void> {
+        const response = await ajax.get('/Statistics');
+
+        switch (response.status) {
+            case STATUS.ok:
+                if (response.data) {
+                    this.sendAction('SUPPORT_STATISTICS_LOAD_SUCCESS', {
+                        total: response.data.total,
+                        byCategory: response.data.byCategory,
+                        byStatus: response.data.byStatus
+                    });
+                } else {
+                    this.sendAction('SUPPORT_STATISTICS_LOAD_FAIL', {
+                        error: 'Нет данных статистики'
+                    });
+                }
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('SUPPORT_STATISTICS_LOAD_FAIL', {
+                    error: 'Требуется авторизация'
+                });
+                break;
+            default:
+                this.sendAction('SUPPORT_STATISTICS_LOAD_FAIL', {
+                    error: response.message || 'Ошибка загрузки статистики'
+                });
         }
     }
 

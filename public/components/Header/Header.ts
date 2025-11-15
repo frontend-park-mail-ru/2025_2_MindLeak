@@ -150,6 +150,8 @@ export class Header {
                         { key: 'saved', icon: '/img/icons/bookmark.svg', text: 'Закладки' },
                         { key: 'settings', icon: '/img/icons/settings_icon.svg', text: 'Настройки' },
                         { key: 'subscription', icon: '/img/icons/premium_icon.svg', text: 'Подписка' },
+                        { key: 'TechSupport', icon: '/img/icons/chat_icon.svg', text: 'Техподдержка' },
+                        { key: 'Statistics', icon: '/img/icons/chat_icon.svg', text: 'Статистика' },
                         { key: 'logout', icon: '/img/icons/exit_icon.svg', text: 'Выйти' }
                     ]
                 });

@@ -1,0 +1,68 @@
+<div class="tech-support-iframe">
+    <div class="tech-support-modal">
+        <div class="tech-support-modal__header">
+            <img src="/img/LogoMain.svg" alt="Логотип" class="tech-support-modal__logo" />
+            <h1 class="tech-support-modal__title">Техническая поддержка</h1>
+        </div>
+        
+        <form class="support-form__body" id="supportForm">
+            <div class="support-form__group">
+                <label class="support-form__label">Почта аккаунта</label>
+                <input 
+                    type="email" 
+                    class="form__input" 
+                    name="accountEmail" 
+                    value="{{userEmail}}" 
+                    readonly
+                />
+            </div>
+
+            <div class="support-form__group">
+                <label class="support-form__label">Тема обращения *</label>
+                <select class="support-form__select" name="topic" required>
+                    <option value="">Выберите тему</option>
+                    <option value="technical">Технические проблемы</option>
+                    <option value="payment">Оплата и подписка</option>
+                    <option value="feature">Предложения по улучшению</option>
+                    <option value="bug">Сообщение об ошибке</option>
+                    <option value="other">Другое</option>
+                </select>
+            </div>
+
+            <div class="support-form__group">
+                <label class="support-form__label">Описание проблемы *</label>
+                <textarea 
+                    class="support-form__textarea" 
+                    name="description" 
+                    placeholder="Опишите проблему как можно подробнее..."
+                    required
+                ></textarea>
+            </div>
+
+            <div class="support-form__group">
+                <label class="support-form__label">Прикрепить файл (только фото)</label>
+                <div class="file-upload" id="fileUpload">
+                    <input type="file" class="file-upload__input" accept="image/*" name="attachment">
+                    <label class="file-upload__label">📎 Выберите файл (макс. 5MB)</label>
+                    <div class="file-upload__preview" id="filePreview"></div>
+                </div>
+            </div>
+
+            <div class="contact-info">
+                <h3>Оставьте свои контакты</h3>
+                <div class="support-form__group">
+                    <label class="support-form__label">Ваше имя *</label>
+                    <input type="text" class="form__input" name="contactName" placeholder="Введите ваше имя" required>
+                </div>
+                <div class="support-form__group">
+                    <label class="support-form__label">Email для ответа *</label>
+                    <input type="email" class="form__input" name="contactEmail" placeholder="example@mail.xyz" required>
+                </div>
+            </div>
+
+            <div class="button-container">
+                <button type="submit" class="form__button">Отправить обращение</button>
+            </div>
+        </form>
+    </div>
+</div>

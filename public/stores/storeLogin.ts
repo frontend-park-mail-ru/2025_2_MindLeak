@@ -32,7 +32,10 @@ class LoginStore extends BaseStore<LoginState> {
     protected registerActions(): void {
         this.registerAction('USER_LOGIN_CHECKED', (payload: { user: User }) => {
             const newState = {
-                user: payload.user,
+                user: {
+                    ...payload.user,
+                    email: payload.user.email || '' // ← Убедимся, что email есть
+                },
                 isLoggedIn: true,
                 isLoading: false,
                 error: null

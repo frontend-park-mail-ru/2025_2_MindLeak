@@ -1,5 +1,6 @@
 import { Header } from '../components/Header/Header';
 import { TopBloggers } from '../components/TopBloggers/TopBloggers';
+import { ErrorButton } from '../components/ErrorButton/ErrorButton';
 import { dispatcher } from '../dispatcher/dispatcher';
 import { PostsView } from './viewPosts';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
@@ -139,6 +140,12 @@ export class HomeView {
                 this.feedWrapper.appendChild(errorEl);
             }
         }
+
+        const errorButton = new ErrorButton(() => {
+            //openTechSupportModal();
+        });
+        const errorButtonEl = await errorButton.render();
+        rootElem.appendChild(errorButtonEl);
 
         return rootElem;
     }

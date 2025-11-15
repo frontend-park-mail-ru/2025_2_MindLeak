@@ -43,9 +43,18 @@ function openTechSupportModal(): void {
     
     // Получаем данные пользователя из store
     const authState = loginStore.getState();
-    const userEmail = authState.user?.email || '';
+    const user = authState.user;
     
-    console.log('📧 User email:', userEmail);
+    // Получаем все необходимые данные из профиля
+    const userEmail = user?.email || '';
+    const userName = user?.name || '';
+    const userContactEmail = user?.email || '';
+    
+    console.log('📧 User data from profile:', { 
+        userEmail, 
+        userName,
+        userContactEmail
+    });
 
     // Создаем модальное окно для iframe
     const modal = document.createElement('div');
@@ -69,10 +78,16 @@ function openTechSupportModal(): void {
             iframe.contentWindow?.postMessage({
                 type: 'INIT_DATA',
                 payload: {
-                    userEmail: userEmail
+                    userEmail: userEmail,
+                    userName: userName,
+                    userContactEmail: userContactEmail // Добавляем эту строку
                 }
             }, '*');
-            console.log('✅ Data sent to iframe');
+            console.log('✅ User data sent to iframe:', {
+                userEmail,
+                userName,
+                userContactEmail
+            });
         }, 500);
     });
 
@@ -262,7 +277,6 @@ export class PopUpMenu {
                         break;
                     case 'TechSupport':
                         console.log('🛟 TechSupport clicked - EXECUTING openTechSupportModal');
-                        alert('TechSupport clicked!'); // ← УБЕДИТЕСЬ ЧТО ЭТО СРАБАТЫВАЕТ
                         openTechSupportModal();
                         break;
                     default:

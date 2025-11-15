@@ -258,3 +258,64 @@ body {
     display: flex;
     justify-content: center;
 }
+
+/* Стили для превью файла */
+.file-preview-container {
+    position: relative;
+    display: inline-block;
+}
+
+.file-preview-image {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 4px;
+    border: 2px solid var(--border-color);
+}
+
+.file-remove-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: var(--text-failure);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.file-remove-btn:hover {
+    background: #cc0000;
+}
+
+/* Улучшенные стили для drag & drop */
+.file-upload.drag-over {
+    border-color: var(--accent-color);
+    background-color: rgba(14, 122, 246, 0.1);
+}
+
+.file-upload__label {
+    display: block;
+    cursor: pointer;
+    color: var(--accent-color);
+    transition: color 0.3s;
+}
+
+.file-upload__label:hover {
+    color: var(--primary-hover);
+}
+
+/* Стили для автозаполненных полей */
+.form__input[readonly] {
+    background-color: var(--background-secondary);
+    border-color: var(--text-lighter);
+    color: var(--text-lighter);
+    cursor: not-allowed;
+}

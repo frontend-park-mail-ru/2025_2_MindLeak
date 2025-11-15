@@ -13,10 +13,21 @@ interface FormError {
     message: string;
 }
 
+interface UserData {
+    userEmail: string;
+    userName: string;
+    userContactEmail?: string;
+}
+
 class TechSupportIframe {
-    private userEmail: string = '';
+    private userData: UserData = {
+        userEmail: '',
+        userName: '',
+        userContactEmail: ''
+    };
     private form: HTMLFormElement | null = null;
     private template: Handlebars.TemplateDelegate | null = null;
+    private currentFile: File | null = null;
 
     constructor() {
         this.init();
@@ -47,8 +58,15 @@ class TechSupportIframe {
         
         switch (type) {
             case 'INIT_DATA':
-                this.userEmail = payload.userEmail || 'email@example.com'; // fallback
-                console.log('📧 Received user email:', this.userEmail); // debug
+                // Получаем данные пользователя из профиля
+                this.userData = {
+                    userEmail: payload.userEmail || '',
+                    userName: payload.userName || '',
+                    userContactEmail: payload.userContactEmail || payload.userEmail || ''
+                };
+                
+                console.log('📧 Received user data:', this.userData);
+                
                 this.renderForm();
                 break;
             case 'TICKET_SUBMITTED':
@@ -60,10 +78,38 @@ class TechSupportIframe {
         }
     }
 
+    private autoFillForm(): void {
+        if (!this.form) return;
+
+        console.log('🔄 Auto-filling form with:', this.userData);
+
+        // Автозаполнение полей
+        const accountEmailInput = this.form.querySelector('[name="accountEmail"]') as HTMLInputElement;
+        const contactNameInput = this.form.querySelector('[name="contactName"]') as HTMLInputElement;
+        const contactEmailInput = this.form.querySelector('[name="contactEmail"]') as HTMLInputElement;
+
+        if (accountEmailInput) {
+            accountEmailInput.value = this.userData.userEmail;
+            console.log('📧 Account email set to:', this.userData.userEmail);
+        }
+        
+        if (contactNameInput) {
+            contactNameInput.value = this.userData.userName;
+            console.log('👤 Contact name set to:', this.userData.userName);
+        }
+        
+        if (contactEmailInput) {
+            // Используем userContactEmail если он есть, иначе основной email
+            const emailToUse = this.userData.userContactEmail || this.userData.userEmail;
+            contactEmailInput.value = emailToUse;
+            console.log('📨 Contact email set to:', emailToUse);
+        }
+
+        console.log('✅ Form auto-filled with user data');
+    }
+
     private renderForm(): void {
         console.log('🔄 Rendering form...');
-        console.log('📧 User email:', this.userEmail);
-        console.log('📋 Template available:', !!this.template);
         
         if (!this.template) {
             console.error('❌ Template not loaded');
@@ -78,8 +124,9 @@ class TechSupportIframe {
         }
 
         try {
-            const html = this.template({ userEmail: this.userEmail });
-            console.log('📝 Generated HTML length:', html.length);
+            const html = this.template({ 
+                userEmail: this.userData.userEmail 
+            });
             contentEl.innerHTML = html;
             
             this.form = document.getElementById('supportForm') as HTMLFormElement;
@@ -87,6 +134,7 @@ class TechSupportIframe {
                 console.log('✅ Form found and setup');
                 this.form.addEventListener('submit', this.handleSubmit.bind(this));
                 this.setupFileUpload();
+                this.autoFillForm(); // Автозаполнение после рендера
             } else {
                 console.error('❌ Form element not found');
             }
@@ -99,53 +147,128 @@ class TechSupportIframe {
         const fileInput = this.form?.querySelector('input[type="file"]') as HTMLInputElement;
         const filePreview = this.form?.querySelector('#filePreview') as HTMLElement;
         const fileUpload = this.form?.querySelector('#fileUpload') as HTMLElement;
+        const fileLabel = this.form?.querySelector('.file-upload__label') as HTMLElement;
 
-        if (fileInput && filePreview && fileUpload) {
+        if (fileInput && filePreview && fileUpload && fileLabel) {
+            // Обработчик выбора файла через кнопку
             fileInput.addEventListener('change', (e: Event) => {
                 const file = (e.target as HTMLInputElement).files?.[0];
-                if (file) this.validateAndPreviewFile(file, filePreview);
+                if (file) this.handleFileSelect(file, filePreview, fileLabel);
             });
 
+            // Drag & Drop функциональность
             fileUpload.addEventListener('dragover', (e: DragEvent) => {
                 e.preventDefault();
-                fileUpload.style.borderColor = 'var(--accent-color)';
+                fileUpload.classList.add('drag-over');
             });
 
             fileUpload.addEventListener('dragleave', (e: DragEvent) => {
                 e.preventDefault();
-                fileUpload.style.borderColor = 'var(--border-color)';
+                fileUpload.classList.remove('drag-over');
             });
 
             fileUpload.addEventListener('drop', (e: DragEvent) => {
                 e.preventDefault();
-                fileUpload.style.borderColor = 'var(--border-color)';
+                fileUpload.classList.remove('drag-over');
+                
                 const files = e.dataTransfer?.files;
                 if (files && files[0]) {
                     fileInput.files = files;
-                    this.validateAndPreviewFile(files[0], filePreview);
+                    this.handleFileSelect(files[0], filePreview, fileLabel);
+                }
+            });
+
+            // Клик по всей области загрузки
+            fileUpload.addEventListener('click', (e: Event) => {
+                if (e.target !== fileInput && !(e.target as Element).closest('.file-remove-btn')) {
+                    fileInput.click();
+                }
+            });
+
+            // Вставка из буфера обмена
+            document.addEventListener('paste', (e: ClipboardEvent) => {
+                const items = e.clipboardData?.items;
+                if (items) {
+                    for (let i = 0; i < items.length; i++) {
+                        if (items[i].type.indexOf('image') !== -1) {
+                            const file = items[i].getAsFile();
+                            if (file) {
+                                fileInput.files = this.createFileList(file);
+                                this.handleFileSelect(file, filePreview, fileLabel);
+                                break;
+                            }
+                        }
+                    }
                 }
             });
         }
     }
 
-    private validateAndPreviewFile(file: File, previewElement: HTMLElement): void {
+    private createFileList(file: File): FileList {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        return dt.files;
+    }
+
+    private handleFileSelect(file: File, previewElement: HTMLElement, labelElement: HTMLElement): void {
+        // Валидация файла
         if (!file.type.startsWith('image/')) {
-            this.showFieldError('attachment', 'Только изображения');
+            this.showFieldError('attachment', 'Только изображения (JPEG, PNG, GIF)');
             return;
         }
+        
         if (file.size > 5 * 1024 * 1024) {
             this.showFieldError('attachment', 'Макс. размер: 5MB');
             return;
         }
-        this.clearFieldError('attachment');
         
+        this.clearFieldError('attachment');
+        this.currentFile = file;
+        
+        // Обновляем текст лейбла
+        labelElement.textContent = `📎 ${file.name} (${this.formatFileSize(file.size)})`;
+        
+        // Показываем превью
         const reader = new FileReader();
         reader.onload = (e: ProgressEvent<FileReader>) => {
             if (e.target?.result) {
-                previewElement.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                previewElement.innerHTML = `
+                    <div class="file-preview-container">
+                        <img src="${e.target.result}" alt="Preview" class="file-preview-image">
+                        <button type="button" class="file-remove-btn" title="Удалить файл">×</button>
+                    </div>
+                `;
+                
+                // Добавляем обработчик для удаления файла
+                const removeBtn = previewElement.querySelector('.file-remove-btn');
+                if (removeBtn) {
+                    removeBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.removeFile(previewElement, labelElement);
+                    });
+                }
             }
         };
         reader.readAsDataURL(file);
+    }
+
+    private removeFile(previewElement: HTMLElement, labelElement: HTMLElement): void {
+        const fileInput = this.form?.querySelector('input[type="file"]') as HTMLInputElement;
+        if (fileInput) {
+            fileInput.value = '';
+        }
+        previewElement.innerHTML = '';
+        labelElement.textContent = '📎 Выберите файл или перетащите сюда (макс. 5MB)';
+        this.clearFieldError('attachment');
+        this.currentFile = null;
+    }
+
+    private formatFileSize(bytes: number): string {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
     private async handleSubmit(e: Event): Promise<void> {
@@ -153,13 +276,19 @@ class TechSupportIframe {
         if (!this.form) return;
 
         const formData = new FormData(this.form);
+        
+        // Добавляем файл если есть
+        if (this.currentFile) {
+            formData.set('attachment', this.currentFile);
+        }
+
         const data: SupportFormData = {
             accountEmail: formData.get('accountEmail') as string,
             topic: formData.get('topic') as string,
             description: formData.get('description') as string,
             contactName: formData.get('contactName') as string,
             contactEmail: formData.get('contactEmail') as string,
-            attachment: formData.get('attachment') as File
+            attachment: this.currentFile || undefined
         };
 
         const errors = this.validateForm(data);

@@ -172,11 +172,13 @@ class API {
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
+                    console.log('📧 User data from me:', response.data);
                     const userData = {
                         id: response.data.id,
                         name: response.data.name,
                         avatar: response.data.avatar || '/img/defaultAvatar.jpg',
-                        subtitle: response.data.subtitle || 'Блог'
+                        subtitle: response.data.subtitle || 'Блог',
+                        email: response.data.email || ''
                     };
                     this.sendAction('USER_LOGIN_CHECKED', { user: userData });
                 } else {
@@ -197,11 +199,13 @@ class API {
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
+                    console.log('📧 User data from login:', response.data); // ← И ЭТУ
                     const userData = {
                         id: response.data.id,
                         name: response.data.name,
                         avatar: response.data.avatar || '/img/defaultAvatar.jpg',
-                        subtitle: response.data.subtitle || 'Блог'
+                        subtitle: response.data.subtitle || 'Блог',
+                        email: response.data.email || ''
                     };
                     this.sendAction('USER_LOGIN_SUCCESS', { user: userData });
                 } else {

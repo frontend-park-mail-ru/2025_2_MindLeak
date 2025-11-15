@@ -91,25 +91,27 @@ class TechSupportIframe {
                 
                 this.renderForm();
                 break;
-            case 'TICKET_SUBMITTED':
-                this.showSuccessMessage();
-                break;
-            case 'TICKET_ERROR':
-                this.showError(payload.error);
-                break;
             case 'APPEALS_LOAD_SUCCESS':
                 // Получаем обращения из API
                 this.appeals = payload.appeals || [];
                 console.log('📋 Loaded appeals:', this.appeals);
+                
+                // Обновляем историю на форме
+                this.renderAppealsHistory();
                 break;
             case 'APPEALS_LOAD_FAIL':
                 console.error('Failed to load appeals:', payload.error);
                 break;
             case 'SUPPORT_TICKET_SUBMIT_SUCCESS':
-                // Обращение успешно отправлено, показываем историю
+                console.log('✅ Ticket submitted successfully, reloading appeals...');
+                // Обращение успешно отправлено, перезагружаем историю
+                this.loadAppealsHistory();
+                
+                // Показываем успешное сообщение И историю
                 this.showSuccessAndHistory();
                 break;
             case 'SUPPORT_TICKET_SUBMIT_FAIL':
+                console.error('❌ Ticket submission failed:', payload.error);
                 this.showError(payload.error);
                 this.setLoading(false);
                 this.isSubmitting = false;
@@ -165,12 +167,60 @@ private autoFillForm(): void {
                 this.form.addEventListener('submit', this.handleSubmit.bind(this));
                 this.setupFileUpload();
                 this.autoFillForm();
+                
+                // Добавляем историю обращений под формой
+                this.renderAppealsHistory();
             } else {
                 console.error('❌ Form element not found');
             }
         } catch (error) {
             console.error('❌ Error rendering template:', error);
         }
+    }
+
+    private reloadForm(): void {
+        this.currentFile = null;
+        this.isSubmitting = false;
+        this.renderForm();
+        this.loadAppealsHistory();
+    }
+
+    private renderAppealsHistory(): void {
+        if (!this.historyTemplate) return;
+        
+        const formContainer = this.form?.closest('.tech-support-modal');
+        if (!formContainer) return;
+
+        // Удаляем старую историю если есть
+        const existingHistory = formContainer.querySelector('.appeals-history');
+        if (existingHistory) {
+            existingHistory.remove();
+        }
+
+        // Если нет обращений, не показываем историю
+        if (this.appeals.length === 0) return;
+
+        console.log('🔄 Rendering appeals history with:', this.appeals.length, 'appeals');
+
+        const appealsWithFormattedData = this.appeals.map(appeal => ({
+            ...appeal,
+            statusColor: this.getStatusColor(appeal.status),
+            statusText: this.getStatusText(appeal.status),
+            categoryName: this.getCategoryName(appeal.category_id),
+            formattedDate: new Date(appeal.createdAt || '').toLocaleDateString('ru-RU')
+        }));
+
+        const historyHtml = this.historyTemplate({
+            appeals: appealsWithFormattedData,
+            hasAppeals: this.appeals.length > 0
+        });
+        
+        // Вставляем историю после формы
+        const historyElement = document.createElement('div');
+        historyElement.innerHTML = historyHtml;
+        formContainer.appendChild(historyElement);
+        
+        console.log('✅ Appeals history rendered');
     }
 
     private setupFileUpload(): void {
@@ -361,6 +411,8 @@ private autoFillForm(): void {
         const contentEl = document.getElementById('tech-support-content');
         if (!contentEl || !this.historyTemplate) return;
 
+        console.log('🔄 Showing success message and history with appeals:', this.appeals);
+
         const appealsWithFormattedData = this.appeals.map(appeal => ({
             ...appeal,
             statusColor: this.getStatusColor(appeal.status),
@@ -375,6 +427,15 @@ private autoFillForm(): void {
         });
         
         contentEl.innerHTML = html;
+        
+        // Добавляем обработчик для кнопки "Новое обращение"
+        const newAppealBtn = contentEl.querySelector('.form__button');
+        if (newAppealBtn) {
+            newAppealBtn.addEventListener('click', () => {
+                this.renderForm();
+                this.loadAppealsHistory(); // Перезагружаем историю для новой формы
+            });
+        }
     }
 
     private getStatusColor(status: string): string {

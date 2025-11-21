@@ -1,25 +1,25 @@
-import { Header } from '../components/Header/Header';
+import { Statistic } from '../components/Statistic/Statistic';
 import { TopBloggers } from '../components/TopBloggers/TopBloggers';
-import { ErrorButton } from '../components/ErrorButton/ErrorButton';
-import { dispatcher } from '../dispatcher/dispatcher';
-import { PostsView } from './viewPosts';
+import { Header } from '../components/Header/Header';
+import { router } from '../router/router';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
+import { loginStore } from '../stores/storeLogin';
 
-export class HomeView {
+export class StatisticsView {
+    private container: HTMLElement;
+    private topBloggers: TopBloggers | null = null;
     private headerInstance: Header;
-    private postsView: PostsView;
-    private feedWrapper: HTMLElement | null = null;
-    private currentCategory: string = 'fresh';
-    private topBloggersInstance: TopBloggers;
-    private topBloggersElement: HTMLElement | null = null;
+    private pageWrapper: HTMLElement | null = null;
+    private currentCategory: string = '';
+    private boundLoginStoreHandler: () => void;
+    private statisticsComponent: Statistic | null = null;
 
-    constructor() {
+    constructor(container: HTMLElement) {
+        this.container = container;
         this.headerInstance = new Header();
-        this.postsView = new PostsView();
-        this.topBloggersInstance = new TopBloggers();
+        this.boundLoginStoreHandler = this.handleLoginStoreChange.bind(this);
         this.determineCurrentCategory();
     }
-
 
     private determineCurrentCategory(): void {
         const url = new URL(window.location.href);
@@ -31,28 +31,33 @@ export class HomeView {
             const topicParam = url.searchParams.get('topic');
             this.currentCategory = topicParam || 'fresh';
         }
-
     }
 
     async render(): Promise<HTMLElement> {
         this.determineCurrentCategory();
+        loginStore.addListener(this.boundLoginStoreHandler);
+        await this.renderFullPage();
+        return this.pageWrapper!;
+    }
 
-        const rootElem = document.createElement('div');
+    private async renderFullPage(): Promise<void> {
+        this.container.innerHTML = '';
+
+        this.pageWrapper = document.createElement('div');
         
-        // header
+        // Header
         const headerContainer = document.createElement('header');
         const headerEl = await this.headerInstance.render(headerContainer);
         headerContainer.appendChild(headerEl);
-        rootElem.appendChild(headerContainer);
+        this.pageWrapper.appendChild(headerContainer);
 
-        // основной контент
+        // Основной контент
         const contentContainer = document.createElement('div');
         contentContainer.className = 'content-layout';
-        rootElem.appendChild(contentContainer);
 
         const leftMenu = document.createElement('aside');
         leftMenu.className = 'sidebar-left';
-
+        
         let sidebarEl1: HTMLElement | null = null;
         let sidebarEl2: HTMLElement | null = null;
 
@@ -105,47 +110,48 @@ export class HomeView {
         leftMenu.appendChild(sidebarEl1);
         leftMenu.appendChild(sidebarEl2);
 
-        // центр
-        const pageElement = document.createElement('main');
-        pageElement.className = 'main-content';
+        // Центральная область со статистикой
+        const mainContent = document.createElement('main');
+        mainContent.className = 'main-content';
         
-        // контейнер для постов
-        this.feedWrapper = document.createElement('div');
-        this.feedWrapper.className = 'feed';
-        this.feedWrapper.id = 'feed-wrapper';
-        pageElement.appendChild(this.feedWrapper);
+        const statisticsContent = await this.renderStatisticsMain();
+        mainContent.appendChild(statisticsContent);
 
-        // правое меню
+        // Правое меню
         const rightMenu = document.createElement('aside');
         rightMenu.className = 'sidebar-right';
- 
-        
-        this.topBloggersElement = await this.topBloggersInstance.render();
-        rightMenu.appendChild(this.topBloggersElement);
+        this.topBloggers = new TopBloggers();
+        const bloggersElement = await this.topBloggers.render();
+        rightMenu.appendChild(bloggersElement);
 
         contentContainer.appendChild(leftMenu);
-        contentContainer.appendChild(pageElement);
+        contentContainer.appendChild(mainContent);
         contentContainer.appendChild(rightMenu);
+        
+        this.pageWrapper.appendChild(contentContainer);
+        this.container.appendChild(this.pageWrapper);
+    }
 
-        // инициализация feed
-        try {
-            await this.postsView.init(this.feedWrapper);
-            console.log('PostsView initialized successfully for category:', this.currentCategory);
-        } catch (error) {
-            console.error('Failed to initialize PostsView:', error);
-            const errorEl = document.createElement('div');
-            errorEl.className = 'feed-error';
-            errorEl.textContent = 'Не удалось загрузить ленту постов';
-            if (this.feedWrapper) {
-                this.feedWrapper.appendChild(errorEl);
-            }
+    private async renderStatisticsMain(): Promise<HTMLElement> {
+        this.statisticsComponent = new Statistic();
+        const statisticsElement = await this.statisticsComponent.render();
+        
+        return statisticsElement;
+    }
+
+    private handleLoginStoreChange(): void {
+        const loginState = loginStore.getState();
+        
+        if (!loginState.isLoggedIn) {
+            router.navigate('/');
         }
-
-        return rootElem;
     }
 
     destroy(): void {
+        loginStore.removeListener(this.boundLoginStoreHandler);
         this.headerInstance.destroy();
-        this.postsView.destroy();
+        if (this.statisticsComponent) {
+            this.statisticsComponent.destroy();
+        }
     }
 }

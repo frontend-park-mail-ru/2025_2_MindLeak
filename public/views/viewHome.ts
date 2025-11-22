@@ -1,54 +1,58 @@
-// views/viewHome.ts
 import { Header } from '../components/Header/Header';
 import { UserList } from '../components/UserList/UserList';
-import { TopBloggers } from '../components/TopBloggers/TopBloggers';
-import { ErrorButton } from '../components/ErrorButton/ErrorButton';
 import { dispatcher } from '../dispatcher/dispatcher';
 import { PostsView } from './viewPosts';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
+import { CreatePostFormView } from '../views/viewCreatePostForm';
 import { userListStore } from '../stores/storeUserList';
 
 export class HomeView {
     private headerInstance: Header;
-    private postsView: PostsView;
+    private postsView: PostsView | null = null;
     private feedWrapper: HTMLElement | null = null;
     private currentCategory: string = 'fresh';
-    private pageWrapper: HTMLElement | null = null;
+    private createPostFormView: CreatePostFormView | null = null; 
     private boundStoreHandler: () => void;
 
     constructor() {
         this.headerInstance = new Header();
         this.postsView = new PostsView();
-        this.boundStoreHandler = this.handleStoreChange.bind(this);
         this.determineCurrentCategory();
+        this.createPostFormView = new CreatePostFormView();
+        this.boundStoreHandler = this.handleStoreChange.bind(this);
     }
 
     private determineCurrentCategory(): void {
         const url = new URL(window.location.href);
         const pathname = url.pathname;
+        
         if (pathname === '/' || pathname === '/feed') {
             this.currentCategory = 'fresh';
         } else if (pathname === '/feed/category') {
             const topicParam = url.searchParams.get('topic');
             this.currentCategory = topicParam || 'fresh';
         }
+        
+        // Отправляем в store текущий фильтр
+        dispatcher.dispatch('POSTS_SET_FILTER', { filter: this.currentCategory });
     }
 
     async render(): Promise<HTMLElement> {
+        // Определяем категорию перед рендером
         this.determineCurrentCategory();
 
-        this.pageWrapper = document.createElement('div');
-
+        const rootElem = document.createElement('div');
+        
         // header
         const headerContainer = document.createElement('header');
         const headerEl = await this.headerInstance.render(headerContainer);
         headerContainer.appendChild(headerEl);
-        this.pageWrapper.appendChild(headerContainer);
+        rootElem.appendChild(headerContainer);
 
         // основной контент
         const contentContainer = document.createElement('div');
         contentContainer.className = 'content-layout';
-        this.pageWrapper.appendChild(contentContainer);
+        rootElem.appendChild(contentContainer);
 
         const leftMenu = document.createElement('aside');
         leftMenu.className = 'sidebar-left';
@@ -62,26 +66,40 @@ export class HomeView {
             });
         };
 
-        // левое меню
+        // левое меню - передаем текущую категорию для подсветки
         const sidebar1 = new SidebarMenu(
             MAIN_MENU_ITEMS,
             this.currentCategory,
             (key) => {
                 if (sidebarEl2) deactivateAll(sidebarEl2);
-                let newUrl = key === 'fresh' ? '/feed' : `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
+                
+                let newUrl = '';
+                if (key === 'fresh') {
+                    newUrl = '/feed';
+                } else {
+                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
+                }
+                
                 window.history.pushState({}, '', newUrl);
                 window.dispatchEvent(new PopStateEvent('popstate'));
             }
         );
         sidebarEl1 = await sidebar1.render();
 
-        // нижнее меню
+        // нижнее меню - также передаем текущую категорию
         const sidebar2 = new SidebarMenu(
             SECONDARY_MENU_ITEMS,
             this.currentCategory,
             (key) => {
                 if (sidebarEl1) deactivateAll(sidebarEl1);
-                let newUrl = key === 'fresh' ? '/feed' : `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
+                
+                let newUrl = '';
+                if (key === 'fresh') {
+                    newUrl = '/feed';
+                } else {
+                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
+                }
+                
                 window.history.pushState({}, '', newUrl);
                 window.dispatchEvent(new PopStateEvent('popstate'));
             }
@@ -94,7 +112,7 @@ export class HomeView {
         // центр
         const pageElement = document.createElement('main');
         pageElement.className = 'main-content';
-
+        
         // контейнер для постов
         this.feedWrapper = document.createElement('div');
         this.feedWrapper.className = 'feed';
@@ -109,16 +127,17 @@ export class HomeView {
         contentContainer.appendChild(pageElement);
         contentContainer.appendChild(rightMenu);
 
+
         // Подписываемся и запускаем загрузку топ-блогеров
         userListStore.addListener(this.boundStoreHandler);
         dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
 
         // инициализация feed
         try {
-            await this.postsView.init(this.feedWrapper);
-            console.log('PostsView initialized successfully for category:', this.currentCategory);
+            if (this.postsView) {
+                await this.postsView.init(this.feedWrapper);
+            }
         } catch (error) {
-            console.error('Failed to initialize PostsView:', error);
             const errorEl = document.createElement('div');
             errorEl.className = 'feed-error';
             errorEl.textContent = 'Не удалось загрузить ленту постов';
@@ -127,7 +146,7 @@ export class HomeView {
             }
         }
 
-        return this.pageWrapper;
+        return rootElem;
     }
 
     private handleStoreChange(): void {
@@ -139,7 +158,7 @@ export class HomeView {
     }
 
     private async updateUserListContent(): Promise<void> {
-        const rightMenu = this.pageWrapper?.querySelector('.sidebar-right') || document.querySelector('.sidebar-right');
+        const rightMenu = this.feedWrapper?.querySelector('.sidebar-right') || document.querySelector('.sidebar-right');
         if (!rightMenu) return;
 
         const oldContent = rightMenu.querySelector('.user-list');
@@ -154,8 +173,14 @@ export class HomeView {
     }
 
     destroy(): void {
-        userListStore.removeListener(this.boundStoreHandler);
         this.headerInstance.destroy();
-        this.postsView.destroy();
+        if (this.postsView) {
+            this.postsView.destroy();
+            this.postsView = null;
+        }
+        if (this.createPostFormView) {
+            this.createPostFormView.destroy();
+            this.createPostFormView = null;
+        }
     }
 }

@@ -9,7 +9,6 @@ import { dispatcher } from '../dispatcher/dispatcher';
 
 export class SettingsView {
     private container: HTMLElement;
-    private userList: UserList | null = null;
     private headerInstance: Header;
     private pageWrapper: HTMLElement | null = null;
     private currentCategory: string = '';

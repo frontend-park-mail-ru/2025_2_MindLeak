@@ -107,7 +107,15 @@ export class Router {
         this.navigate(href);
     }
 
+// router.ts - обновите метод navigate:
+
     async navigate(path: string, updateHistory: boolean = true): Promise<void> {
+        // СТРОГАЯ ПРОВЕРКА СТАТИЧЕСКИХ ФАЙЛОВ
+        if (this.isStaticFileRequest(path)) {
+            console.log('📁 [ROUTER] Static file request, skipping router:', path);
+            return;
+        }
+
         const normalizedPath = path === '/' ? '/' : `/${path.replace(/^\/+/, '')}`;
 
         if (updateHistory) {
@@ -123,9 +131,34 @@ export class Router {
         }
     }
 
+    // ДОБАВЬТЕ ЭТОТ МЕТОД:
+    private isStaticFileRequest(path: string): boolean {
+        const staticExtensions = ['.html', '.css', '.js', '.ico', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.json'];
+        const pathname = path.split('?')[0].toLowerCase();
+        
+        // Проверяем расширения файлов
+        if (staticExtensions.some(ext => pathname.endsWith(ext))) {
+            return true;
+        }
+        
+        // Проверяем конкретные статические маршруты
+        const staticRoutes = ['/TechSupport.html', '/bundle.js', '/handlebars/', '/img/'];
+        if (staticRoutes.some(route => pathname.includes(route))) {
+            return true;
+        }
+        
+        return false;
+    }
+
     private findRoute(path: string): Route | null {
         const pathname = path.split('?')[0];
         const normalizedPath = pathname === '/' ? '/' : `/${pathname.replace(/^\/+/, '')}`;
+        
+        // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА СТАТИЧЕСКИХ ФАЙЛОВ
+        if (normalizedPath.includes('.html') || normalizedPath.includes('.css') || normalizedPath.includes('.js')) {
+            console.log('📁 [ROUTER] Static file in findRoute, skipping:', normalizedPath);
+            return null;
+        }
         
         console.log('🔍 [ROUTER] Searching route for path:', normalizedPath);
         

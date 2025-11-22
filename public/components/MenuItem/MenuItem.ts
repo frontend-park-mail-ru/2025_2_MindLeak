@@ -50,18 +50,6 @@ export class MenuItem {
             throw new Error('Menu item element not found');
         }
 
-        const setActive = () => {
-            document.querySelectorAll('.menu-item').forEach(el => {
-                el.classList.remove('menu-item--active');
-            });
-            menuItemEl.classList.add('menu-item--active');
-        };
-
-        menuItemEl.addEventListener('click', (e: Event) => {
-            e.preventDefault();
-            setActive();
-        });
-
         return menuItemEl;
     }
 }

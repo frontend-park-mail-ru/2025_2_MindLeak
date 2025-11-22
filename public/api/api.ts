@@ -14,6 +14,12 @@ class API {
     handleAction(actionType: string, payload?: any): void {
 
         switch (actionType) {
+            case 'STATISTICS_LOAD_REQUEST':
+                this.loadStatistics();
+                break;
+            case 'SUPPORT_REQUESTS_LOAD_REQUEST':
+                this.loadSupportRequests();
+                break;
             case 'LOGIN_CHECK_REQUEST':
                 this.checkAuth();
                 break;
@@ -62,7 +68,6 @@ class API {
             case 'EDIT_POST_REQUEST':
                 this.editPost(payload.postId, payload);
                 break;
-
             case 'AVATAR_UPLOAD_REQUEST':
                 this.uploadAvatar(payload.file);
                 break;
@@ -91,6 +96,240 @@ class API {
                     this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Unknown list type' });
                 }
                 break;
+            // Добавляем обработку обращений в поддержку
+            case 'SUPPORT_TICKET_SUBMIT_REQUEST':
+                console.log('🔄 Processing support ticket submit request');
+                this.submitSupportTicket(payload);
+                break;
+            case 'APPEALS_LOAD_REQUEST':
+                console.log('🔄 Processing appeals load request');
+                this.loadAppeals();
+                break;
+        }
+    }
+
+private async submitSupportTicket(payload: any): Promise<void> {
+    try {
+        console.log('📤 Submitting support ticket with payload:', payload);
+        
+        // Сначала загружаем файл если есть
+        let screenshot_url = '';
+        if (payload.attachment) {
+            console.log('📎 Uploading attachment...');
+            screenshot_url = await this.uploadSupportFile(payload.attachment);
+            console.log('✅ Attachment uploaded, URL:', screenshot_url);
+        }
+
+        // Подготавливаем данные для отправки согласно структуре бэкенда
+        const appealData = {
+            email_registered: payload.email_registered,
+            status: 'created',
+            problem_description: payload.problem_description,
+            name: payload.name,
+            category_id: payload.category_id || 6, // По умолчанию "Другое"
+            email_for_connection: payload.email_for_connection,
+            screenshot_url: screenshot_url || ''
+        };
+
+        console.log('📝 Final appeal data for backend:', appealData);
+
+        const response = await ajax.submitAppeal(appealData);
+        console.log('📨 Backend response:', response);
+
+        switch (response.status) {
+            case STATUS.ok:
+            case 201:
+                console.log('✅ Support ticket submitted successfully');
+                this.sendAction('SUPPORT_TICKET_SUBMIT_SUCCESS');
+                this.sendMessageToIframe('SUPPORT_TICKET_SUBMIT_SUCCESS');
+                this.loadAppeals();
+                break;
+            case STATUS.badRequest:
+                console.error('❌ Bad request:', response);
+                this.sendAction('SUPPORT_TICKET_SUBMIT_FAIL', {
+                    error: 'Некорректные данные обращения'
+                });
+                this.sendMessageToIframe('SUPPORT_TICKET_SUBMIT_FAIL', {
+                    error: 'Некорректные данные обращения'
+                });
+                break;
+            case STATUS.unauthorized:
+                console.error('❌ Unauthorized:', response);
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('SUPPORT_TICKET_SUBMIT_FAIL', {
+                    error: 'Требуется авторизация'
+                });
+                this.sendMessageToIframe('SUPPORT_TICKET_SUBMIT_FAIL', {
+                    error: 'Требуется авторизация'
+                });
+                break;
+            default:
+                console.error('❌ Other error:', response);
+                this.sendAction('SUPPORT_TICKET_SUBMIT_FAIL', {
+                    error: response.message || 'Ошибка отправки обращения'
+                });
+                this.sendMessageToIframe('SUPPORT_TICKET_SUBMIT_FAIL', {
+                    error: response.message || 'Ошибка отправки обращения'
+                });
+        }
+    } catch (error) {
+        console.error('❌ Exception in submitSupportTicket:', error);
+        this.sendAction('SUPPORT_TICKET_SUBMIT_FAIL', {
+            error: 'Ошибка при отправке обращения'
+        });
+        this.sendMessageToIframe('SUPPORT_TICKET_SUBMIT_FAIL', {
+            error: 'Ошибка при отправке обращения'
+        });
+    }
+}
+
+    private sendMessageToIframe(type: string, payload?: any): void {
+        const iframe = document.querySelector('.iframe-modal iframe') as HTMLIFrameElement;
+        if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage({
+                type: type,
+                payload: payload,
+                source: 'main-window' // Добавляем source
+            }, window.location.origin);
+            console.log('📤 Sent message to iframe:', type, payload, 'source: main-window');
+        }
+    }
+
+    private async uploadSupportFile(file: File): Promise<string> {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await ajax.uploadSupportFile(formData);
+        
+        if (response.status === STATUS.ok && response.data?.url) {
+            return response.data.url;
+        }
+        throw new Error('Failed to upload file');
+    }
+
+    private async loadAppeals(): Promise<void> {
+        const response = await ajax.getAppeals();
+
+        switch (response.status) {
+            case STATUS.ok:
+                if (response.data) {
+                    const appeals = Array.isArray(response.data) ? response.data : response.data.items || [];
+                    
+                    // Нормализуем данные обращений
+                    const normalizedAppeals = appeals.map((appeal: any) => this.normalizeAppealData(appeal));
+                    
+                    this.sendAction('APPEALS_LOAD_SUCCESS', {
+                        appeals: normalizedAppeals
+                    });
+                     // Отправляем данные в iframe
+                    this.sendMessageToIframe('APPEALS_LOAD_SUCCESS', {
+                        appeals: normalizedAppeals
+                    });
+                } else {
+                    this.sendAction('APPEALS_LOAD_FAIL', {
+                        error: 'Нет данных обращений'
+                    });
+                }
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('APPEALS_LOAD_FAIL', {
+                    error: 'Требуется авторизация'
+                });
+                break;
+            default:
+                this.sendAction('APPEALS_LOAD_FAIL', {
+                    error: response.message || 'Ошибка загрузки обращений'
+                });
+        }
+    }
+
+    /**
+     * Нормализует данные обращения, приводя их к единой структуре
+     */
+    /**
+ * Нормализует данные обращения, приводя их к единой структуре
+ */
+private normalizeAppealData(appeal: any): any {
+    const normalized = {
+        id: appeal.appeal_id || appeal.id || appeal.ID,
+        email_registered: appeal.email_registered || appeal.EmailRegistered,
+        status: appeal.status || appeal.Status || 'created',
+        problem_description: appeal.problem_description || appeal.ProblemDescription,
+        name: appeal.name || appeal.Name,
+        category_id: appeal.category_id || appeal.CategoryID,
+        email_for_connection: appeal.email_for_connection || appeal.EmailForConnect,
+        screenshot_url: appeal.screenshot_url || appeal.ScreenshotURL,
+        createdAt: appeal.created_at || appeal.CreatedAt
+    };
+    
+    // Проверяем и форматируем дату
+    if (normalized.createdAt) {
+        const date = new Date(normalized.createdAt);
+        if (isNaN(date.getTime())) {
+            console.warn('⚠️ Invalid date found:', normalized.createdAt);
+            normalized.createdAt = new Date().toISOString(); // Устанавливаем текущую дату если невалидная
+        }
+    } else {
+        normalized.createdAt = new Date().toISOString(); // Устанавливаем текущую дату если нет даты
+    }
+    
+    return normalized;
+}
+
+
+    private async loadStatistics(): Promise<void> {
+        const response = await ajax.get('/appeals/statistics');
+
+        switch (response.status) {
+            case STATUS.ok:
+                if (response.data) {
+                    this.sendAction('STATISTICS_LOAD_SUCCESS', {
+                        total: response.data.total,
+                        byCategory: response.data.byCategory,
+                        byStatus: response.data.byStatus
+                    });
+                } else {
+                    this.sendAction('STATISTICS_LOAD_FAIL', {
+                        error: 'Нет данных статистики'
+                    });
+                }
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('STATISTICS_LOAD_FAIL', {
+                    error: 'Требуется авторизация'
+                });
+                break;
+            default:
+                this.sendAction('STATISTICS_LOAD_FAIL', {
+                    error: response.message || 'Ошибка загрузки статистики'
+                });
+        }
+    }
+
+    private async loadSupportRequests(): Promise<void> {
+        const response = await ajax.get('/support-requests');
+
+        switch (response.status) {
+            case STATUS.ok:
+                const rawData = response.data;
+                const rawList = Array.isArray(rawData) ? rawData : rawData.items || [];
+                
+                this.sendAction('SUPPORT_REQUESTS_LOAD_SUCCESS', {
+                    supportRequests: rawList
+                });
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('SUPPORT_REQUESTS_LOAD_FAIL', {
+                    error: 'Требуется авторизация'
+                });
+                break;
+            default:
+                this.sendAction('SUPPORT_REQUESTS_LOAD_FAIL', {
+                    error: response.message || 'Ошибка загрузки списка обращений'
+                });
         }
     }
 
@@ -122,11 +361,13 @@ class API {
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
+                    console.log('📧 User data from me:', response.data);
                     const userData = {
                         id: response.data.id,
                         name: response.data.name,
                         avatar: response.data.avatar || '/img/defaultAvatar.jpg',
-                        subtitle: response.data.subtitle || 'Блог'
+                        subtitle: response.data.subtitle || 'Блог',
+                        email: response.data.email || ''
                     };
                     this.sendAction('USER_LOGIN_CHECKED', { user: userData });
                 } else {
@@ -147,11 +388,13 @@ class API {
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
+                    console.log('📧 User data from login:', response.data);
                     const userData = {
                         id: response.data.id,
                         name: response.data.name,
                         avatar: response.data.avatar || '/img/defaultAvatar.jpg',
-                        subtitle: response.data.subtitle || 'Блог'
+                        subtitle: response.data.subtitle || 'Блог',
+                        email: response.data.email || ''
                     };
                     this.sendAction('USER_LOGIN_SUCCESS', { user: userData });
                 } else {
@@ -497,8 +740,6 @@ class API {
             case 201:
                 if (response.data) {
                     this.sendAction('CREATE_POST_SUCCESS', response.data);
-                    
-                    // Запускаем перезагрузку ленты
                     this.sendAction('POSTS_RELOAD_AFTER_CREATE');
                 } else {
                     this.sendAction('CREATE_POST_FAIL', { 

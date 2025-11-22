@@ -80,6 +80,7 @@ class Ajax {
         }
     }
 
+   
     async get(url: string): Promise<ApiResponse> {
         return this.request(url);
     }
@@ -171,10 +172,32 @@ class Ajax {
         return this.request('/delete/cover', {
             method: 'DELETE'
         });
+    }
+    // Добавляем методы для работы с обращениями в поддержку
+    async submitAppeal(appealData: {
+        email_registered: string;
+        status: string;
+        name: string;
+        problem_description: string;
+        category_id: string;
+        email_for_connection: string;
+        screenshot_url: string;
+    }): Promise<ApiResponse> {
+        console.log('📤 Sending appeal to backend:', appealData);
+        return this.post('/appeal', appealData);
+    }
 
+    async getAppeals(): Promise<ApiResponse> {
+        return this.get('/appeals');
+    }
+
+    async uploadSupportFile(formData: FormData): Promise<ApiResponse> {
+        return this.request('/appeals/uploads', {
+            method: 'POST',
+            body: formData
+        });
     }
 }
 
-// todo форма записи 
 export const ajax = new Ajax();
 export default ajax;

@@ -1,10 +1,16 @@
 const path = require('path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = (env, argv) => {
   const isProduction = argv.mode === 'production';
   
   return {
-    entry: './public/index.ts',
+    // МНОЖЕСТВЕННЫЕ ТОЧКИ ВХОДА
+    entry: {
+      main: './public/index.ts',
+      TechSupport: './public/components/TechSupport/TechSupport.ts'
+    },
     
     mode: isProduction ? 'production' : 'development',
     
@@ -24,25 +30,83 @@ module.exports = (env, argv) => {
           test: /\.css$/,
           use: ['style-loader', 'css-loader'],
         },
+        {
+          test: /\.(png|jpg|jpeg|gif|svg)$/,
+          type: 'asset/resource',
+          generator: {
+            filename: 'img/[name][ext]'
+          }
+        }
       ],
     },
     
     resolve: {
       extensions: ['.ts', '.js', '.hbs'],
+      alias: {
+        '@stores': path.resolve(__dirname, 'public/stores'),
+        '@components': path.resolve(__dirname, 'public/components'),
+        '@views': path.resolve(__dirname, 'public/views')
+      }
     },
     
     output: {
-      filename: 'bundle.js',
-      path: path.resolve(__dirname, 'public'),
+      filename: '[name].bundle.js', // ИСПОЛЬЗУЙТЕ [name]
+      path: path.resolve(__dirname, 'dist'),
+      publicPath: '/',
+      clean: true,
     },
 
-    //todo УБРАТЬ КОГДА УБЕЖДУСЬ, ЧТО ПРОБЛЕМА БЫЛА В ТОТ МОМЕНТ НА БЭКЕ А НЕ У МЕНЯ (Т К ТЕСТ ПРИШЕЛ НА АПДЕЙТ БЭКА)
-    // Полностью отключаем разделение кода
+    plugins: [
+      // Главная страница
+      new HtmlWebpackPlugin({
+        template: './public/index.html',
+        filename: 'index.html',
+        chunks: ['main'], // ТОЛЬКО main bundle
+        inject: 'body'
+      }),
+      // Страница техподдержки
+      new HtmlWebpackPlugin({
+        template: './public/TechSupport.html',
+        filename: 'TechSupport.html',
+        chunks: ['TechSupport'], // ТОЛЬКО TechSupport bundle
+        inject: 'body'
+      }),
+      // Копируем статические файлы
+      new CopyWebpackPlugin({
+        patterns: [
+          {
+            from: 'public/img',
+            to: 'img',
+            noErrorOnMissing: true
+          },
+          {
+            from: 'public/components/TechSupport/TechSupport.hbs',
+            to: 'components/TechSupport/[name][ext]',
+            noErrorOnMissing: true
+          },
+          {
+            from: 'public/components/TechSupport/TechSupport.css',
+            to: 'components/TechSupport/[name][ext]',
+            noErrorOnMissing: true
+          }
+        ]
+      })
+    ],
+
+    devServer: {
+      static: {
+        directory: path.join(__dirname, 'dist'),
+      },
+      port: 3000,
+      open: true,
+      hot: true,
+      historyApiFallback: true
+    },
+
     optimization: {
       splitChunks: false,
       runtimeChunk: false,
       minimize: isProduction,
-      // Предотвращаем создание отдельных файлов для чанков
       moduleIds: 'deterministic',
       chunkIds: 'deterministic'
     }

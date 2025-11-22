@@ -80,6 +80,22 @@ class API {
             case 'COVER_DELETE_REQUEST':
                 this.deleteCover();
                 break;
+            case 'USER_LIST_LOAD_REQUEST':
+                const listType = payload.type;
+                switch (listType) {
+                    case 'topblogs':
+                    this.loadTopBlogs();
+                    break;
+                    case 'subscriptions':
+                    this.loadSubscriptions();
+                    break;
+                    case 'subscribers':
+                    this.loadSubscribers();
+                    break;
+                    default:
+                    this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Unknown list type' });
+                }
+                break;
             // Добавляем обработку обращений в поддержку
             case 'SUPPORT_TICKET_SUBMIT_REQUEST':
                 console.log('🔄 Processing support ticket submit request');
@@ -317,15 +333,10 @@ private normalizeAppealData(appeal: any): any {
         }
     }
 
-    // отправ действие через диспетчер
     private sendAction(actionType: string, payload?: any): void {
         dispatcher.dispatch(actionType, payload);
     }
 
-    /**
-     * Нормализует данные поста, приводя их к единой структуре
-     * Конвертирует PascalCase в camelCase и стандартизирует поля
-     */
     private normalizePostData(post: any): any {
         return {
             id: post.id || post.ID || post.postId,
@@ -857,6 +868,94 @@ private normalizeAppealData(appeal: any): any {
                 });
         }
     }
+
+    private async loadTopBlogs(): Promise<void> {
+        const response = await ajax.get('/topblogs');
+        switch (response.status) {
+            case STATUS.ok:
+            if (response.data && Array.isArray(response.data.Blogs)) {
+                const users = response.data.Blogs.map((item: any) => ({
+                id: item.id,
+                name: item.name,
+                subtitle: `Подписчики: ${item.subscribers}`,
+                avatar: item.avatar || '/img/defaultAvatar.jpg',
+                isSubscribed: false,
+                hideSubscribeButton: true
+                }));
+                this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
+            } else {
+                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No top blogs data or invalid format' });
+            }
+            break;
+            case STATUS.unauthorized:
+            this.sendAction('USER_UNAUTHORIZED');
+            this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
+            break;
+            default:
+            this.sendAction('USER_LIST_LOAD_FAIL', {
+                error: response.message || 'Ошибка загрузки топ блогеров'
+            });
+        }
+    }
+
+    private async loadSubscriptions(): Promise<void> {
+        const response = await ajax.get('/subscriptions');
+        switch (response.status) {
+            case STATUS.ok:
+            if (response.data) {
+                const users = response.data.map((item: any) => ({
+                id: item.id,
+                name: item.name,
+                subtitle: `Подписчики: ${item.subscribers}`,
+                avatar: item.avatar || '/img/defaultAvatar.jpg',
+                isSubscribed: true,
+                hideSubscribeButton: false
+                }));
+                this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
+            } else {
+                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No subscriptions data' });
+            }
+            break;
+            case STATUS.unauthorized:
+            this.sendAction('USER_UNAUTHORIZED');
+            this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
+            break;
+            default:
+            this.sendAction('USER_LIST_LOAD_FAIL', {
+                error: response.message || 'Ошибка загрузки подписок'
+            });
+        }
+    }
+
+    private async loadSubscribers(): Promise<void> {
+        const response = await ajax.get('/subscribers');
+        switch (response.status) {
+            case STATUS.ok:
+            if (response.data) {
+                const users = response.data.map((item: any) => ({
+                id: item.id,
+                name: item.name,
+                subtitle: `Подписчики: ${item.subscribers}`,
+                avatar: item.avatar || '/img/defaultAvatar.jpg',
+                isSubscribed: false,
+                hideSubscribeButton: false
+                }));
+                this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
+            } else {
+                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No subscribers data' });
+            }
+            break;
+            case STATUS.unauthorized:
+            this.sendAction('USER_UNAUTHORIZED');
+            this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
+            break;
+            default:
+            this.sendAction('USER_LIST_LOAD_FAIL', {
+                error: response.message || 'Ошибка загрузки подписчиков'
+            });
+        }
+    }
+
 }
 
 export const api = new API();

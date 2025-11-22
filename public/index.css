@@ -1,6 +1,7 @@
 @import url('./components/FormButton/FormButton.css');
+@import url('./components/CreatePostForm/CreatePostForm.css');
 @import url('./components/ErrorButton/ErrorButton.css');
-@import url('components/Header/Header.css');
+@import url('./components/Header/Header.css');
 @import url('./components/Icon/Icon.css');
 @import url('./components/Input/Input.css');
 @import url('./components/LoginForm/LoginForm.css');
@@ -10,7 +11,7 @@
 @import url('./components/SignUpForm/SignUpForm.css');
 @import url('./components/SidebarMenu/SidebarMenu.css');
 @import url('./components/Tag/Tag.css');
-@import url('./components/TopBloggers/TopBloggers.css');
+@import url('./components/UserList/UserList.css');
 @import url('./components/UserMenu/UserMenu.css');
 @import url('./components/Profile/Profile.css');
 @import url('./components/Settings/Settings.css');
@@ -19,7 +20,6 @@
 @import url('./components/SettingsNotifications/SettingsNotifications.css');
 @import url('./components/SettingsPrivacy/SettingsPrivacy.css');
 @import url('./components/ProfileEdit/ProfileEdit.css');
-@import url('./components/CreatePostForm/CreatePostForm.css');
 @import url('./components/DeletePostModal/DeletePostModal.css');
 @import url('./components/TechSupport/TechSupport.css');
 @import url('./components/Statistic/Statistic.css');
@@ -82,6 +82,10 @@ header {
 
 form {
     margin: 0;
+}
+
+button {
+    padding: 0;
 }
 
 .content-layout {

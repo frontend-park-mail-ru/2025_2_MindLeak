@@ -1,6 +1,6 @@
 // views/viewPost.ts
 import { Header } from '../components/Header/Header';
-import { TopBloggers } from '../components/TopBloggers/TopBloggers';
+import { UserList } from '../components/UserList/UserList';
 import { dispatcher } from '../dispatcher/dispatcher';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
 import { PostCard, PostCardProps } from '../components/PostCard/PostCard';
@@ -51,7 +51,6 @@ export class PostView {
             });
         };
 
-        // Левое меню — без активного состояния (мы не в ленте!)
         const sidebar1 = new SidebarMenu(
             MAIN_MENU_ITEMS,
             '',
@@ -64,7 +63,6 @@ export class PostView {
         );
         sidebarEl1 = await sidebar1.render();
 
-        // Нижнее меню — тоже без активного состояния
         const sidebar2 = new SidebarMenu(
             SECONDARY_MENU_ITEMS,
             '',
@@ -100,9 +98,12 @@ export class PostView {
         // Правое меню
         const rightMenu = document.createElement('aside');
         rightMenu.className = 'sidebar-right';
-        const topBloggers = new TopBloggers();
-        const topBloggersEl = await topBloggers.render();
-        rightMenu.appendChild(topBloggersEl);
+        const userList = new UserList({
+            title: 'Топ блогов',
+            users: []
+            });
+        const userListE1 = await userList.render();
+        rightMenu.appendChild(userListE1);
 
         contentContainer.appendChild(leftMenu);
         contentContainer.appendChild(pageElement);

@@ -1,19 +1,22 @@
 import { SettingsNotifications } from '../components/SettingsNotifications/SettingsNotifications';
-import { TopBloggers } from '../components/TopBloggers/TopBloggers';
+import { UserList } from '../components/UserList/UserList';
 import { Header } from '../components/Header/Header';
+import { userListStore } from '../stores/storeUserList';
 import { dispatcher } from '../dispatcher/dispatcher';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
 
 export class SettingsNotificationsView {
     private container: HTMLElement;
     private sidebarMenu: SidebarMenu | null = null;
-    private topBloggers: TopBloggers | null = null;
+    private userList: UserList | null = null;
     private headerInstance: Header;
     private pageWrapper: HTMLElement | null = null;
+    private boundStoreHandler: () => void;
 
     constructor(container: HTMLElement) {
         this.container = container;
         this.headerInstance = new Header();
+        this.boundStoreHandler = this.handleStoreChange.bind(this);
     }
 
     async render(): Promise<HTMLElement> {
@@ -92,13 +95,14 @@ export class SettingsNotificationsView {
         // Правое меню
         const rightMenu = document.createElement('aside');
         rightMenu.className = 'sidebar-right';
-        this.topBloggers = new TopBloggers();
-        const bloggersElement = await this.topBloggers.render();
-        rightMenu.appendChild(bloggersElement);
 
         contentContainer.appendChild(leftMenu);
         contentContainer.appendChild(mainContent);
         contentContainer.appendChild(rightMenu);
+
+        // Подписываемся и запускаем загрузку топ-блогеров
+        userListStore.addListener(this.boundStoreHandler);
+        dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
         
         this.pageWrapper.appendChild(contentContainer);
         this.container.appendChild(this.pageWrapper);
@@ -109,7 +113,31 @@ export class SettingsNotificationsView {
         return await settingsNotificationsComponent.render();
     }
 
+    private handleStoreChange(): void {
+        const state = userListStore.getState();
+        if (state.error) {
+            console.error('UserList error:', state.error);
+        }
+        this.updateUserListContent();
+    }
+
+    private async updateUserListContent(): Promise<void> {
+        const rightMenu = this.pageWrapper?.querySelector('.sidebar-right') || document.querySelector('.sidebar-right');
+        if (!rightMenu) return;
+
+        const oldContent = rightMenu.querySelector('.user-list');
+        if (oldContent) oldContent.remove();
+
+        const newList = new UserList({
+            title: 'Топ блогов',
+            users: userListStore.getState().users || []
+        });
+        const newElement = await newList.render();
+        rightMenu.appendChild(newElement);
+    }
+
     destroy(): void {
+        userListStore.removeListener(this.boundStoreHandler);
         this.headerInstance.destroy();
     }
 }

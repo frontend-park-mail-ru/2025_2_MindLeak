@@ -1,5 +1,5 @@
 import { Profile } from '../components/Profile/Profile';
-import { TopBloggers } from '../components/TopBloggers/TopBloggers';
+import { UserList } from '../components/UserList/UserList';
 import { Header } from '../components/Header/Header';
 import { profileStore } from '../stores/storeProfile';
 import { dispatcher } from '../dispatcher/dispatcher';
@@ -14,7 +14,7 @@ export class ProfileView {
     private userId?: string;
     private boundStoreHandler: () => void;
     private boundLoginStoreHandler: () => void;
-    private topBloggers: TopBloggers | null = null;
+    private userList: UserList | null = null;
     private headerInstance: Header;
     private pageWrapper: HTMLElement | null = null;
     private createPostFormView: CreatePostFormView | null = null;
@@ -144,8 +144,11 @@ export class ProfileView {
         const rightMenu = document.createElement('aside');
         rightMenu.className = 'sidebar-right';
         
-        this.topBloggers = new TopBloggers();
-        const bloggersElement = await this.topBloggers.render();
+        this.userList = new UserList({
+            title: 'Топ блогов',
+            users: []
+            });
+        const bloggersElement = await this.userList.render();
         if (bloggersElement) {
             rightMenu.appendChild(bloggersElement);
         }
@@ -324,7 +327,7 @@ export class ProfileView {
         // Очищаем ссылки на DOM элементы
         this.sidebarEl1 = null;
         this.sidebarEl2 = null;
-        this.topBloggers = null;
+        this.userList = null;
         
         // Удаляем pageWrapper из DOM
         if (this.pageWrapper && this.pageWrapper.parentNode) {

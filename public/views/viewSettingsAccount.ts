@@ -1,5 +1,6 @@
 import { SettingsAccount } from '../components/SettingsAccount/SettingsAccount';
-import { TopBloggers } from '../components/TopBloggers/TopBloggers';
+import { UserList } from '../components/UserList/UserList';
+import { userListStore } from '../stores/storeUserList';
 import { Header } from '../components/Header/Header';
 import { settingsAccountStore, SettingsAccountState } from '../stores/storeSettingsAccount';
 import { DeleteAccountModal } from '../components/DeleteAccount/DeleteAccount';
@@ -12,7 +13,7 @@ export class SettingsAccountView {
     private container: HTMLElement;
     private boundStoreHandler: () => void;
     private sidebarMenu: SidebarMenu | null = null;
-    private topBloggers: TopBloggers | null = null;
+    private userList: UserList | null = null;
     private headerInstance: Header;
     private pageWrapper: HTMLElement | null = null;
     private deleteModal: DeleteAccountModal | null = null;
@@ -27,7 +28,6 @@ export class SettingsAccountView {
         this.boundLoginStoreHandler = this.handleLoginStoreChange.bind(this);
         this.boundFormSubmitHandler = this.handleFormSubmit.bind(this);
         this.determineCurrentCategory();
-        
     }
 
 
@@ -127,21 +127,23 @@ export class SettingsAccountView {
         leftMenu.appendChild(sidebarEl1);
         leftMenu.appendChild(sidebarEl2);
 
+        // центр
         const mainContent = document.createElement('main');
         mainContent.className = 'main-content';
         
         const accountContent = await this.renderAccountContent();
         mainContent.appendChild(accountContent);
 
+        // правое меню
         const rightMenu = document.createElement('aside');
         rightMenu.className = 'sidebar-right';
-        this.topBloggers = new TopBloggers();
-        const bloggersElement = await this.topBloggers.render();
-        rightMenu.appendChild(bloggersElement);
 
         contentContainer.appendChild(leftMenu);
         contentContainer.appendChild(mainContent);
         contentContainer.appendChild(rightMenu);
+
+        userListStore.addListener(this.boundStoreHandler);
+        dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
         
         this.pageWrapper.appendChild(contentContainer);
         this.container.appendChild(this.pageWrapper);
@@ -453,12 +455,26 @@ export class SettingsAccountView {
     }
 
     private handleStoreChange(): void {
-        const state = settingsAccountStore.getState();
-        
+        const state = userListStore.getState();
         if (state.error) {
+            console.error('UserList error:', state.error);
         }
-        
-        this.updateAccountContent();
+        this.updateUserListContent();
+    }
+
+    private async updateUserListContent(): Promise<void> {
+        const rightMenu = this.pageWrapper?.querySelector('.sidebar-right') || document.querySelector('.sidebar-right');
+        if (!rightMenu) return;
+
+        const oldContent = rightMenu.querySelector('.user-list');
+        if (oldContent) oldContent.remove();
+
+        const newList = new UserList({
+            title: 'Топ блогов',
+            users: userListStore.getState().users || []
+        });
+        const newElement = await newList.render();
+        rightMenu.appendChild(newElement);
     }
 
     private async updateAccountContent(): Promise<void> {

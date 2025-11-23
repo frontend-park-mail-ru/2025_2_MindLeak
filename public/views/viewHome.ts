@@ -13,6 +13,8 @@ export class HomeView {
     private currentCategory: string = 'fresh';
     private createPostFormView: CreatePostFormView | null = null; 
     private boundStoreHandler: () => void;
+    private userListElement: HTMLElement | null = null; // Добавляем ссылку на текущий UserList
+    private isUserListRendered: boolean = false; // Флаг чтобы отслеживать рендер UserList
 
     constructor() {
         this.headerInstance = new Header();
@@ -127,10 +129,14 @@ export class HomeView {
         contentContainer.appendChild(pageElement);
         contentContainer.appendChild(rightMenu);
 
-
         // Подписываемся и запускаем загрузку топ-блогеров
         userListStore.addListener(this.boundStoreHandler);
-        dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
+        
+        // Загружаем топ блогов только если еще не загружали
+        if (!this.isUserListRendered) {
+            dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
+            this.isUserListRendered = true;
+        }
 
         // инициализация feed
         try {
@@ -158,18 +164,24 @@ export class HomeView {
     }
 
     private async updateUserListContent(): Promise<void> {
-        const rightMenu = this.feedWrapper?.querySelector('.sidebar-right') || document.querySelector('.sidebar-right');
+        const rightMenu = this.feedWrapper?.closest('.content-layout')?.querySelector('.sidebar-right') || 
+                         document.querySelector('.sidebar-right');
+        
         if (!rightMenu) return;
 
-        const oldContent = rightMenu.querySelector('.user-list');
-        if (oldContent) oldContent.remove();
+        // Удаляем старый UserList если он есть
+        if (this.userListElement) {
+            this.userListElement.remove();
+            this.userListElement = null;
+        }
 
         const newList = new UserList({
             title: 'Топ блогов',
             users: userListStore.getState().users || []
         });
-        const newElement = await newList.render();
-        rightMenu.appendChild(newElement);
+        
+        this.userListElement = await newList.render();
+        rightMenu.appendChild(this.userListElement);
     }
 
     destroy(): void {
@@ -182,5 +194,14 @@ export class HomeView {
             this.createPostFormView.destroy();
             this.createPostFormView = null;
         }
+        
+        // Очищаем UserList при уничтожении
+        if (this.userListElement) {
+            this.userListElement.remove();
+            this.userListElement = null;
+        }
+        
+        this.isUserListRendered = false;
+        userListStore.removeListener(this.boundStoreHandler);
     }
 }

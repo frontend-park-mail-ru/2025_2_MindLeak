@@ -287,9 +287,16 @@ export class Header {
 
         const resultsElement = await this.searchResults.render();
         
-        // Проверяем, есть ли кнопка "Показать все результаты"
+        // Детальная проверка элементов после рендера
         const showAllButton = resultsElement.querySelector('[data-action="show-all"]');
-        console.log('🔍 "Show all" button exists:', !!showAllButton);
+        const footer = resultsElement.querySelector('.search-results__footer');
+        const listItems = resultsElement.querySelectorAll('.search-result-item');
+        
+        console.log('🔍 After SearchResults render:');
+        console.log('  - Show-all button:', !!showAllButton);
+        console.log('  - Footer:', !!footer);
+        console.log('  - List items count:', listItems.length);
+        console.log('  - Results element HTML:', resultsElement.outerHTML);
         
         // Позиционируем под поиском
         if (this.searchInput) {

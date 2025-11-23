@@ -19,15 +19,17 @@ export class SearchResults {
         const templateResponse = await fetch('/components/SearchResults/SearchResults.hbs');
         const templateSource = await templateResponse.text();
         
+        console.log('🔍 Raw template source:', templateSource);
+        
         // Компилируем шаблон
         const template = Handlebars.compile(templateSource);
         
-        // Рендерим HTML - ВЫПАДАЮЩИЙ СПИСОК ВСЕГДА ПОКАЗЫВАЕТ КНОПКУ
+        // Рендерим HTML
         const html = template({
             users: this.props.users || []
         });
 
-        console.log('🔍 SearchResults rendered with users:', this.props.users); // Добавляем лог
+        console.log('🔍 Rendered HTML:', html);
 
         // Создаем элемент
         const div = document.createElement('div');
@@ -37,18 +39,26 @@ export class SearchResults {
         this.element = div.firstElementChild as HTMLElement;
         
         if (!this.element) {
-            // Если не нашли первого ребенка, используем сам div
             this.element = div;
+        }
+
+        // ГАРАНТИРУЕМ, что футер есть
+        let footer = this.element.querySelector('.search-results__footer');
+        if (!footer) {
+            console.log('❌ Footer not found in template, creating manually');
+            footer = document.createElement('div');
+            footer.className = 'search-results__footer';
+            footer.innerHTML = `<a href="#" class="search-results__show-all" data-action="show-all">Показать все результаты</a>`;
+            this.element.appendChild(footer);
         }
 
         this.setupEventHandlers();
         
-        // Проверяем, есть ли футер после рендера
-        const footer = this.element.querySelector('.search-results__footer');
-        console.log('🔍 SearchResults footer exists:', !!footer);
+        console.log('✅ Final element with footer:', this.element.outerHTML);
         
         return this.element;
     }
+
     private setupEventHandlers(): void {
         if (!this.element) return;
 

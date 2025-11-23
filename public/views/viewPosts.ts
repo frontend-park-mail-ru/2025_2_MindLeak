@@ -23,6 +23,7 @@ export class PostsView {
         postsStore.addListener(this.boundStoreHandler);
     }
 
+    // ОСНОВНОЙ метод - для обычного использования (сам загружает данные)
     public async init(feedWrapper?: HTMLElement): Promise<void> {
         if (feedWrapper) {
             this.feedWrapper = feedWrapper;
@@ -34,7 +35,6 @@ export class PostsView {
             throw new Error('Feed wrapper not found');
         }
 
-        // Очищаем предыдущий observer если был
         this.cleanupScroll();
 
         // Определяем категорию из URL
@@ -53,6 +53,56 @@ export class PostsView {
 
         this.setupInfiniteScroll();
         this.isInitialized = true;
+    }
+
+    // НОВЫЙ метод - для использования готовых постов (для поиска)
+    public async initWithPosts(feedWrapper: HTMLElement, externalPosts: Post[]): Promise<void> {
+        this.feedWrapper = feedWrapper;
+        this.cleanupScroll();
+
+        if (externalPosts && externalPosts.length > 0) {
+            this.allPosts = externalPosts;
+            this.renderAllPosts();
+            this.isInitialized = true;
+            return;
+        }
+
+        // Если внешние посты пустые, показываем сообщение
+        this.showEmptyMessage();
+        this.isInitialized = true;
+    }
+
+    private renderAllPosts(): void {
+        if (!this.feedWrapper) return;
+
+        this.feedWrapper.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+        
+        for (const apiPost of this.allPosts) {
+            const postData = this.transformPost(apiPost);
+            const postCard = new PostCard({
+                ...postData,
+                onMenuAction: (action) => this.handlePostAction(action, apiPost.id)
+            });
+            
+            postCard.render().then(postElement => {
+                fragment.appendChild(postElement);
+            }).catch(error => {
+                console.error('Error rendering post:', error);
+            });
+        }
+
+        this.feedWrapper.appendChild(fragment);
+    }
+
+    private showEmptyMessage(): void {
+        if (!this.feedWrapper) return;
+        
+        this.feedWrapper.innerHTML = '';
+        const emptyEl = document.createElement('div');
+        emptyEl.className = 'feed-empty';
+        emptyEl.textContent = 'Постов не найдено';
+        this.feedWrapper.appendChild(emptyEl);
     }
 
     private setupInfiniteScroll(): void {

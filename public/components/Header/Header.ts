@@ -4,6 +4,8 @@ import { dispatcher } from '../../dispatcher/dispatcher';
 import { LoginFormView } from '../../views/viewLogin';
 import { router } from '../../router/router';
 import { CreatePostFormView } from '../../views/viewCreatePostForm';
+import { SearchResults } from '../SearchResults/SearchResults';
+import { searchStore } from '../../stores/storeSearch';
 
 let headerTemplate: Handlebars.TemplateDelegate | null = null;
 let isTemplateLoading: boolean = false;
@@ -63,6 +65,9 @@ export class Header {
     private headerElement: HTMLElement | null = null;
     private boundStoreHandler: () => void;
     private container: HTMLElement | null = null;
+    private searchResults: SearchResults | null = null;
+    private searchInput: HTMLInputElement | null = null;
+    private searchTimeout: number | null = null;
 
     constructor() {
         this.boundStoreHandler = this.handleStoreChange.bind(this);
@@ -71,6 +76,7 @@ export class Header {
 
     private init(): void {
         loginStore.addListener(this.boundStoreHandler);
+        searchStore.addListener(this.boundStoreHandler);
         dispatcher.dispatch('LOGIN_CHECK_REQUEST');
     }
 
@@ -112,6 +118,9 @@ export class Header {
 
     private setupEventHandlers(): void {
         if (!this.headerElement) return;
+
+        console.log('🔄 Setting up header event handlers');
+        console.log('🔍 Header element:', this.headerElement);
 
         const authState = loginStore.getState();
 
@@ -201,21 +210,172 @@ export class Header {
                 await this.showLoginForm();
             });
         }
+
+        // Обработка поиска
+        this.searchInput = this.headerElement.querySelector('.header__search') as HTMLInputElement;
+        if (this.searchInput) {
+            console.log('✅ Search input found, adding event listeners');
+            this.setupSearchHandlers(); // ИСПОЛЬЗУЕМ НОВЫЙ МЕТОД
+        } else {
+            console.error('❌ Search input not found!');
+        }
+
+        // Закрытие результатов при клике вне области
+        document.addEventListener('click', this.handleClickOutside.bind(this));
     }
 
     private navigateToHome(): void {
         router.navigate('/');
     }
 
+    private handleSearchInput(e: Event): void {
+        const target = e.target as HTMLInputElement;
+        const query = target.value.trim();
+        
+        console.log('🔍 Search input:', query); // Добавьте эту строку
+
+        // Очищаем предыдущий таймаут
+        if (this.searchTimeout) {
+            clearTimeout(this.searchTimeout);
+        }
+
+        if (query.length >= 2) {
+            console.log('🚀 Dispatching SEARCH_BLOGS_REQUEST'); // Добавьте эту строку
+            // Дебаунс запросов - отправляем через 300мс
+            this.searchTimeout = window.setTimeout(() => {
+                dispatcher.dispatch('SEARCH_BLOGS_REQUEST', { query });
+            }, 300);
+        } else {
+            // Скрываем результаты если запрос слишком короткий
+            if (this.searchResults) {
+                this.searchResults.hide();
+            }
+            // Очищаем результаты в store если запрос пустой
+            if (query.length === 0) {
+                dispatcher.dispatch('SEARCH_CLEAR');
+            }
+        }
+    }
+
+    private handleSearchFocus(): void {
+        const query = this.searchInput?.value.trim();
+        if (query && query.length >= 2) {
+            // Показываем предыдущие результаты при фокусе
+            const state = searchStore.getState();
+            if (state.blogs.length > 0) {
+                this.showSearchResults(state.blogs, state.query);
+            }
+        }
+    }
+
+    private async showSearchResults(users: any[], query: string): Promise<void> {
+        // Скрываем предыдущие результаты
+        if (this.searchResults) {
+            this.searchResults.destroy();
+        }
+
+        console.log('🔍 Showing search results with users:', users, 'query:', query);
+
+        this.searchResults = new SearchResults({
+            users: users,
+            query: query,
+            onShowAllResults: () => {
+                console.log('🔍 Navigate to search page with query:', query);
+                router.navigate(`/search?q=${encodeURIComponent(query)}`);
+            }
+        });
+
+        const resultsElement = await this.searchResults.render();
+        
+        // Проверяем, есть ли кнопка "Показать все результаты"
+        const showAllButton = resultsElement.querySelector('[data-action="show-all"]');
+        console.log('🔍 "Show all" button exists:', !!showAllButton);
+        
+        // Позиционируем под поиском
+        if (this.searchInput) {
+            const rect = this.searchInput.getBoundingClientRect();
+            resultsElement.style.position = 'absolute';
+            resultsElement.style.top = `${rect.bottom + window.scrollY}px`;
+            resultsElement.style.left = `${rect.left + window.scrollX}px`;
+            resultsElement.style.width = `${rect.width}px`;
+            resultsElement.style.zIndex = '1000';
+            resultsElement.style.background = 'white';
+            resultsElement.style.border = '1px solid #ccc';
+            resultsElement.style.borderRadius = '4px';
+            resultsElement.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
+        }
+
+        document.body.appendChild(resultsElement);
+    }
+
+    private handleClickOutside(e: Event): void {
+        const target = e.target as Node;
+        
+        if (this.searchInput && !this.searchInput.contains(target)) {
+            // Используем публичный метод contains вместо прямого доступа к element
+            if (this.searchResults && this.searchResults.contains(target)) {
+                return; // Клик внутри результатов поиска - не закрываем
+            }
+            // Клик вне области поиска и результатов - закрываем результаты
+            this.searchResults?.hide();
+        }
+    }
+
     private async handleStoreChange(): Promise<void>  {
-        if (this.container && this.headerElement) {
+        const searchState = searchStore.getState();
+        console.log('🔍 Header: Search store changed:', searchState)
+        
+        // СОХРАНЯЕМ ТЕКУЩЕЕ ЗНАЧЕНИЕ ПОИСКА
+        const currentSearchValue = this.searchInput?.value || '';
+        
+        // ВСЕГДА ПОКАЗЫВАЕМ РЕЗУЛЬТАТЫ ПОИСКА С КНОПКОЙ "ПОКАЗАТЬ ВСЕ РЕЗУЛЬТАТЫ"
+        if (this.searchInput?.value.trim() && searchState.query) {
+            console.log('🔍 Showing search results:', searchState.blogs);
+            await this.showSearchResults(searchState.blogs, searchState.query);
+        }
+        
+        // ВОССТАНАВЛИВАЕМ ЗНАЧЕНИЕ ПОИСКА ПОСЛЕ ПЕРЕРИСОВКИ
+        if (this.searchInput && this.searchInput.value !== currentSearchValue) {
+            this.searchInput.value = currentSearchValue;
+        }
+        
+        // Обновляем header только если изменился loginStore
+        const loginState = loginStore.getState();
+        if (this.container && this.headerElement && loginState !== loginStore.getState()) {
             const newHeader = await this.render();
             this.container.appendChild(newHeader);
+            
+            // ВОССТАНАВЛИВАЕМ ЗНАЧЕНИЕ ПОИСКА ПОСЛЕ ПЕРЕРИСОВКИ HEADER
+            const newSearchInput = newHeader.querySelector('.header__search') as HTMLInputElement;
+            if (newSearchInput && currentSearchValue) {
+                newSearchInput.value = currentSearchValue;
+                this.searchInput = newSearchInput;
+                this.setupSearchHandlers();
+            }
+        }
+    }
+
+    private setupSearchHandlers(): void {
+        if (this.searchInput) {
+            this.searchInput.addEventListener('input', this.handleSearchInput.bind(this));
+            this.searchInput.addEventListener('focus', this.handleSearchFocus.bind(this));
         }
     }
 
     destroy(): void {
         loginStore.removeListener(this.boundStoreHandler);
+        searchStore.removeListener(this.boundStoreHandler);
+        
+        if (this.searchTimeout) {
+            clearTimeout(this.searchTimeout);
+        }
+        
+        if (this.searchResults) {
+            this.searchResults.destroy();
+        }
+
+        document.removeEventListener('click', this.handleClickOutside);
+
         if (this.headerElement && this.headerElement.parentNode) {
             this.headerElement.remove();
         }

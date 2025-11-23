@@ -96,14 +96,19 @@ class API {
                     this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Unknown list type' });
                 }
                 break;
-            // Добавляем обработку обращений в поддержку
             case 'SUPPORT_TICKET_SUBMIT_REQUEST':
-                console.log('🔄 Processing support ticket submit request');
+                console.log('Processing support ticket submit request');
                 this.submitSupportTicket(payload);
                 break;
             case 'APPEALS_LOAD_REQUEST':
-                console.log('🔄 Processing appeals load request');
+                console.log('Processing appeals load request');
                 this.loadAppeals();
+                break;
+            case 'SEARCH_BLOGS_REQUEST':
+                this.searchBlogs(payload.query);
+                break;
+            case 'SEARCH_POSTS_REQUEST':
+                this.searchPosts(payload.query);
                 break;
         }
     }
@@ -244,12 +249,6 @@ private async submitSupportTicket(payload: any): Promise<void> {
         }
     }
 
-    /**
-     * Нормализует данные обращения, приводя их к единой структуре
-     */
-    /**
- * Нормализует данные обращения, приводя их к единой структуре
- */
 private normalizeAppealData(appeal: any): any {
     const normalized = {
         id: appeal.appeal_id || appeal.id || appeal.ID,
@@ -959,6 +958,100 @@ private normalizeAppealData(appeal: any): any {
             this.sendAction('USER_LIST_LOAD_FAIL', {
                 error: response.message || 'Ошибка загрузки подписчиков'
             });
+        }
+    }
+
+    private async searchBlogs(query: string): Promise<void> {
+        console.log('🔍 API: Searching blogs with query:', query);
+        
+        try {
+            const response = await ajax.get(`/blogssearch?q=${encodeURIComponent(query)}`);
+            console.log('📡 API: Search response:', response);
+            
+            switch (response.status) {
+                case STATUS.ok:
+                    if (response.data) {
+                        let users = [];
+                        
+                        // Обрабатываем разные форматы ответа
+                        if (Array.isArray(response.data.users)) {
+                            // Формат: { users: [...] }
+                            users = response.data.users;
+                        } else if (Array.isArray(response.data)) {
+                            // Формат: [...]
+                            users = response.data;
+                        } else if (response.data.Blogs && Array.isArray(response.data.Blogs)) {
+                            // Формат: { Blogs: [...] }
+                            users = response.data.Blogs;
+                        }
+                        
+                        console.log('👥 Normalized users:', users);
+                        
+                        const normalizedUsers = users.map((item: any) => ({
+                            id: item.id || item.userId,
+                            name: item.name || item.username || 'Неизвестный пользователь',
+                            subtitle: `Подписчики: ${item.subscribers || item.subscribersCount || 0}`,
+                            avatar: item.avatar || item.avatar_url || '/img/defaultAvatar.jpg',
+                            isSubscribed: false,
+                            hideSubscribeButton: true
+                        }));
+                        
+                        console.log('✅ Sending normalized users:', normalizedUsers);
+                        this.sendAction('SEARCH_BLOGS_SUCCESS', { users: normalizedUsers, query });
+                    } else {
+                        // ЕСЛИ НЕТ РЕЗУЛЬТАТОВ - отправляем пустой массив
+                        console.log('📭 No data in response, sending empty array');
+                        this.sendAction('SEARCH_BLOGS_SUCCESS', { users: [], query });
+                    }
+                    break;
+                case STATUS.notFound:
+                    // ЕСЛИ 404 - отправляем пустой массив
+                    console.log('🔍 404 - No results found');
+                    this.sendAction('SEARCH_BLOGS_SUCCESS', { users: [], query });
+                    break;
+                case STATUS.unauthorized:
+                    this.sendAction('USER_UNAUTHORIZED');
+                    this.sendAction('SEARCH_BLOGS_FAIL', { error: 'Not authenticated' });
+                    break;
+                default:
+                    this.sendAction('SEARCH_BLOGS_FAIL', {
+                        error: response.message || 'Ошибка поиска блогов'
+                    });
+            }
+        } catch (error) {
+            console.error('❌ API: Search exception:', error);
+            this.sendAction('SEARCH_BLOGS_FAIL', {
+                error: 'Ошибка при выполнении поиска'
+            });
+        }
+    }
+
+    private async searchPosts(query: string): Promise<void> {
+        const response = await ajax.get(`/postssearch?q=${encodeURIComponent(query)}`);
+        
+        switch (response.status) {
+            case STATUS.ok:
+                if (response.data) {
+                    const postsArray = response.data.articles || response.data;
+                    const postsWithAuthorId = postsArray.map((post: any) => this.normalizePostData(post));
+                    this.sendAction('SEARCH_POSTS_SUCCESS', { posts: postsWithAuthorId, query });
+                } else {
+                    this.sendAction('SEARCH_POSTS_FAIL', { error: 'No posts data' });
+                }
+                break;
+            case STATUS.noMoreContent:
+                this.sendAction('SEARCH_POSTS_FAIL', { 
+                    error: 'No more content'
+                });
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('SEARCH_POSTS_FAIL', { error: 'Not authenticated' });
+                break;
+            default:
+                this.sendAction('SEARCH_POSTS_FAIL', { 
+                    error: response.message || 'Ошибка поиска постов' 
+                });
         }
     }
 

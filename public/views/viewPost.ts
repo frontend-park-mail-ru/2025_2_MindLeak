@@ -6,25 +6,32 @@ import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../component
 import { PostCard, PostCardProps } from '../components/PostCard/PostCard';
 import { postStore, Post } from '../stores/storePost';
 import { loginStore } from '../stores/storeLogin';
+import { userListStore } from '../stores/storeUserList'; // ← добавлено
 
 export class PostView {
     private container: HTMLElement;
     private postId: string;
     private headerInstance: Header;
     private postCard: PostCard | null = null;
-    private boundStoreHandler: () => void;
+    private boundPostStoreHandler: () => void;
+    private boundUserListStoreHandler: () => void; // ← добавлено
+    private rightMenu: HTMLElement | null = null;  // ← добавлено
 
     constructor(container: HTMLElement, params: { id: string }) {
         this.container = container;
         this.postId = params.id;
         this.headerInstance = new Header();
-        this.boundStoreHandler = this.handleStoreChange.bind(this);
-        postStore.addListener(this.boundStoreHandler);
+        this.boundPostStoreHandler = this.handlePostStoreChange.bind(this);
+        this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this); // ← добавлено
+        postStore.addListener(this.boundPostStoreHandler);
+        userListStore.addListener(this.boundUserListStoreHandler); // ← добавлено
     }
 
     async render(): Promise<HTMLElement> {
         // Запускаем загрузку поста
         dispatcher.dispatch('POST_LOAD_REQUEST', { postId: this.postId });
+        // Запускаем загрузку топ-блогеров
+        dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
 
         const rootElem = document.createElement('div');
 
@@ -86,7 +93,6 @@ export class PostView {
         postWrapper.className = 'post-wrapper';
         postWrapper.id = 'post-wrapper';
 
-        // Показываем загрузку
         postWrapper.innerHTML = `
             <div class="post-view__loader" style="text-align: center; padding: 40px;">
                 Загрузка поста...
@@ -95,26 +101,22 @@ export class PostView {
 
         pageElement.appendChild(postWrapper);
 
-        // Правое меню
-        const rightMenu = document.createElement('aside');
-        rightMenu.className = 'sidebar-right';
-        const userList = new UserList({
-            title: 'Топ блогов',
-            users: []
-            });
-        const userListE1 = await userList.render();
-        rightMenu.appendChild(userListE1);
+        // Правое меню — сохраняем ссылку
+        this.rightMenu = document.createElement('aside');
+        this.rightMenu.className = 'sidebar-right';
 
         contentContainer.appendChild(leftMenu);
         contentContainer.appendChild(pageElement);
-        contentContainer.appendChild(rightMenu);
+        contentContainer.appendChild(this.rightMenu);
+
+        // Инициализируем правое меню сразу (можно и в handleUserListStoreChange)
+        this.updateUserListContent();
 
         return rootElem;
     }
 
-    private handleStoreChange(): void {
+    private handlePostStoreChange(): void {
         const state = postStore.getState();
-
         const postWrapper = document.getElementById('post-wrapper');
         if (!postWrapper) return;
 
@@ -139,6 +141,32 @@ export class PostView {
         if (state.post) {
             this.renderPostInWrapper(state.post, postWrapper);
         }
+    }
+
+    // ← НОВЫЙ обработчик для топ-блогеров
+    private handleUserListStoreChange(): void {
+        this.updateUserListContent();
+    }
+
+    private async updateUserListContent(): Promise<void> {
+        if (!this.rightMenu) return;
+
+        // Удаляем старый список, если есть
+        const oldContent = this.rightMenu.querySelector('.user-list');
+        if (oldContent) oldContent.remove();
+
+        const state = userListStore.getState();
+        if (state.error) {
+            console.error('UserList error in PostView:', state.error);
+            return;
+        }
+
+        const userList = new UserList({
+            title: 'Топ блогов',
+            users: state.users || []
+        });
+        const userListElement = await userList.render();
+        this.rightMenu.appendChild(userListElement);
     }
 
     private async renderPostInWrapper(post: Post, wrapper: HTMLElement): Promise<void> {
@@ -181,6 +209,9 @@ export class PostView {
 
     destroy(): void {
         this.headerInstance.destroy();
-        postStore.removeListener(this.boundStoreHandler);
+        postStore.removeListener(this.boundPostStoreHandler);
+        userListStore.removeListener(this.boundUserListStoreHandler); // ← важно!
+        this.postCard = null;
+        this.rightMenu = null;
     }
 }

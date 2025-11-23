@@ -173,21 +173,28 @@ export class PostCard {
             });
         }
 
-        /*
+
         const titleEl = postCard.querySelector('.post-card__title') as HTMLElement;
         if (titleEl) {
             titleEl.style.cursor = 'pointer';
             titleEl.title = 'Открыть пост';
-
             titleEl.addEventListener('click', (e: Event) => {
                 e.preventDefault();
                 e.stopPropagation();
-
-                const postUrl = `/post/${this.postId}`;
-                window.history.pushState({}, '', postUrl);
-                window.dispatchEvent(new PopStateEvent('popstate'));
+                router.navigate(`/post/${this.postId}`);
             });
-        } */
+        }
+
+        const commentsIcon = postCard.querySelector('.tag[data-key="comments"]') as HTMLElement;
+        if (commentsIcon) {
+            commentsIcon.style.cursor = 'pointer';
+            commentsIcon.title = 'Открыть пост';
+            commentsIcon.addEventListener('click', (e: Event) => {
+                e.preventDefault();
+                e.stopPropagation();
+                router.navigate(`/post/${this.postId}`);
+            });
+        }
 
         const menuButton = postCard.querySelector('.post-card__menu-button') as HTMLElement;
         const menuPopup = postCard.querySelector('.post-card-menu') as HTMLElement;

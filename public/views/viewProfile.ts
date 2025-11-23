@@ -7,7 +7,7 @@ import { loginStore } from '../stores/storeLogin';
 import { router } from '../router/router';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
 import { CreatePostFormView } from '../views/viewCreatePostForm';
-import { userListStore } from '../stores/storeUserList'; // Добавляем импорт
+import { userListStore } from '../stores/storeUserList';
 
 export class ProfileView {
     private currentCategory: string = '';
@@ -15,7 +15,7 @@ export class ProfileView {
     private userId?: string;
     private boundStoreHandler: () => void;
     private boundLoginStoreHandler: () => void;
-    private boundUserListStoreHandler: () => void; // Добавляем обработчик для UserList
+    private boundUserListStoreHandler: () => void;
     private userList: UserList | null = null;
     private headerInstance: Header;
     private pageWrapper: HTMLElement | null = null;

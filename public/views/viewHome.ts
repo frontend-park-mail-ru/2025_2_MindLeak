@@ -169,7 +169,6 @@ export class HomeView {
         
         if (!rightMenu) return;
 
-        // Удаляем старый UserList если он есть
         if (this.userListElement) {
             this.userListElement.remove();
             this.userListElement = null;

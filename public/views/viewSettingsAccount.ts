@@ -3,7 +3,7 @@ import { UserList } from '../components/UserList/UserList';
 import { userListStore } from '../stores/storeUserList';
 import { Header } from '../components/Header/Header';
 import { settingsAccountStore, SettingsAccountState } from '../stores/storeSettingsAccount';
-import { DeleteAccountModal } from '../components/DeleteAccount/DeleteAccount';
+import { DeleteModalFactory } from '../components/DeleteModal/DeleteModalFactory'; // ← Импортируем фабрику
 import { loginStore } from '../stores/storeLogin';
 import { router } from '../router/router';
 import { dispatcher } from '../dispatcher/dispatcher';
@@ -16,7 +16,7 @@ export class SettingsAccountView {
     private userList: UserList | null = null;
     private headerInstance: Header;
     private pageWrapper: HTMLElement | null = null;
-    private deleteModal: DeleteAccountModal | null = null;
+    private deleteModal: any = null; // ← Тип больше не нужен, можно использовать any или конкретный тип
     private boundLoginStoreHandler: () => void;
     private boundFormSubmitHandler: (e: SubmitEvent) => void;
     private currentCategory: string = '';
@@ -30,7 +30,6 @@ export class SettingsAccountView {
         this.determineCurrentCategory();
     }
 
-
     private determineCurrentCategory(): void {
         const url = new URL(window.location.href);
         const pathname = url.pathname;
@@ -41,7 +40,6 @@ export class SettingsAccountView {
             const topicParam = url.searchParams.get('topic');
             this.currentCategory = topicParam || 'fresh';
         }
-
     }
 
     async render(): Promise<HTMLElement> {
@@ -84,7 +82,7 @@ export class SettingsAccountView {
             });
         };
 
-// левое меню
+        // левое меню
         const sidebar1 = new SidebarMenu(
             MAIN_MENU_ITEMS,
             this.currentCategory,
@@ -354,7 +352,6 @@ export class SettingsAccountView {
         if (sex !== undefined) updatedData.sex = sex;
         if (date_of_birth !== undefined) updatedData.date_of_birth = date_of_birth || '';
 
-
         const errors = this.validateForm(updatedData);
         if (errors.length > 0) {
             this.showFieldErrors(form, errors);
@@ -430,16 +427,18 @@ export class SettingsAccountView {
     }
 
     private async openDeleteModal(): Promise<void> {
-        if (this.deleteModal) return;
-
-        this.deleteModal = new DeleteAccountModal();
+        // Используем фабрику для создания модалки удаления аккаунта
+        this.deleteModal = DeleteModalFactory.createAccountDeleteModal();
         const modalElement = await this.deleteModal.render();
         
-        modalElement.addEventListener('accountDeleteRequest', () => {
-            this.handleAccountDelete();
-        });
-
         this.pageWrapper?.appendChild(modalElement);
+
+        // Ждем результата от пользователя
+        const confirmed = await this.deleteModal.waitForResult();
+        
+        if (confirmed) {
+            this.handleAccountDelete();
+        }
     }
 
     private handleAccountDelete(): void {

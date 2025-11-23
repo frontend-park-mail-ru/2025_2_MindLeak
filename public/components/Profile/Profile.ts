@@ -1,5 +1,4 @@
 import { PostCardMenu } from '../PostCardMenu/PostCardMenu';
-import { DeletePostModal } from '../DeletePostModal/DeletePostModal';
 import { dispatcher } from '../../dispatcher/dispatcher';
 
 let profileTemplate: Handlebars.TemplateDelegate | null = null;
@@ -8,7 +7,6 @@ let partialsLoaded = false;
 async function loadAllPartials(): Promise<void> {
     if (partialsLoaded) return;
 
-    
     const partials = [
         { name: 'post-card', path: '/components/PostCard/PostCard.hbs' },
         { name: 'input', path: '/components/Input/Input.hbs' },
@@ -31,6 +29,7 @@ async function loadAllPartials(): Promise<void> {
                 Handlebars.registerPartial(partial.name, Handlebars.compile(source));
             }
         } catch (error) {
+            // Игнорируем ошибки загрузки партиалов
         }
     });
 
@@ -67,7 +66,6 @@ interface ProfileProps {
 
 function transformPostForProfile(apiPost: any, isMyProfile: boolean): any {
     if (!apiPost) return {};
-    
     
     // СОЗДАЕМ menuItems ТАК ЖЕ КАК В POSTCARD.TS
     let menuItems = [
@@ -148,7 +146,6 @@ export class Profile {
             const menuButton = postCard.querySelector('.post-card__menu-button') as HTMLElement;
             const menuPopup = postCard.querySelector('.post-card-menu') as HTMLElement;
             
-            
             if (menuButton && menuPopup) {
                 const postId = this.extractPostId(postCard);
                 
@@ -158,6 +155,7 @@ export class Profile {
                             this.handlePostAction(key, postId);
                         });
                     } catch (error) {
+                        // Игнорируем ошибки инициализации меню
                     }
                 }
             }
@@ -193,14 +191,10 @@ export class Profile {
     }
 
     private handlePostAction(action: string, postId: string): void {
-        
+        // ТОЛЬКО действия, которые не обрабатываются внутри PostCardMenu
         switch (action) {
             case 'edit':
                 dispatcher.dispatch('POST_EDIT_REQUEST', { postId });
-                break;
-            case 'delete':
-                // Удаление обрабатывается внутри PostCardMenu
-                this.handleDeletePost(postId);
                 break;
             case 'hide':
                 dispatcher.dispatch('POST_HIDE_REQUEST', { postId });
@@ -208,28 +202,7 @@ export class Profile {
             case 'report':
                 dispatcher.dispatch('POST_REPORT_REQUEST', { postId });
                 break;
-        }
-    }
-    
-    private async handleDeletePost(postId: string): Promise<void> {
-        
-        // Динамически импортируем DeletePostModal
-        const { DeletePostModal } = await import('../DeletePostModal/DeletePostModal');
-        
-        // Показываем модалку подтверждения удаления
-        const deleteModal = new DeletePostModal();
-        const modalElement = await deleteModal.render();
-        document.body.appendChild(modalElement);
-
-        const confirmed = await deleteModal.waitForResult();
-        
-        if (confirmed) {
-            dispatcher.dispatch('POST_DELETE_REQUEST', { postId });
-            
-            // После удаления запускаем перезагрузку профиля
-            setTimeout(() => {
-                dispatcher.dispatch('PROFILE_RELOAD_AFTER_DELETE');
-            }, 500); // Небольшая задержка чтобы API успел обработать удаление
+            // 'delete' обрабатывается полностью внутри PostCardMenu
         }
     }
 }

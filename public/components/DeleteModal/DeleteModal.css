@@ -1,4 +1,4 @@
-.delete-post-modal {
+.delete-modal {
     position: fixed;
     top: 0;
     left: 0;
@@ -12,7 +12,7 @@
     box-sizing: border-box;
 }
 
-.delete-post-modal__content {
+.delete-modal__content {
     background-color: var(--section-color);
     border-radius: 12px;
     padding: 30px;
@@ -22,7 +22,7 @@
     margin: 20px;
 }
 
-.delete-post-modal__title {
+.delete-modal__title {
     font-size: var(--text-xl);
     font-weight: var(--font-weight-medium);
     color: var(--text-color);
@@ -30,7 +30,7 @@
     text-align: center;
 }
 
-.delete-post-modal__message {
+.delete-modal__message {
     font-size: var(--text-base);
     color: var(--text-lighter);
     text-align: center;
@@ -38,13 +38,13 @@
     line-height: 1.5;
 }
 
-.delete-post-modal__actions {
+.delete-modal__actions {
     display: flex;
     gap: 12px;
     justify-content: center;
 }
 
-.delete-post-modal__cancel {
+.delete-modal__cancel {
     background-color: var(--primary-color);
     color: white;
     border: none;
@@ -56,11 +56,11 @@
     transition: background-color 0.3s ease;
 }
 
-.delete-post-modal__cancel:hover {
+.delete-modal__cancel:hover {
     background-color: #333;
 }
 
-.delete-post-modal__delete {
+.delete-modal__delete {
     background-color: #dc3545;
     color: white;
     border: none;
@@ -72,11 +72,11 @@
     transition: background-color 0.3s ease;
 }
 
-.delete-post-modal__delete:hover {
+.delete-modal__delete:hover {
     background-color: #c82333;
 }
 
-.delete-post-modal__delete:disabled {
+.delete-modal__delete:disabled {
     background-color: var(--text-lighter);
     cursor: not-allowed;
 }

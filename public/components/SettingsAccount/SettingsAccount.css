@@ -238,3 +238,19 @@
 .form__input.error {
     border-color: #dc3545;
 }
+
+.form-hint.loading {
+    color: #007bff;
+    font-weight: 500;
+}
+
+.form-hint.success {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.form-hint {
+    margin-top: 8px;
+    font-size: var(--text-sm);
+    color: var(--text-light);
+}

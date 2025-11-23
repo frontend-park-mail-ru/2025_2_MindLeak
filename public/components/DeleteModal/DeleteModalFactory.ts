@@ -44,6 +44,33 @@ export class DeleteModalFactory {
         });
     }
 
+        static createAvatarDeleteModal(): DeleteModal {
+        return new DeleteModal({
+            title: 'Удаление фото профиля',
+            message: 'Фото профиля будет удалено. Вы уверены?',
+            cancelText: 'Отмена',
+            deleteText: 'Удалить фото',
+            deleteLoadingText: 'Удаление...',
+            onDelete: async () => {
+                dispatcher.dispatch('AVATAR_DELETE_REQUEST');
+            }
+        });
+    }
+
+    // Для удаления обложки
+    static createCoverDeleteModal(): DeleteModal {
+        return new DeleteModal({
+            title: 'Удаление обложки профиля',
+            message: 'Обложка профиля будет удалена. Вы уверены?',
+            cancelText: 'Отмена',
+            deleteText: 'Удалить обложку',
+            deleteLoadingText: 'Удаление...',
+            onDelete: async () => {
+                dispatcher.dispatch('COVER_DELETE_REQUEST');
+            }
+        });
+    }
+
     // Универсальный метод для кастомных случаев
     static createCustomModal(config: {
         title: string;

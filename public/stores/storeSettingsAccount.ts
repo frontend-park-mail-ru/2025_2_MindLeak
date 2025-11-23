@@ -52,7 +52,9 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
             this.setState({
                 settings: settingsWithAge,
                 isLoading: false,
-                error: null
+                error: null,
+                isUploadingAvatar: false,
+                isUploadingCover: false
             });
         });
 
@@ -91,10 +93,12 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
             });
         });
 
-        this.registerAction('AVATAR_UPLOAD_SUCCESS', () => {
+        this.registerAction('AVATAR_UPLOAD_SUCCESS', (payload: { avatar_url: string }) => {
+            const currentSettings = this.state.settings;
             this.setState({
                 isUploadingAvatar: false,
-                error: null
+                error: null,
+                settings: currentSettings ? { ...currentSettings, avatar_url: payload.avatar_url } : null
             });
         });
 
@@ -113,9 +117,11 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
         });
 
         this.registerAction('AVATAR_DELETE_SUCCESS', () => {
+            const currentSettings = this.state.settings;
             this.setState({
                 isUploadingAvatar: false,
-                error: null
+                error: null,
+                settings: currentSettings ? { ...currentSettings, avatar_url: '' } : null
             });
         });
 
@@ -133,10 +139,12 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
             });
         });
 
-        this.registerAction('COVER_UPLOAD_SUCCESS', () => {
+        this.registerAction('COVER_UPLOAD_SUCCESS', (payload: { cover_url: string }) => {
+            const currentSettings = this.state.settings;
             this.setState({
                 isUploadingCover: false,
-                error: null
+                error: null,
+                settings: currentSettings ? { ...currentSettings, cover_url: payload.cover_url } : null
             });
         });
 
@@ -155,9 +163,11 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
         });
 
         this.registerAction('COVER_DELETE_SUCCESS', () => {
+            const currentSettings = this.state.settings;
             this.setState({
                 isUploadingCover: false,
-                error: null
+                error: null,
+                settings: currentSettings ? { ...currentSettings, cover_url: '' } : null
             });
         });
 

@@ -1,6 +1,6 @@
 import { dispatcher } from '../../dispatcher/dispatcher';
 import { CreatePostFormView } from '../../views/viewCreatePostForm';
-import { DeletePostModal } from '../DeletePostModal/DeletePostModal';
+import { DeleteModalFactory } from '../DeleteModal/DeleteModalFactory';
 
 export class PostCardMenu {
     private element: HTMLElement;
@@ -95,23 +95,14 @@ export class PostCardMenu {
     }
 
     private async handleDelete(): Promise<void> {
-        
-        // Создаем и показываем модалку подтверждения
-        const deleteModal = new DeletePostModal();
+        const deleteModal = DeleteModalFactory.createPostDeleteModal(this.postId);
         const modalElement = await deleteModal.render();
         document.body.appendChild(modalElement);
 
-        // Ждем результата от пользователя
         const confirmed = await deleteModal.waitForResult();
         
         if (confirmed) {
-            // Отправляем запрос на удаление поста
-            dispatcher.dispatch('POST_DELETE_REQUEST', { postId: this.postId });
-
-            setTimeout(() => {
-                dispatcher.dispatch('PROFILE_RELOAD_AFTER_DELETE');
-            }, 1000); // Задержка чтобы API успел обработать удаление
-        } else {
+            dispatcher.dispatch('PROFILE_RELOAD_AFTER_DELETE');
         }
     }
 

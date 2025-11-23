@@ -539,21 +539,26 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private async loadUserPosts(userId: number): Promise<any[]> {
+        console.log('🔄 [API] Loading user posts for userId:', userId);
         let url = `/posts?author_id=${userId}`;
         
         const response = await ajax.get(url);
+        console.log('📥 [API] User posts response:', response);
         
         if (response.status === STATUS.ok && response.data) {
             const postsArray = response.data.articles || response.data || [];
+            console.log('📊 [API] Raw posts data:', postsArray);
             
             const normalizedPosts = postsArray.map((post: any) => {
                 const normalized = this.normalizePostData(post);
                 return normalized;
             });
             
+            console.log('✅ [API] Normalized posts count:', normalizedPosts.length);
             return normalizedPosts;
         }
         
+        console.log('❌ [API] No posts data');
         return [];
     }
 

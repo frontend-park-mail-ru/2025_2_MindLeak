@@ -16,6 +16,8 @@ interface SettingsAccountProps {
     };
     isLoading?: boolean;
     error?: string | null;
+    isUploadingAvatar?: boolean;
+    isUploadingCover?: boolean;
 }
 
 async function getSettingsAccountTemplate(): Promise<Handlebars.TemplateDelegate> {
@@ -52,7 +54,9 @@ export class SettingsAccount {
             ...formattedData,
             userData: this.props.userData,
             isLoading: this.props.isLoading || false,
-            error: this.props.error || null
+            error: this.props.error || null,
+            isUploadingAvatar: this.props.isUploadingAvatar || false,
+            isUploadingCover: this.props.isUploadingCover || false 
         };
         
         const html = template(templateData);

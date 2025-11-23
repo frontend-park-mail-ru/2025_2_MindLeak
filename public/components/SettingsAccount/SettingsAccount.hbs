@@ -21,14 +21,19 @@
                                 </div>
                                 <div class="avatar-actions">
                                     <input type="file" id="avatar-upload" accept=".jpg,.jpeg" style="display: none;">
-                                    <button type="button" class="avatar-change-btn" id="change-avatar-btn">
-                                        Изменить
+                                    <button type="button" class="avatar-change-btn" id="change-avatar-btn" {{#if isUploadingAvatar}}disabled{{/if}}>
+                                        {{#if isUploadingAvatar}}Загрузка...{{else}}Изменить{{/if}}
                                     </button>
-                                    <button type="button" class="avatar-delete-btn" id="delete-avatar-btn">
-                                        Удалить
+                                    <button type="button" class="avatar-delete-btn" id="delete-avatar-btn" {{#if isUploadingAvatar}}disabled{{/if}}>
+                                        {{#if isUploadingAvatar}}Удаление...{{else}}Удалить{{/if}}
                                     </button>
                                 </div>
                             </div>
+                            {{#if isUploadingAvatar}}
+                                <div class="form-hint loading">Идет загрузка...</div>
+                            {{else}}
+                                <div class="form-hint">Рекомендуется JPG до 5MB</div>
+                            {{/if}}
                         </div>
 
                         <div class="settings-account__field">
@@ -43,14 +48,19 @@
                                 </div>
                                 <div class="cover-actions">
                                     <input type="file" id="cover-upload" accept=".jpg,.jpeg" style="display: none;">
-                                    <button type="button" class="cover-change-btn" id="change-cover-btn">
-                                        Изменить
+                                    <button type="button" class="cover-change-btn" id="change-cover-btn" {{#if isUploadingCover}}disabled{{/if}}>
+                                        {{#if isUploadingCover}}Загрузка...{{else}}Изменить{{/if}}
                                     </button>
-                                    <button type="button" class="cover-delete-btn" id="delete-cover-btn">
-                                        Удалить
+                                    <button type="button" class="cover-delete-btn" id="delete-cover-btn" {{#if isUploadingCover}}disabled{{/if}}>
+                                        {{#if isUploadingCover}}Удаление...{{else}}Удалить{{/if}}
                                     </button>
                                 </div>
                             </div>
+                            {{#if isUploadingCover}}
+                                <div class="form-hint loading">Идет загрузка...</div>
+                            {{else}}
+                                <div class="form-hint">Рекомендуется JPG до 5MB</div>
+                            {{/if}}
                         </div>
 
                     </div>

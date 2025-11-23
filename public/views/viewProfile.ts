@@ -212,8 +212,12 @@ export class ProfileView {
         if (this.isDestroyed) return;
 
         const state = profileStore.getState();
+        console.log('🔄 [PROFILE] Store changed:', { 
+            isLoading: state.isLoading, 
+            postsCount: state.posts?.length,
+            hasProfile: !!state.profile
+        });
         
-        // Если данные загружены (успешно или с ошибкой), обновляем контент
         if (!state.isLoading) {
             const mainContent = this.container.querySelector('.main-content');
             if (mainContent) {

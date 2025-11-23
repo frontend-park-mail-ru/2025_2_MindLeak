@@ -3,7 +3,7 @@ import { UserList } from '../components/UserList/UserList';
 import { userListStore } from '../stores/storeUserList';
 import { Header } from '../components/Header/Header';
 import { settingsAccountStore, SettingsAccountState } from '../stores/storeSettingsAccount';
-import { DeleteAccountModal } from '../components/DeleteAccount/DeleteAccount';
+import { DeleteModalFactory } from '../components/DeleteModal/DeleteModalFactory'; // ← Импортируем фабрику
 import { loginStore } from '../stores/storeLogin';
 import { router } from '../router/router';
 import { dispatcher } from '../dispatcher/dispatcher';
@@ -16,10 +16,12 @@ export class SettingsAccountView {
     private userList: UserList | null = null;
     private headerInstance: Header;
     private pageWrapper: HTMLElement | null = null;
-    private deleteModal: DeleteAccountModal | null = null;
+    private deleteModal: any = null; // ← Тип больше не нужен, можно использовать any или конкретный тип
     private boundLoginStoreHandler: () => void;
     private boundFormSubmitHandler: (e: SubmitEvent) => void;
     private currentCategory: string = '';
+    private deleteAvatarModal: any = null;
+    private deleteCoverModal: any = null;
 
     constructor(container: HTMLElement) {
         this.container = container;
@@ -29,7 +31,6 @@ export class SettingsAccountView {
         this.boundFormSubmitHandler = this.handleFormSubmit.bind(this);
         this.determineCurrentCategory();
     }
-
 
     private determineCurrentCategory(): void {
         const url = new URL(window.location.href);
@@ -41,17 +42,19 @@ export class SettingsAccountView {
             const topicParam = url.searchParams.get('topic');
             this.currentCategory = topicParam || 'fresh';
         }
-
     }
 
     async render(): Promise<HTMLElement> {
-        this.determineCurrentCategory();
+        this.determineCurrentCategory(); //TODO проферить категории в профиле м б просто этого нет ? 
 
-        await this.renderFullPage();
-        
+        // Сначала подписываемся на изменения store
         settingsAccountStore.addListener(this.boundStoreHandler);
         loginStore.addListener(this.boundLoginStoreHandler);
         
+        // Затем рендерим страницу
+        await this.renderFullPage();
+        
+        // И только потом запрашиваем данные
         dispatcher.dispatch('SETTINGS_ACCOUNT_LOAD_REQUEST');
         
         return this.pageWrapper!;
@@ -84,7 +87,7 @@ export class SettingsAccountView {
             });
         };
 
-// левое меню
+        // левое меню
         const sidebar1 = new SidebarMenu(
             MAIN_MENU_ITEMS,
             this.currentCategory,
@@ -155,7 +158,9 @@ export class SettingsAccountView {
         const settingsAccountComponent = new SettingsAccount({
             userData: currentState.settings,
             isLoading: currentState.isUpdating,
-            error: currentState.error
+            error: currentState.error,
+            isUploadingAvatar: currentState.isUploadingAvatar,
+            isUploadingCover: currentState.isUploadingCover
         });
         
         const element = await settingsAccountComponent.render();
@@ -221,6 +226,20 @@ export class SettingsAccountView {
         }
     }
 
+    private closeDeleteAvatarModal(): void {
+        if (this.deleteAvatarModal) {
+            this.deleteAvatarModal.destroy();
+            this.deleteAvatarModal = null;
+        }
+    }
+
+    private closeDeleteCoverModal(): void {
+        if (this.deleteCoverModal) {
+            this.deleteCoverModal.destroy();
+            this.deleteCoverModal = null;
+        }
+    }
+
     private async handleAvatarUpload(e: Event): Promise<void> {
         const input = e.target as HTMLInputElement;
         if (!input.files || input.files.length === 0) return;
@@ -240,13 +259,24 @@ export class SettingsAccountView {
         }
 
         dispatcher.dispatch('AVATAR_UPLOAD_REQUEST', { file });
-
         input.value = '';
     }
 
-    private handleAvatarDelete(): void {
+    private async handleAvatarDelete(): Promise<void> {
         this.clearAvatarError();
-        dispatcher.dispatch('AVATAR_DELETE_REQUEST');
+        await this.openDeleteAvatarModal();
+    }
+
+    private async openDeleteAvatarModal(): Promise<void> {
+        this.deleteAvatarModal = DeleteModalFactory.createAvatarDeleteModal();
+        const modalElement = await this.deleteAvatarModal.render();
+        this.pageWrapper?.appendChild(modalElement);
+
+        const confirmed = await this.deleteAvatarModal.waitForResult();
+        if (confirmed) {
+            dispatcher.dispatch('AVATAR_DELETE_REQUEST');
+        }
+        this.closeDeleteAvatarModal();
     }
 
     private async handleCoverUpload(e: Event): Promise<void> {
@@ -263,18 +293,29 @@ export class SettingsAccountView {
         }
 
         if (file.size > 5 * 1024 * 1024) {
-            this.showCoverError('Размер файла не должен превышать 10MB');
+            this.showCoverError('Размер файла не должен превышать 5MB');
             return;
         }
 
         dispatcher.dispatch('COVER_UPLOAD_REQUEST', { file });
-
         input.value = '';
     }
 
-    private handleCoverDelete(): void {
+    private async handleCoverDelete(): Promise<void> {
         this.clearCoverError();
-        dispatcher.dispatch('COVER_DELETE_REQUEST');
+        await this.openDeleteCoverModal(); // Открываем модалку подтверждения
+    }
+
+    private async openDeleteCoverModal(): Promise<void> {
+        this.deleteCoverModal = DeleteModalFactory.createCoverDeleteModal();
+        const modalElement = await this.deleteCoverModal.render();
+        this.pageWrapper?.appendChild(modalElement);
+
+        const confirmed = await this.deleteCoverModal.waitForResult();
+        if (confirmed) {
+            dispatcher.dispatch('COVER_DELETE_REQUEST');
+        }
+        this.closeDeleteCoverModal();
     }
 
     private showAvatarError(message: string): void {
@@ -354,7 +395,6 @@ export class SettingsAccountView {
         if (sex !== undefined) updatedData.sex = sex;
         if (date_of_birth !== undefined) updatedData.date_of_birth = date_of_birth || '';
 
-
         const errors = this.validateForm(updatedData);
         if (errors.length > 0) {
             this.showFieldErrors(form, errors);
@@ -430,16 +470,18 @@ export class SettingsAccountView {
     }
 
     private async openDeleteModal(): Promise<void> {
-        if (this.deleteModal) return;
-
-        this.deleteModal = new DeleteAccountModal();
+        // Используем фабрику для создания модалки удаления аккаунта
+        this.deleteModal = DeleteModalFactory.createAccountDeleteModal();
         const modalElement = await this.deleteModal.render();
         
-        modalElement.addEventListener('accountDeleteRequest', () => {
-            this.handleAccountDelete();
-        });
-
         this.pageWrapper?.appendChild(modalElement);
+
+        // Ждем результата от пользователя
+        const confirmed = await this.deleteModal.waitForResult();
+        
+        if (confirmed) {
+            this.handleAccountDelete();
+        }
     }
 
     private handleAccountDelete(): void {
@@ -455,9 +497,15 @@ export class SettingsAccountView {
     }
 
     private handleStoreChange(): void {
-        const state = userListStore.getState();
-        if (state.error) {
-            console.error('UserList error:', state.error);
+        const state = settingsAccountStore.getState();
+        
+        // Обновляем контент аккаунта при любых изменениях
+        this.updateAccountContent();
+        
+        // Обрабатываем ошибки userList
+        const userListState = userListStore.getState();
+        if (userListState.error) {
+            console.error('UserList error:', userListState.error);
         }
         this.updateUserListContent();
     }
@@ -484,6 +532,11 @@ export class SettingsAccountView {
         if (mainContent) {
             const oldContent = mainContent.querySelector('.settings-account');
             if (oldContent) {
+                // Удаляем старые обработчики событий
+                const form = oldContent.querySelector('.settings-account__form') as HTMLFormElement;
+                if (form) {
+                    form.removeEventListener('submit', this.boundFormSubmitHandler);
+                }
                 oldContent.remove();
             }
             
@@ -505,6 +558,12 @@ export class SettingsAccountView {
         
         if (this.deleteModal) {
             this.deleteModal.destroy();
+        }
+        if (this.deleteAvatarModal) {
+            this.deleteAvatarModal.destroy();
+        }
+        if (this.deleteCoverModal) {
+            this.deleteCoverModal.destroy();
         }
         this.headerInstance.destroy();
     }

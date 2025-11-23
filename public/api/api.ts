@@ -513,12 +513,13 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private async loadPost(postId: string): Promise<void> {
-        const response = await ajax.get(`/posts/${postId}`);
+        const response = await ajax.get(`/post?id=${postId}`);
 
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
-                    this.sendAction('POST_LOAD_SUCCESS', { post: response.data });
+                    const normalizedPost = this.normalizePostData(response.data);
+                    this.sendAction('POST_LOAD_SUCCESS', { post: normalizedPost });
                 } else {
                     this.sendAction('POST_LOAD_FAIL', { error: 'Post data is empty' });
                 }

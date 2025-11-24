@@ -7,8 +7,8 @@ import { SettingsNotificationsView } from './views/viewSettingsNotifications';
 import { SettingsPrivacyView } from './views/viewSettingsPrivacy';
 import { PostView } from './views/viewPost';
 import { PostsView } from './views/viewPosts';
-import { dispatcher } from './dispatcher/dispatcher';
 import { StatisticsView } from './views/viewStatistic';
+import { ReplyView } from './views/viewReply';
 
 interface Route {
     path: string;
@@ -38,6 +38,7 @@ async function initApp(): Promise<void> {
     router.addRoute('/settings/privacy', SettingsPrivacyView, 'Mindleak - Конфиденциальность', true);
     router.addRoute('/appeals/statistics', StatisticsView, 'Статистика', true);
     
+    router.addRoute('/replies/:commentId', ReplyView, 'Ответы на комментарий', true);
 
     router.init();
 }

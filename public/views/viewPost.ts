@@ -1,4 +1,3 @@
-// views/viewPost.ts
 import { Header } from '../components/Header/Header';
 import { UserList } from '../components/UserList/UserList';
 import { dispatcher } from '../dispatcher/dispatcher';
@@ -6,7 +5,8 @@ import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../component
 import { PostCard, PostCardProps } from '../components/PostCard/PostCard';
 import { postStore, Post } from '../stores/storePost';
 import { loginStore } from '../stores/storeLogin';
-import { userListStore } from '../stores/storeUserList'; // ← добавлено
+import { userListStore } from '../stores/storeUserList';
+import { CommentView } from './viewComments';
 
 export class PostView {
     private container: HTMLElement;
@@ -14,17 +14,17 @@ export class PostView {
     private headerInstance: Header;
     private postCard: PostCard | null = null;
     private boundPostStoreHandler: () => void;
-    private boundUserListStoreHandler: () => void; // ← добавлено
-    private rightMenu: HTMLElement | null = null;  // ← добавлено
+    private boundUserListStoreHandler: () => void;
+    private rightMenu: HTMLElement | null = null;
 
     constructor(container: HTMLElement, params: { id: string }) {
         this.container = container;
         this.postId = params.id;
         this.headerInstance = new Header();
         this.boundPostStoreHandler = this.handlePostStoreChange.bind(this);
-        this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this); // ← добавлено
+        this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
         postStore.addListener(this.boundPostStoreHandler);
-        userListStore.addListener(this.boundUserListStoreHandler); // ← добавлено
+        userListStore.addListener(this.boundUserListStoreHandler);
     }
 
     async render(): Promise<HTMLElement> {
@@ -101,6 +101,13 @@ export class PostView {
 
         pageElement.appendChild(postWrapper);
 
+        const commentsContainer = document.createElement('div');
+        commentsContainer.id = 'comments-section';
+        pageElement.appendChild(commentsContainer);
+
+        const commentView = new CommentView(commentsContainer, this.postId);
+        commentView.init();
+
         // Правое меню — сохраняем ссылку
         this.rightMenu = document.createElement('aside');
         this.rightMenu.className = 'sidebar-right';
@@ -143,7 +150,6 @@ export class PostView {
         }
     }
 
-    // ← НОВЫЙ обработчик для топ-блогеров
     private handleUserListStoreChange(): void {
         this.updateUserListContent();
     }
@@ -151,7 +157,6 @@ export class PostView {
     private async updateUserListContent(): Promise<void> {
         if (!this.rightMenu) return;
 
-        // Удаляем старый список, если есть
         const oldContent = this.rightMenu.querySelector('.user-list');
         if (oldContent) oldContent.remove();
 
@@ -181,7 +186,7 @@ export class PostView {
                 name: post.authorName || 'Аноним',
                 subtitle: post.theme || 'Блог',
                 avatar: post.authorAvatar || '/img/defaultAvatar.jpg',
-                isSubscribed: false,
+                isSubscribed: true,
                 id: post.authorId
             },
             title: post.title || '',

@@ -1,7 +1,6 @@
 import { PostCardMenu } from '../PostCardMenu/PostCardMenu';
 import { dispatcher } from '../../dispatcher/dispatcher';
 import { router } from '../../router/router';
-import { CreatePostFormView } from '../../views/viewCreatePostForm';
 import { loginStore } from '../../stores/storeLogin';
 import { LoginFormView } from '../../views/viewLogin';
 
@@ -172,7 +171,6 @@ export class PostCard {
                 toggleTextBtn.textContent = isExpanded ? 'Скрыть' : 'Показать полностью';
             });
         }
-
 
         const titleEl = postCard.querySelector('.post-card__title') as HTMLElement;
         if (titleEl) {

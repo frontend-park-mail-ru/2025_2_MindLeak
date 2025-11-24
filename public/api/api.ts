@@ -1,5 +1,6 @@
 import { ajax } from '../modules/ajax';
 import { dispatcher } from '../dispatcher/dispatcher';
+import { loginStore } from '../stores/storeLogin';
 
 const STATUS = {
     ok: 200,
@@ -37,6 +38,9 @@ class API {
                 break;
             case 'POST_LOAD_REQUEST':
                 this.loadPost(payload.postId);
+                break;
+            case 'PROFILE_LOAD_COMMENTS_REQUEST':
+                this.loadUserComments(payload.userId);
                 break;
             case 'PROFILE_LOAD_REQUEST':
                 this.loadProfile(payload.userId);
@@ -104,6 +108,20 @@ class API {
             case 'APPEALS_LOAD_REQUEST':
                 console.log('🔄 Processing appeals load request');
                 this.loadAppeals();
+                break;
+            // комменты
+            case 'COMMENT_CREATE_REQUEST':
+                this.createComment(payload.postId, payload.text, payload.attachment);
+                break;
+            case 'COMMENTS_LOAD_REQUEST':
+                this.loadComments(payload.postId);
+                break;
+            case 'REPLIES_LOAD_REQUEST':
+                this.loadReplies(payload.commentId, payload.articleId);
+                break;
+
+            case 'REPLY_CREATE_REQUEST':
+                this.createReply(payload.commentId, payload.text, payload.postId);
                 break;
         }
     }
@@ -957,6 +975,145 @@ private normalizeAppealData(appeal: any): any {
         }
     }
 
+    private async createComment(postId: string, text: string, attachment?: File): Promise<void> {
+
+        const authState = loginStore.getState();
+        const userId = authState.user?.id;
+
+        if (!userId) {
+            this.sendAction('COMMENT_ADD_FAIL', { error: 'Пользователь не авторизован' });
+            return;
+        }
+        // Загрузка вложения, если есть
+        let attachmentUrl = '';
+        if (attachment) {
+            const formData = new FormData();
+            formData.append('file', attachment);
+            /*const uploadRes = await ajax.uploadCommentFile(formData);
+            if (uploadRes.status === 200 && uploadRes.data?.url) {
+                attachmentUrl = uploadRes.data.url;
+            }*/
+        }
+
+        const res = await ajax.post(`/comments?articleId=${postId}`, {
+            article_id: postId,
+            user_id: userId,
+            content: text,
+            reply_to: null,
+            ...(attachmentUrl ? { attachment: attachmentUrl } : {})
+        });
+
+        if (res.status === 201) {
+            this.sendAction('COMMENT_ADDED_SUCCESS');
+        } else {
+            this.sendAction('COMMENT_ADD_FAIL', { error: 'Не удалось добавить комментарий' });
+        }
+    }
+
+    private async loadComments(postId: string): Promise<void> {
+        const res = await ajax.get(`/comments?articleId=${postId}`);
+        if (res.status === 200 && res.data) {
+            const commentsArray = res.data.comments || [];
+            const normalizedComments = commentsArray
+            .filter((c: any) => c.reply_to === null)
+            .map((c: any) => ({
+                id: c.id,
+                authorId: c.user_id,
+                authorName: c.author_name,
+                authorAvatar: c.author_avatar || '/img/defaultAvatar.jpg',
+                text: c.content,
+                postTitle: c.article_title || '',
+                postDate: c.created_at,
+                attachment: undefined
+            }));
+            this.sendAction('COMMENTS_LOAD_SUCCESS', {
+            comments: normalizedComments,
+            });
+        } else {
+            this.sendAction('COMMENTS_LOAD_FAIL', { error: 'Не удалось загрузить комментарии' });
+        }
+    }
+
+    private async loadReplies(commentId: string, articleId: string): Promise<void> {
+        const res = await ajax.get(`/comments?articleId=${articleId}`);
+
+        if (res.status === 200 && res.data) {
+            const repliesArray = (res.data.comments || [])
+                .filter((r: any) => r.reply_to === commentId);
+
+            const normalizedReplies = repliesArray.map((r: any) => ({
+                id: r.id,
+                authorId: r.user_id,
+                authorName: r.author_name,
+                authorAvatar: r.author_avatar || '/img/defaultAvatar.jpg',
+                text: r.content,
+                postTitle: r.article_title || '',
+                postDate: r.created_at,
+                repliesCount: 0,
+                attachment: undefined
+            }));
+
+            this.sendAction('REPLIES_LOAD_SUCCESS', {
+                replies: normalizedReplies,
+            });
+
+        } else {
+            this.sendAction('REPLIES_LOAD_FAIL', { error: 'Не удалось загрузить ответы' });
+        }
+    }
+
+    private async createReply(commentId: string, text: string, postId: string, attachment?: File): Promise<void> {
+        const authState = loginStore.getState();
+        const userId = authState.user?.id;
+
+        if (!userId) {
+            this.sendAction('COMMENT_ADD_FAIL', { error: 'Пользователь не авторизован' });
+            return;
+        }
+        
+        let attachmentUrl = '';
+        if (attachment) {
+            const formData = new FormData();
+            formData.append('file', attachment);
+            /*const uploadRes = await ajax.uploadCommentFile(formData);
+            if (uploadRes.status === 200 && uploadRes.data?.url) {
+                attachmentUrl = uploadRes.data.url;
+            }*/
+        }
+        
+        const res = await ajax.post(`/comments`, {
+            article_id: postId,
+            user_id: userId,
+            content: text,
+            reply_to: commentId,
+            ...(attachmentUrl ? { attachment: attachmentUrl } : {})
+        });
+
+        if (res.status === 201) {
+            this.sendAction('REPLY_ADDED_SUCCESS');
+            dispatcher.dispatch('REPLIES_LOAD_REQUEST', { commentId, articleId: postId });
+        } else {
+            this.sendAction('REPLY_ADD_FAIL', { error: 'Не удалось добавить ответ' });
+        }
+    }
+
+    private async loadUserComments(userId: string): Promise<void> {
+        try {
+            const response = await fetch(`/comments?authorId=${userId}`);
+            const data = await response.json();
+
+            this.sendAction('PROFILE_LOAD_COMMENTS_SUCCESS', {
+                comments: data
+            });
+        } catch (err) {
+            this.sendAction('PROFILE_LOAD_COMMENTS_FAIL', {
+                error: 'Ошибка загрузки комментариев'
+            });
+        }
+    }
+
+
+    
 }
 
 export const api = new API();

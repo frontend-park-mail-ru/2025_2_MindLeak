@@ -492,7 +492,7 @@ private normalizeAppealData(appeal: any): any {
                     const postsWithAuthorId = postsArray.map((post: any) => this.normalizePostData(post));
                     this.sendAction('POSTS_LOAD_SUCCESS', { posts: postsWithAuthorId });
                 } else {
-                    this.sendAction('POSTS_LOAD_FAIL', { error: 'No posts data' });
+                    this.sendAction('POSTS_LOAD_FAIL', { error: 'Здесь пока нет постов' });
                 }
                 break;
             case STATUS.noMoreContent:

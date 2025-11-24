@@ -1,3 +1,4 @@
+// views/viewProfile.ts
 import { Profile } from '../components/Profile/Profile';
 import { UserList } from '../components/UserList/UserList';
 import { Header } from '../components/Header/Header';
@@ -8,6 +9,7 @@ import { router } from '../router/router';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
 import { CreatePostFormView } from '../views/viewCreatePostForm';
 import { userListStore } from '../stores/storeUserList';
+import { HashtagParser } from '../utils/hashtagParser'; // Добавляем импорт
 
 export class ProfileView {
     private currentCategory: string = '';
@@ -25,7 +27,7 @@ export class ProfileView {
     private sidebarEl2: HTMLElement | null = null;
     private isDestroyed: boolean = false;
     private userListElement: HTMLElement | null = null;
-    private isUserListRendered: boolean = false; // Добавляем флаг
+    private isUserListRendered: boolean = false;
 
     constructor(container: HTMLElement, params?: any) {
         this.container = container;
@@ -236,9 +238,16 @@ export class ProfileView {
             isMyProfile = true;
         }
 
+        // Обрабатываем хештеги в постах перед передачей в компонент Profile
+        const postsWithHashtags = state.posts ? state.posts.map(post => ({
+            ...post,
+            title: HashtagParser.replaceHashtagsWithLinks(post.title || ''),
+            content: HashtagParser.replaceHashtagsWithLinks(post.content || '')
+        })) : [];
+
         const profileComponent = new Profile({
             profile: state.profile,
-            posts: state.posts,
+            posts: postsWithHashtags, // Используем посты с обработанными хештегами
             activeTab: state.activeTab,
             isLoading: state.isLoading,
             error: state.error,
@@ -248,8 +257,30 @@ export class ProfileView {
 
         const profileElement = await profileComponent.render();
         this.attachEventListeners(profileElement);
+        this.setupHashtagHandlers(profileElement); // Добавляем обработчики для хештегов
         
         return profileElement;
+    }
+
+    private setupHashtagHandlers(container: HTMLElement): void {
+        const hashtagLinks = container.querySelectorAll('.hashtag-link');
+        
+        hashtagLinks.forEach(link => {
+            link.addEventListener('click', (e: Event) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const hashtag = link.getAttribute('data-hashtag');
+                if (hashtag) {
+                    this.handleHashtagClick(hashtag);
+                }
+            });
+        });
+    }
+
+    private handleHashtagClick(hashtag: string): void {
+        // Навигация на страницу поиска с хештегом
+        router.navigate(`/search?q=%23${encodeURIComponent(hashtag)}`);
     }
 
     private handleStoreChange(): void {

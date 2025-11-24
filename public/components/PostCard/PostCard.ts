@@ -1,9 +1,11 @@
+// components/PostCard/PostCard.ts
 import { PostCardMenu } from '../PostCardMenu/PostCardMenu';
 import { dispatcher } from '../../dispatcher/dispatcher';
 import { router } from '../../router/router';
 import { CreatePostFormView } from '../../views/viewCreatePostForm';
 import { loginStore } from '../../stores/storeLogin';
 import { LoginFormView } from '../../views/viewLogin';
+import { HashtagParser } from '../../utils/hashtagParser';
 
 let postCardTemplate: Handlebars.TemplateDelegate | null = null;
 
@@ -113,8 +115,12 @@ export class PostCard {
     async render(): Promise<HTMLElement> {
         const MAX_TEXT_LENGTH = 200;
 
+        // Обрабатываем хештеги в тексте и заголовке
+        const processedTitle = HashtagParser.replaceHashtagsWithLinks(this.title);
+        const processedText = HashtagParser.replaceHashtagsWithLinks(this.text);
+        
         const textTruncated = this.text.length > MAX_TEXT_LENGTH
-            ? this.text.substring(0, MAX_TEXT_LENGTH)
+            ? HashtagParser.replaceHashtagsWithLinks(this.text.substring(0, MAX_TEXT_LENGTH))
             : null;
 
         let menuItems = [
@@ -133,8 +139,8 @@ export class PostCard {
         const template = await getPostCardTemplate();
         const html = template({
             user: this.user,
-            title: this.title,          
-            text: this.text,
+            title: processedTitle,           // Используем обработанный заголовок с хештегами
+            text: processedText,             // Используем обработанный текст с хештегами
             textTruncated: textTruncated,
             link: this.link,
             linkText: this.linkText,
@@ -157,6 +163,7 @@ export class PostCard {
         }
 
         this.setupAuthorClickHandlers(postCard);
+        this.setupHashtagHandlers(postCard); // Добавляем обработчики для хештегов
 
         const toggleTextBtn = postCard.querySelector('[data-key="toggle-text"]') as HTMLElement;
         const textPreview = postCard.querySelector('.post-card__text-preview') as HTMLElement;
@@ -172,7 +179,6 @@ export class PostCard {
                 toggleTextBtn.textContent = isExpanded ? 'Скрыть' : 'Показать полностью';
             });
         }
-
 
         const titleEl = postCard.querySelector('.post-card__title') as HTMLElement;
         if (titleEl) {
@@ -207,6 +213,27 @@ export class PostCard {
         }
 
         return postCard;
+    }
+
+    private setupHashtagHandlers(postCard: HTMLElement): void {
+        const hashtagLinks = postCard.querySelectorAll('.hashtag-link');
+        
+        hashtagLinks.forEach(link => {
+            link.addEventListener('click', (e: Event) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const hashtag = link.getAttribute('data-hashtag');
+                if (hashtag) {
+                    this.handleHashtagClick(hashtag);
+                }
+            });
+        });
+    }
+
+    private handleHashtagClick(hashtag: string): void {
+        // Навигация на страницу поиска с хештегом
+        router.navigate(`/search?q=%23${encodeURIComponent(hashtag)}`);
     }
 
     private handleMenuAction(key: string, postId: string): void {

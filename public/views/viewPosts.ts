@@ -1,7 +1,9 @@
+// views/viewPosts.ts
 import { PostCard, PostCardProps } from '../components/PostCard/PostCard';
 import { dispatcher } from '../dispatcher/dispatcher';
 import { postsStore, Post } from '../stores/storePosts';
 import { loginStore } from '../stores/storeLogin';
+import { HashtagParser } from '../utils/hashtagParser'; // Добавляем импорт
 
 export class PostsView {
     private feedWrapper: HTMLElement | null = null;
@@ -203,10 +205,13 @@ export class PostsView {
     }
 
     private transformPost(apiPost: Post): PostCardProps {
-
         const authState = loginStore.getState();
         const currentUserId = authState.user?.id;
         const isOwnPost = !!currentUserId && currentUserId.toString() === apiPost.authorId?.toString();
+
+        // Обрабатываем хештеги в заголовке и тексте
+        const processedTitle = HashtagParser.replaceHashtagsWithLinks(apiPost.title || '');
+        const processedText = HashtagParser.replaceHashtagsWithLinks(apiPost.content || '');
 
         return {
             postId: apiPost.id || '',
@@ -218,8 +223,8 @@ export class PostsView {
                 isSubscribed: false,
                 id: apiPost.authorId
             },
-            title: apiPost.title || '',
-            text: apiPost.content || '',
+            title: processedTitle, // Используем обработанный заголовок с хештегами
+            text: processedText,   // Используем обработанный текст с хештегами
             image: apiPost.image || '',
             tags: Array.isArray(apiPost.tags) ? apiPost.tags : [],
             commentsCount: apiPost.commentsCount || 0,
@@ -236,7 +241,6 @@ export class PostsView {
 
         const POSTS_PER_LOAD = 10;
         const fragment = document.createDocumentFragment();
-        
         
         let postsRendered = 0;
         for (let i = 0; i < POSTS_PER_LOAD; i++) {
@@ -258,6 +262,7 @@ export class PostsView {
                 fragment.appendChild(postElement);
                 postsRendered++;
             } catch (error) {
+                console.error('❌ Error rendering post in renderNextPosts:', error);
             }
             
             this.virtualPostIndex++;

@@ -1,3 +1,4 @@
+// views/viewSearch.ts
 import { UserList } from '../components/UserList/UserList';
 import { PostsView } from './viewPosts';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
@@ -5,6 +6,7 @@ import { searchStore } from '../stores/storeSearch';
 import { dispatcher } from '../dispatcher/dispatcher';
 import { userListStore } from '../stores/storeUserList';
 import { Header } from '../components/Header/Header';
+import { HashtagParser } from '../utils/hashtagParser';
 
 export class SearchView {
     private postsView: PostsView | null = null;
@@ -229,7 +231,15 @@ export class SearchView {
         // Заголовок поиска
         const titleEl = document.createElement('h1');
         titleEl.className = 'search-page__title';
-        titleEl.textContent = `Результаты поиска: "${state.query}"`;
+        
+        // Определяем, это поиск по хештегу или обычный
+        if (HashtagParser.isHashtagSearch(state.query)) {
+            const cleanHashtag = HashtagParser.extractHashtagFromQuery(state.query);
+            titleEl.textContent = `Посты с хештегом: #${cleanHashtag}`;
+        } else {
+            titleEl.textContent = `Результаты поиска: "${state.query}"`;
+        }
+        
         this.contentWrapper.appendChild(titleEl);
 
         let hasResults = false;
@@ -290,9 +300,15 @@ export class SearchView {
     private showLoading(query: string): void {
         if (this.isDestroyed || !this.contentWrapper) return;
 
+        // Определяем тип поиска для заголовка загрузки
+        const isHashtagSearch = HashtagParser.isHashtagSearch(query);
+        const displayQuery = isHashtagSearch ? 
+            `#${HashtagParser.extractHashtagFromQuery(query)}` : 
+            query;
+
         this.contentWrapper.innerHTML = `
             <div class="search-loading-state">
-                <h1 class="search-loading-state__title">Поиск: "${query}"</h1>
+                <h1 class="search-loading-state__title">Поиск: "${displayQuery}"</h1>
                 <p class="search-loading-state__text">Ищем авторов и посты...</p>
             </div>
         `;
@@ -312,12 +328,22 @@ export class SearchView {
     private showNoResults(query: string): void {
         if (this.isDestroyed || !this.contentWrapper) return;
 
+        // Определяем тип поиска для сообщения
+        const isHashtagSearch = HashtagParser.isHashtagSearch(query);
+        const displayQuery = isHashtagSearch ? 
+            `#${HashtagParser.extractHashtagFromQuery(query)}` : 
+            query;
+        
+        const message = isHashtagSearch ? 
+            `По хештегу "${displayQuery}" не найдено ни авторов, ни постов` :
+            `По запросу "${displayQuery}" не найдено ни авторов, ни постов`;
+
         const noResultsEl = document.createElement('div');
         noResultsEl.className = 'search-no-results';
         noResultsEl.innerHTML = `
             <div class="search-no-results__content">
                 <h2 class="search-no-results__title">Ничего не найдено</h2>
-                <p class="search-no-results__text">По запросу "${query}" не найдено ни авторов, ни постов</p>
+                <p class="search-no-results__text">${message}</p>
                 <p class="search-no-results__suggestion">Попробуйте изменить запрос или посмотрите популярные темы в категориях слева</p>
             </div>
         `;

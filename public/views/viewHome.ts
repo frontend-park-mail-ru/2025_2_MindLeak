@@ -13,8 +13,9 @@ export class HomeView {
     private currentCategory: string = 'fresh';
     private createPostFormView: CreatePostFormView | null = null; 
     private boundStoreHandler: () => void;
-    private userListElement: HTMLElement | null = null; // Добавляем ссылку на текущий UserList
+    private userListElement: HTMLElement | null = null;
     private isUserListRendered: boolean = false; // Флаг чтобы отслеживать рендер UserList
+    private isDestroyed: boolean = false; // Добавляем флаг уничтожения
 
     constructor() {
         this.headerInstance = new Header();
@@ -40,6 +41,7 @@ export class HomeView {
     }
 
     async render(): Promise<HTMLElement> {
+        this.isDestroyed = false;
         // Определяем категорию перед рендером
         this.determineCurrentCategory();
 
@@ -133,7 +135,7 @@ export class HomeView {
         userListStore.addListener(this.boundStoreHandler);
         
         // Загружаем топ блогов только если еще не загружали
-        if (!this.isUserListRendered) {
+        if (!this.isUserListRendered && !this.isDestroyed) {
             dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
             this.isUserListRendered = true;
         }
@@ -156,6 +158,7 @@ export class HomeView {
     }
 
     private handleStoreChange(): void {
+        if (this.isDestroyed) return;
         const state = userListStore.getState();
         if (state.error) {
             console.error('UserList error:', state.error);
@@ -164,6 +167,7 @@ export class HomeView {
     }
 
     private async updateUserListContent(): Promise<void> {
+        if (this.isDestroyed) return;
         const rightMenu = this.feedWrapper?.closest('.content-layout')?.querySelector('.sidebar-right') || 
                          document.querySelector('.sidebar-right');
         
@@ -174,16 +178,21 @@ export class HomeView {
             this.userListElement = null;
         }
 
-        const newList = new UserList({
-            title: 'Топ блогов',
-            users: userListStore.getState().users || []
-        });
-        
-        this.userListElement = await newList.render();
-        rightMenu.appendChild(this.userListElement);
+        const state = userListStore.getState();
+        // Рендерим только если есть пользователи
+        if (state.users && state.users.length > 0) {
+            const newList = new UserList({
+                title: 'Топ блогов',
+                users: state.users
+            });
+            
+            this.userListElement = await newList.render();
+            rightMenu.appendChild(this.userListElement);
+        }
     }
 
     destroy(): void {
+        this.isDestroyed = true; 
         this.headerInstance.destroy();
         if (this.postsView) {
             this.postsView.destroy();

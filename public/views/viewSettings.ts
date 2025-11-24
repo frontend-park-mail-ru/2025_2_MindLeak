@@ -14,6 +14,9 @@ export class SettingsView {
     private currentCategory: string = '';
     private boundLoginStoreHandler: () => void;
     private boundStoreHandler: () => void;
+    private userListElement: HTMLElement | null = null; // Добавляем ссылку на элемент UserList
+    private isUserListRendered: boolean = false; // Добавляем флаг
+    private isDestroyed: boolean = false; // Добавляем флаг уничтожения
 
     constructor(container: HTMLElement) {
         this.container = container;
@@ -33,10 +36,10 @@ export class SettingsView {
             const topicParam = url.searchParams.get('topic');
             this.currentCategory = topicParam || 'fresh';
         }
-
     }
 
     async render(): Promise<HTMLElement> {
+        this.isDestroyed = false; // Сбрасываем флаг при рендере
         this.determineCurrentCategory();
         loginStore.addListener(this.boundLoginStoreHandler);
         await this.renderFullPage();
@@ -135,7 +138,12 @@ export class SettingsView {
 
         // Подписываемся и запускаем загрузку топ-блогеров
         userListStore.addListener(this.boundStoreHandler);
-        dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
+        
+        // Загружаем топ блогов только если еще не загружали
+        if (!this.isUserListRendered) {
+            dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
+            this.isUserListRendered = true;
+        }
     }
 
     private async renderSettingsMain(): Promise<HTMLElement> {
@@ -159,6 +167,7 @@ export class SettingsView {
     }
 
     private handleStoreChange(): void {
+        if (this.isDestroyed) return; // Защита от вызовов после уничтожения
         const state = userListStore.getState();
         if (state.error) {
             console.error('UserList error:', state.error);
@@ -167,21 +176,33 @@ export class SettingsView {
     }
 
     private async updateUserListContent(): Promise<void> {
+        if (this.isDestroyed) return; // Защита от вызовов после уничтожения
+        
         const rightMenu = this.pageWrapper?.querySelector('.sidebar-right') || document.querySelector('.sidebar-right');
         if (!rightMenu) return;
 
-        const oldContent = rightMenu.querySelector('.user-list');
-        if (oldContent) oldContent.remove();
+        // Удаляем старый UserList если он есть
+        if (this.userListElement) {
+            this.userListElement.remove();
+            this.userListElement = null;
+        }
 
-        const newList = new UserList({
-            title: 'Топ блогов',
-            users: userListStore.getState().users || []
-        });
-        const newElement = await newList.render();
-        rightMenu.appendChild(newElement);
+        const state = userListStore.getState();
+        // Рендерим только если есть пользователи
+        if (state.users && state.users.length > 0) {
+            const newList = new UserList({
+                title: 'Топ блогов',
+                users: state.users || []
+            });
+            
+            this.userListElement = await newList.render();
+            rightMenu.appendChild(this.userListElement);
+        }
     }
 
     private handleLoginStoreChange(): void {
+        if (this.isDestroyed) return; // Защита от вызовов после уничтожения
+        
         const loginState = loginStore.getState();
         
         if (!loginState.isLoggedIn) {
@@ -190,8 +211,19 @@ export class SettingsView {
     }
 
     destroy(): void {
+        this.isDestroyed = true; // Устанавливаем флаг уничтожения
+        
         userListStore.removeListener(this.boundStoreHandler);
         loginStore.removeListener(this.boundLoginStoreHandler);
         this.headerInstance.destroy();
+        
+        // Очищаем UserList
+        if (this.userListElement) {
+            this.userListElement.remove();
+            this.userListElement = null;
+        }
+        
+        // Сбрасываем флаги
+        this.isUserListRendered = false;
     }
 }

@@ -24,7 +24,8 @@ export class ProfileView {
     private sidebarEl1: HTMLElement | null = null;
     private sidebarEl2: HTMLElement | null = null;
     private isDestroyed: boolean = false;
-    private userListElement: HTMLElement | null = null; // Добавляем ссылку на элемент UserList
+    private userListElement: HTMLElement | null = null;
+    private isUserListRendered: boolean = false; // Добавляем флаг
 
     constructor(container: HTMLElement, params?: any) {
         this.container = container;
@@ -39,8 +40,8 @@ export class ProfileView {
         
         this.boundStoreHandler = this.handleStoreChange.bind(this);
         this.boundLoginStoreHandler = this.handleLoginStoreChange.bind(this);
-        this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this); // Инициализируем обработчик
-        this.determineCurrentCategory(); // Определяем категорию при создании
+        this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
+        this.determineCurrentCategory();
     }
 
     private determineCurrentCategory(): void {
@@ -54,7 +55,6 @@ export class ProfileView {
             this.currentCategory = topicParam || 'fresh';
         }
         
-        // Отправляем в store текущий фильтр
         dispatcher.dispatch('POSTS_SET_FILTER', { filter: this.currentCategory });
     }
 
@@ -66,40 +66,35 @@ export class ProfileView {
 
         window.scrollTo(0, 0);
         
-        // Определяем категорию перед рендером
         this.determineCurrentCategory();
         
-        // Если уже отрендерено, возвращаем существующий wrapper
         if (this.hasRendered && this.pageWrapper) {
             return this.pageWrapper;
         }
 
-        // Очищаем контейнер
         this.container.innerHTML = '';
         
-        // Создаем основной wrapper
         this.pageWrapper = document.createElement('div');
         
         try {
-            // Рендерим базовую структуру страницы
             await this.renderPageLayout();
             
-            // Добавляем слушатели
             profileStore.addListener(this.boundStoreHandler);
             loginStore.addListener(this.boundLoginStoreHandler);
-            userListStore.addListener(this.boundUserListStoreHandler); // Подписываемся на UserList store
+            userListStore.addListener(this.boundUserListStoreHandler);
             
-            // Загружаем данные профиля
             dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
                 userId: this.userId 
             });
 
-            // Загружаем топ блогов
-            dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
+            // Загружаем топ блогов только если еще не загружали
+            if (!this.isUserListRendered) {
+                dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
+                this.isUserListRendered = true;
+            }
 
             this.hasRendered = true;
             
-            // Добавляем в контейнер
             this.container.appendChild(this.pageWrapper);
             return this.pageWrapper;
         } catch (error) {
@@ -132,10 +127,9 @@ export class ProfileView {
         const leftMenu = document.createElement('aside');
         leftMenu.className = 'sidebar-left';
 
-        // Создаем сайдбары с правильной логикой переходов
         const sidebar1 = new SidebarMenu(
             MAIN_MENU_ITEMS,
-            this.currentCategory, // Передаем текущую категорию
+            this.currentCategory,
             (key) => {
                 if (this.sidebarEl2) this.deactivateAll(this.sidebarEl2);
                 
@@ -153,7 +147,7 @@ export class ProfileView {
 
         const sidebar2 = new SidebarMenu(
             SECONDARY_MENU_ITEMS,
-            this.currentCategory, // Передаем текущую категорию
+            this.currentCategory,
             (key) => {
                 if (this.sidebarEl1) this.deactivateAll(this.sidebarEl1);
                 
@@ -179,7 +173,6 @@ export class ProfileView {
         const mainContent = document.createElement('main');
         mainContent.className = 'main-content';
         
-        // Инициализируем с загрузочным состоянием
         const loadingContent = await this.renderProfileContent();
         if (loadingContent) {
             mainContent.appendChild(loadingContent);
@@ -196,7 +189,7 @@ export class ProfileView {
         });
         const bloggersElement = await this.userList.render();
         if (bloggersElement) {
-            this.userListElement = bloggersElement; // Сохраняем ссылку
+            this.userListElement = bloggersElement;
             rightMenu.appendChild(bloggersElement);
         }
 
@@ -221,7 +214,6 @@ export class ProfileView {
         const state = profileStore.getState();
         const loginState = loginStore.getState();
         
-        // Если данные еще не загружены, показываем скелетон
         if (state.isLoading || !state.profile) {
             const skeleton = document.createElement('div');
             skeleton.className = 'profile';
@@ -236,7 +228,6 @@ export class ProfileView {
             return skeleton;
         }
 
-        // ПРАВИЛЬНОЕ определение isMyProfile
         let isMyProfile = false;
         
         if (this.userId) {
@@ -295,6 +286,8 @@ export class ProfileView {
     }
 
     private async updateUserListContent(): Promise<void> {
+        if (this.isDestroyed) return;
+        
         const rightMenu = this.pageWrapper?.querySelector('.sidebar-right') || 
                          document.querySelector('.sidebar-right');
         
@@ -306,13 +299,17 @@ export class ProfileView {
             this.userListElement = null;
         }
 
-        const newList = new UserList({
-            title: 'Топ блогов',
-            users: userListStore.getState().users || []
-        });
-        
-        this.userListElement = await newList.render();
-        rightMenu.appendChild(this.userListElement);
+        const state = userListStore.getState();
+        // Рендерим только если есть пользователи
+        if (state.users && state.users.length > 0) {
+            const newList = new UserList({
+                title: 'Топ блогов',
+                users: state.users || []
+            });
+            
+            this.userListElement = await newList.render();
+            rightMenu.appendChild(this.userListElement);
+        }
     }
 
     private handleLoginStoreChange(): void {
@@ -401,9 +398,8 @@ export class ProfileView {
         
         profileStore.removeListener(this.boundStoreHandler);
         loginStore.removeListener(this.boundLoginStoreHandler);
-        userListStore.removeListener(this.boundUserListStoreHandler); // Отписываемся от UserList store
+        userListStore.removeListener(this.boundUserListStoreHandler);
         
-        // Уничтожаем только те компоненты, у которых есть метод destroy
         if (this.headerInstance && typeof this.headerInstance.destroy === 'function') {
             this.headerInstance.destroy();
         }
@@ -413,18 +409,24 @@ export class ProfileView {
             this.createPostFormView = null;
         }
         
-        // Очищаем ссылки на DOM элементы
+        // Очищаем UserList
+        if (this.userListElement) {
+            this.userListElement.remove();
+            this.userListElement = null;
+        }
+        
+        // Сбрасываем флаги
+        this.isUserListRendered = false;
+        this.hasRendered = false;
+        
         this.sidebarEl1 = null;
         this.sidebarEl2 = null;
         this.userList = null;
-        this.userListElement = null;
         
-        // Удаляем pageWrapper из DOM
         if (this.pageWrapper && this.pageWrapper.parentNode) {
             this.pageWrapper.parentNode.removeChild(this.pageWrapper);
         }
         
         this.pageWrapper = null;
-        this.hasRendered = false;
     }
 }

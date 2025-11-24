@@ -15,6 +15,9 @@ export class StatisticsView {
     private boundLoginStoreHandler: () => void;
     private boundStoreHandler: () => void;
     private statisticsComponent: Statistic | null = null;
+    private userListElement: HTMLElement | null = null; // Добавляем ссылку на элемент UserList
+    private isUserListRendered: boolean = false; // Добавляем флаг
+    private isDestroyed: boolean = false; // Добавляем флаг уничтожения
 
     constructor(container: HTMLElement) {
         this.container = container;
@@ -37,6 +40,7 @@ export class StatisticsView {
     }
 
     async render(): Promise<HTMLElement> {
+        this.isDestroyed = false; // Сбрасываем флаг при рендере
         this.determineCurrentCategory();
         loginStore.addListener(this.boundLoginStoreHandler);
         await this.renderFullPage();
@@ -133,10 +137,19 @@ export class StatisticsView {
 
         // Подписываемся и запускаем загрузку топ-блогеров
         userListStore.addListener(this.boundStoreHandler);
-        dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
+        
+        // Загружаем топ блогов только если еще не загружали
+        if (!this.isUserListRendered) {
+            dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
+            this.isUserListRendered = true;
+        }
     }
 
     private async renderStatisticsMain(): Promise<HTMLElement> {
+        if (this.isDestroyed) {
+            return document.createElement('div');
+        }
+
         this.statisticsComponent = new Statistic();
         const statisticsElement = await this.statisticsComponent.render();
         
@@ -144,6 +157,8 @@ export class StatisticsView {
     }
 
     private handleLoginStoreChange(): void {
+        if (this.isDestroyed) return; // Защита от вызовов после уничтожения
+        
         const loginState = loginStore.getState();
         
         if (!loginState.isLoggedIn) {
@@ -152,6 +167,8 @@ export class StatisticsView {
     }
 
     private handleStoreChange(): void {
+        if (this.isDestroyed) return; // Защита от вызовов после уничтожения
+        
         const state = userListStore.getState();
         if (state.error) {
             console.error('UserList error:', state.error);
@@ -160,25 +177,49 @@ export class StatisticsView {
     }
 
     private async updateUserListContent(): Promise<void> {
+        if (this.isDestroyed) return; // Защита от вызовов после уничтожения
+        
         const rightMenu = this.pageWrapper?.querySelector('.sidebar-right') || document.querySelector('.sidebar-right');
         if (!rightMenu) return;
 
-        const oldContent = rightMenu.querySelector('.user-list');
-        if (oldContent) oldContent.remove();
+        // Удаляем старый UserList если он есть
+        if (this.userListElement) {
+            this.userListElement.remove();
+            this.userListElement = null;
+        }
 
-        const newList = new UserList({
-            title: 'Топ блогов',
-            users: userListStore.getState().users || []
-        });
-        const newElement = await newList.render();
-        rightMenu.appendChild(newElement);
+        const state = userListStore.getState();
+        // Рендерим только если есть пользователи
+        if (state.users && state.users.length > 0) {
+            const newList = new UserList({
+                title: 'Топ блогов',
+                users: state.users || []
+            });
+            
+            this.userListElement = await newList.render();
+            rightMenu.appendChild(this.userListElement);
+        }
     }
 
     destroy(): void {
+        this.isDestroyed = true; // Устанавливаем флаг уничтожения
+        
         loginStore.removeListener(this.boundLoginStoreHandler);
+        userListStore.removeListener(this.boundStoreHandler);
+        
         this.headerInstance.destroy();
+        
         if (this.statisticsComponent) {
             this.statisticsComponent.destroy();
         }
+        
+        // Очищаем UserList
+        if (this.userListElement) {
+            this.userListElement.remove();
+            this.userListElement = null;
+        }
+        
+        // Сбрасываем флаги
+        this.isUserListRendered = false;
     }
 }

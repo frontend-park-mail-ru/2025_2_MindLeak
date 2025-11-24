@@ -57,42 +57,60 @@ export class PostsView {
 
     // НОВЫЙ метод - для использования готовых постов (для поиска)
     public async initWithPosts(feedWrapper: HTMLElement, externalPosts: Post[]): Promise<void> {
+        console.log('🔍 PostsView: initWithPosts called with posts:', externalPosts);
+        
         this.feedWrapper = feedWrapper;
         this.cleanupScroll();
 
         if (externalPosts && externalPosts.length > 0) {
             this.allPosts = externalPosts;
-            this.renderAllPosts();
+            console.log('📝 PostsView: Rendering', this.allPosts.length, 'posts');
+            await this.renderAllPosts();
             this.isInitialized = true;
             return;
         }
 
-        // Если внешние посты пустые, показываем сообщение
+        console.log('📭 PostsView: No external posts provided');
         this.showEmptyMessage();
         this.isInitialized = true;
     }
 
-    private renderAllPosts(): void {
-        if (!this.feedWrapper) return;
+    private async renderAllPosts(): Promise<void> {
+        if (!this.feedWrapper) {
+            console.error('❌ PostsView: No feed wrapper');
+            return;
+        }
 
+        console.log('🎨 PostsView: Starting to render', this.allPosts.length, 'posts');
+        
         this.feedWrapper.innerHTML = '';
         const fragment = document.createDocumentFragment();
         
+        let renderedCount = 0;
+        
         for (const apiPost of this.allPosts) {
+            console.log('📄 Processing post:', apiPost);
+            
             const postData = this.transformPost(apiPost);
+            console.log('🔄 Transformed post data:', postData);
+            
             const postCard = new PostCard({
                 ...postData,
                 onMenuAction: (action) => this.handlePostAction(action, apiPost.id)
             });
             
-            postCard.render().then(postElement => {
+            try {
+                const postElement = await postCard.render(); // ← ТУТ НУЖЕН async
                 fragment.appendChild(postElement);
-            }).catch(error => {
-                console.error('Error rendering post:', error);
-            });
+                renderedCount++;
+                console.log('✅ Post rendered successfully');
+            } catch (error) {
+                console.error('❌ Error rendering post:', error, apiPost);
+            }
         }
 
         this.feedWrapper.appendChild(fragment);
+        console.log(`🎉 PostsView: Rendered ${renderedCount} out of ${this.allPosts.length} posts`);
     }
 
     private showEmptyMessage(): void {
@@ -185,6 +203,8 @@ export class PostsView {
     }
 
     private transformPost(apiPost: Post): PostCardProps {
+        console.log('🔄 Transforming post for PostCard:', apiPost);
+
         const authState = loginStore.getState();
         const currentUserId = authState.user?.id;
         const isOwnPost = !!currentUserId && currentUserId.toString() === apiPost.authorId?.toString();

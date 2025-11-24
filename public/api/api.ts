@@ -340,8 +340,8 @@ private normalizeAppealData(appeal: any): any {
         return {
             id: post.id || post.ID || post.postId,
             authorId: post.author_id || post.AuthorID,
-            authorName: post.author_name || post.AuthorName,
-            authorAvatar: post.author_avatar || post.AuthorAvatar,
+            authorName: post.author_name || post.AuthorName || 'Неизвестный автор',
+            authorAvatar: post.author_avatar || post.AuthorAvatar || '/img/defaultAvatar.jpg',
             title: post.title || post.Title,
             content: post.content || post.Content,
             image: post.media_url || post.MediaURL || post.image || '',
@@ -1027,31 +1027,64 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private async searchPosts(query: string): Promise<void> {
-        const response = await ajax.get(`/postssearch?q=${encodeURIComponent(query)}`);
+        console.log('🔍 API: Searching posts with query:', query);
         
-        switch (response.status) {
-            case STATUS.ok:
-                if (response.data) {
-                    const postsArray = response.data.articles || response.data;
-                    const postsWithAuthorId = postsArray.map((post: any) => this.normalizePostData(post));
-                    this.sendAction('SEARCH_POSTS_SUCCESS', { posts: postsWithAuthorId, query });
-                } else {
-                    this.sendAction('SEARCH_POSTS_FAIL', { error: 'No posts data' });
-                }
-                break;
-            case STATUS.noMoreContent:
-                this.sendAction('SEARCH_POSTS_FAIL', { 
-                    error: 'No more content'
-                });
-                break;
-            case STATUS.unauthorized:
-                this.sendAction('USER_UNAUTHORIZED');
-                this.sendAction('SEARCH_POSTS_FAIL', { error: 'Not authenticated' });
-                break;
-            default:
-                this.sendAction('SEARCH_POSTS_FAIL', { 
-                    error: response.message || 'Ошибка поиска постов' 
-                });
+        try {
+            const response = await ajax.get(`/postssearch?q=${encodeURIComponent(query)}`);
+            console.log('📡 API: Search posts response:', response);
+            
+            switch (response.status) {
+                case STATUS.ok:
+                    if (response.data) {
+                        let postsArray = [];
+                        
+                        if (response.data.articles && Array.isArray(response.data.articles)) {
+                            postsArray = response.data.articles;
+                        } else if (Array.isArray(response.data)) {
+                            postsArray = response.data;
+                        }
+                        
+                        console.log('📝 Found posts:', postsArray.length, postsArray);
+                        
+                        const postsWithAuthorId = postsArray.map((post: any) => this.normalizePostData(post));
+                        
+                        console.log('✅ Sending normalized posts:', postsWithAuthorId);
+                        this.sendAction('SEARCH_POSTS_SUCCESS', { 
+                            posts: postsWithAuthorId, 
+                            query 
+                        });
+                    } else {
+                        console.log('📭 No posts data in response');
+                        this.sendAction('SEARCH_POSTS_SUCCESS', { 
+                            posts: [], 
+                            query 
+                        });
+                    }
+                    break;
+                case STATUS.noMoreContent:
+                    console.log('🔍 204 - No posts content');
+                    this.sendAction('SEARCH_POSTS_SUCCESS', { 
+                        posts: [], 
+                        query 
+                    });
+                    break;
+                case STATUS.notFound:
+                    console.log('🔍 404 - No posts found');
+                    this.sendAction('SEARCH_POSTS_SUCCESS', { 
+                        posts: [], 
+                        query 
+                    });
+                    break;
+                default:
+                    this.sendAction('SEARCH_POSTS_FAIL', { 
+                        error: response.message || 'Ошибка поиска постов' 
+                    });
+            }
+        } catch (error) {
+            console.error('❌ API: Search posts exception:', error);
+            this.sendAction('SEARCH_POSTS_FAIL', {
+                error: 'Ошибка при выполнении поиска постов'
+            });
         }
     }
 

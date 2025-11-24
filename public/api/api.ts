@@ -1097,23 +1097,27 @@ private normalizeAppealData(appeal: any): any {
         }
     }
 
-    private async loadUserComments(userId: string): Promise<void> {
+    private async loadUserComments(authorId: string): Promise<void> {
         try {
-            const response = await fetch(`/comments?authorId=${userId}`);
-            const data = await response.json();
+            const res = await ajax.get(`/comments?authorId=${authorId}`);
 
-            this.sendAction('PROFILE_LOAD_COMMENTS_SUCCESS', {
-                comments: data
-            });
+            if (res.status === 200) {
+                const comments = res.data?.comments || [];
+
+                this.sendAction('PROFILE_LOAD_COMMENTS_SUCCESS', {
+                    comments
+                });
+            } else {
+                this.sendAction('PROFILE_LOAD_COMMENTS_FAIL', {
+                    error: 'Ошибка загрузки комментариев'
+                });
+            }
         } catch (err) {
             this.sendAction('PROFILE_LOAD_COMMENTS_FAIL', {
                 error: 'Ошибка загрузки комментариев'
             });
         }
     }
-
-
-    
 }
 
 export const api = new API();

@@ -6,7 +6,8 @@ import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../component
 import { PostCard, PostCardProps } from '../components/PostCard/PostCard';
 import { postStore, Post } from '../stores/storePost';
 import { loginStore } from '../stores/storeLogin';
-import { userListStore } from '../stores/storeUserList'; // ← добавлено
+import { userListStore } from '../stores/storeUserList';
+import { HashtagParser } from '../utils/hashtagParser'; // Добавляем импорт
 
 export class PostView {
     private container: HTMLElement;
@@ -14,17 +15,17 @@ export class PostView {
     private headerInstance: Header;
     private postCard: PostCard | null = null;
     private boundPostStoreHandler: () => void;
-    private boundUserListStoreHandler: () => void; // ← добавлено
-    private rightMenu: HTMLElement | null = null;  // ← добавлено
+    private boundUserListStoreHandler: () => void;
+    private rightMenu: HTMLElement | null = null;
 
     constructor(container: HTMLElement, params: { id: string }) {
         this.container = container;
         this.postId = params.id;
         this.headerInstance = new Header();
         this.boundPostStoreHandler = this.handlePostStoreChange.bind(this);
-        this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this); // ← добавлено
+        this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
         postStore.addListener(this.boundPostStoreHandler);
-        userListStore.addListener(this.boundUserListStoreHandler); // ← добавлено
+        userListStore.addListener(this.boundUserListStoreHandler);
     }
 
     async render(): Promise<HTMLElement> {
@@ -109,7 +110,7 @@ export class PostView {
         contentContainer.appendChild(pageElement);
         contentContainer.appendChild(this.rightMenu);
 
-        // Инициализируем правое меню сразу (можно и в handleUserListStoreChange)
+        // Инициализируем правое меню сразу
         this.updateUserListContent();
 
         return rootElem;
@@ -143,7 +144,6 @@ export class PostView {
         }
     }
 
-    // ← НОВЫЙ обработчик для топ-блогеров
     private handleUserListStoreChange(): void {
         this.updateUserListContent();
     }
@@ -174,6 +174,10 @@ export class PostView {
         const currentUserId = authState.user?.id;
         const isOwnPost = !!currentUserId && currentUserId.toString() === post.authorId.toString();
 
+        // Обрабатываем хештеги в заголовке и тексте
+        const processedTitle = HashtagParser.replaceHashtagsWithLinks(post.title || '');
+        const processedText = HashtagParser.replaceHashtagsWithLinks(post.content || '');
+
         const postData: PostCardProps = {
             postId: post.id,
             authorId: post.authorId,
@@ -184,8 +188,8 @@ export class PostView {
                 isSubscribed: false,
                 id: post.authorId
             },
-            title: post.title || '',
-            text: post.content || '',
+            title: processedTitle, // Используем обработанный заголовок с хештегами
+            text: processedText,   // Используем обработанный текст с хештегами
             tags: Array.isArray(post.tags) ? post.tags : [],
             commentsCount: post.commentsCount || 0,
             repostsCount: post.repostsCount || 0,
@@ -210,7 +214,7 @@ export class PostView {
     destroy(): void {
         this.headerInstance.destroy();
         postStore.removeListener(this.boundPostStoreHandler);
-        userListStore.removeListener(this.boundUserListStoreHandler); // ← важно!
+        userListStore.removeListener(this.boundUserListStoreHandler);
         this.postCard = null;
         this.rightMenu = null;
     }

@@ -1,3 +1,4 @@
+// views/viewProfile.ts
 import { Profile } from '../components/Profile/Profile';
 import { UserList } from '../components/UserList/UserList';
 import { Header } from '../components/Header/Header';
@@ -7,6 +8,8 @@ import { loginStore } from '../stores/storeLogin';
 import { router } from '../router/router';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
 import { CreatePostFormView } from '../views/viewCreatePostForm';
+import { userListStore } from '../stores/storeUserList';
+import { HashtagParser } from '../utils/hashtagParser'; // Добавляем импорт
 
 export class ProfileView {
     private currentCategory: string = '';
@@ -14,6 +17,7 @@ export class ProfileView {
     private userId?: string;
     private boundStoreHandler: () => void;
     private boundLoginStoreHandler: () => void;
+    private boundUserListStoreHandler: () => void;
     private userList: UserList | null = null;
     private headerInstance: Header;
     private pageWrapper: HTMLElement | null = null;
@@ -21,7 +25,9 @@ export class ProfileView {
     private hasRendered: boolean = false;
     private sidebarEl1: HTMLElement | null = null;
     private sidebarEl2: HTMLElement | null = null;
-    private isDestroyed: boolean = false; // Флаг для отслеживания уничтожения
+    private isDestroyed: boolean = false;
+    private userListElement: HTMLElement | null = null;
+    private isUserListRendered: boolean = false;
 
     constructor(container: HTMLElement, params?: any) {
         this.container = container;
@@ -36,48 +42,65 @@ export class ProfileView {
         
         this.boundStoreHandler = this.handleStoreChange.bind(this);
         this.boundLoginStoreHandler = this.handleLoginStoreChange.bind(this);
+        this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
+        this.determineCurrentCategory();
+    }
+
+    private determineCurrentCategory(): void {
+        const url = new URL(window.location.href);
+        const pathname = url.pathname;
+        
+        if (pathname === '/' || pathname === '/feed') {
+            this.currentCategory = 'fresh';
+        } else if (pathname === '/feed/category') {
+            const topicParam = url.searchParams.get('topic');
+            this.currentCategory = topicParam || 'fresh';
+        }
+        
+        dispatcher.dispatch('POSTS_SET_FILTER', { filter: this.currentCategory });
     }
 
     async render(): Promise<HTMLElement> {
         if (this.isDestroyed) {
             console.warn('⚠️ [PROFILE] Attempted to render destroyed view');
-            return document.createElement('div'); // Возвращаем пустой элемент
+            return document.createElement('div');
         }
 
         window.scrollTo(0, 0);
         
-        // Если уже отрендерено, возвращаем существующий wrapper
+        this.determineCurrentCategory();
+        
         if (this.hasRendered && this.pageWrapper) {
             return this.pageWrapper;
         }
 
-        // Очищаем контейнер
         this.container.innerHTML = '';
         
-        // Создаем основной wrapper ДО вызова renderPageLayout
         this.pageWrapper = document.createElement('div');
         
         try {
-            // Рендерим базовую структуру страницы
             await this.renderPageLayout();
             
-            // Добавляем слушатели
             profileStore.addListener(this.boundStoreHandler);
             loginStore.addListener(this.boundLoginStoreHandler);
+            userListStore.addListener(this.boundUserListStoreHandler);
             
-            // Загружаем данные профиля
             dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
                 userId: this.userId 
             });
 
+            // Загружаем топ блогов только если еще не загружали
+            if (!this.isUserListRendered) {
+                dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
+                this.isUserListRendered = true;
+            }
+
             this.hasRendered = true;
             
-            // Добавляем в контейнер
             this.container.appendChild(this.pageWrapper);
             return this.pageWrapper;
         } catch (error) {
             console.error('❌ [PROFILE] Error rendering profile:', error);
-            // В случае ошибки возвращаем пустой элемент
             const errorDiv = document.createElement('div');
             errorDiv.textContent = 'Ошибка загрузки профиля';
             return errorDiv;
@@ -85,7 +108,6 @@ export class ProfileView {
     }
 
     private async renderPageLayout(): Promise<void> {
-        // Убеждаемся, что pageWrapper существует и view не уничтожен
         if (!this.pageWrapper || this.isDestroyed) {
             console.error('❌ [PROFILE] pageWrapper is null or view destroyed in renderPageLayout');
             return;
@@ -107,20 +129,39 @@ export class ProfileView {
         const leftMenu = document.createElement('aside');
         leftMenu.className = 'sidebar-left';
 
-        // Создаем сайдбары
         const sidebar1 = new SidebarMenu(
             MAIN_MENU_ITEMS,
-            '',
+            this.currentCategory,
             (key) => {
-                dispatcher.dispatch('POSTS_SET_FILTER', { filter: key });
+                if (this.sidebarEl2) this.deactivateAll(this.sidebarEl2);
+                
+                let newUrl = '';
+                if (key === 'fresh') {
+                    newUrl = '/feed';
+                } else {
+                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
+                }
+                
+                window.history.pushState({}, '', newUrl);
+                window.dispatchEvent(new PopStateEvent('popstate'));
             }
         );
 
         const sidebar2 = new SidebarMenu(
             SECONDARY_MENU_ITEMS,
-            '',
+            this.currentCategory,
             (key) => {
-                dispatcher.dispatch('POSTS_SET_FILTER', { filter: key });
+                if (this.sidebarEl1) this.deactivateAll(this.sidebarEl1);
+                
+                let newUrl = '';
+                if (key === 'fresh') {
+                    newUrl = '/feed';
+                } else {
+                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
+                }
+                
+                window.history.pushState({}, '', newUrl);
+                window.dispatchEvent(new PopStateEvent('popstate'));
             }
         );
 
@@ -134,7 +175,6 @@ export class ProfileView {
         const mainContent = document.createElement('main');
         mainContent.className = 'main-content';
         
-        // Инициализируем с загрузочным состоянием
         const loadingContent = await this.renderProfileContent();
         if (loadingContent) {
             mainContent.appendChild(loadingContent);
@@ -144,12 +184,14 @@ export class ProfileView {
         const rightMenu = document.createElement('aside');
         rightMenu.className = 'sidebar-right';
         
+        // Инициализируем UserList с пустыми данными
         this.userList = new UserList({
             title: 'Топ блогов',
             users: []
-            });
+        });
         const bloggersElement = await this.userList.render();
         if (bloggersElement) {
+            this.userListElement = bloggersElement;
             rightMenu.appendChild(bloggersElement);
         }
 
@@ -160,6 +202,12 @@ export class ProfileView {
         this.pageWrapper.appendChild(contentContainer);
     }
 
+    private deactivateAll(sidebarEl: HTMLElement): void {
+        sidebarEl.querySelectorAll('.menu-item').forEach(item => {
+            item.classList.remove('menu-item--active');
+        });
+    }
+
     private async renderProfileContent(): Promise<HTMLElement> {
         if (this.isDestroyed) {
             return document.createElement('div');
@@ -168,7 +216,6 @@ export class ProfileView {
         const state = profileStore.getState();
         const loginState = loginStore.getState();
         
-        // Если данные еще не загружены, показываем скелетон
         if (state.isLoading || !state.profile) {
             const skeleton = document.createElement('div');
             skeleton.className = 'profile';
@@ -183,7 +230,6 @@ export class ProfileView {
             return skeleton;
         }
 
-        // ПРАВИЛЬНОЕ определение isMyProfile
         let isMyProfile = false;
         
         if (this.userId) {
@@ -192,9 +238,16 @@ export class ProfileView {
             isMyProfile = true;
         }
 
+        // Обрабатываем хештеги в постах перед передачей в компонент Profile
+        const postsWithHashtags = state.posts ? state.posts.map(post => ({
+            ...post,
+            title: HashtagParser.replaceHashtagsWithLinks(post.title || ''),
+            content: HashtagParser.replaceHashtagsWithLinks(post.content || '')
+        })) : [];
+
         const profileComponent = new Profile({
             profile: state.profile,
-            posts: state.posts,
+            posts: postsWithHashtags, // Используем посты с обработанными хештегами
             activeTab: state.activeTab,
             isLoading: state.isLoading,
             error: state.error,
@@ -204,8 +257,30 @@ export class ProfileView {
 
         const profileElement = await profileComponent.render();
         this.attachEventListeners(profileElement);
+        this.setupHashtagHandlers(profileElement); // Добавляем обработчики для хештегов
         
         return profileElement;
+    }
+
+    private setupHashtagHandlers(container: HTMLElement): void {
+        const hashtagLinks = container.querySelectorAll('.hashtag-link');
+        
+        hashtagLinks.forEach(link => {
+            link.addEventListener('click', (e: Event) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const hashtag = link.getAttribute('data-hashtag');
+                if (hashtag) {
+                    this.handleHashtagClick(hashtag);
+                }
+            });
+        });
+    }
+
+    private handleHashtagClick(hashtag: string): void {
+        // Навигация на страницу поиска с хештегом
+        router.navigate(`/search?q=%23${encodeURIComponent(hashtag)}`);
     }
 
     private handleStoreChange(): void {
@@ -228,6 +303,43 @@ export class ProfileView {
                     }
                 });
             }
+        }
+    }
+
+    private handleUserListStoreChange(): void {
+        if (this.isDestroyed) return;
+
+        const state = userListStore.getState();
+        if (state.error) {
+            console.error('UserList error:', state.error);
+        }
+        this.updateUserListContent();
+    }
+
+    private async updateUserListContent(): Promise<void> {
+        if (this.isDestroyed) return;
+        
+        const rightMenu = this.pageWrapper?.querySelector('.sidebar-right') || 
+                         document.querySelector('.sidebar-right');
+        
+        if (!rightMenu) return;
+
+        // Удаляем старый UserList если он есть
+        if (this.userListElement) {
+            this.userListElement.remove();
+            this.userListElement = null;
+        }
+
+        const state = userListStore.getState();
+        // Рендерим только если есть пользователи
+        if (state.users && state.users.length > 0) {
+            const newList = new UserList({
+                title: 'Топ блогов',
+                users: state.users || []
+            });
+            
+            this.userListElement = await newList.render();
+            rightMenu.appendChild(this.userListElement);
         }
     }
 
@@ -317,8 +429,8 @@ export class ProfileView {
         
         profileStore.removeListener(this.boundStoreHandler);
         loginStore.removeListener(this.boundLoginStoreHandler);
+        userListStore.removeListener(this.boundUserListStoreHandler);
         
-        // Уничтожаем только те компоненты, у которых есть метод destroy
         if (this.headerInstance && typeof this.headerInstance.destroy === 'function') {
             this.headerInstance.destroy();
         }
@@ -328,17 +440,24 @@ export class ProfileView {
             this.createPostFormView = null;
         }
         
-        // Очищаем ссылки на DOM элементы
+        // Очищаем UserList
+        if (this.userListElement) {
+            this.userListElement.remove();
+            this.userListElement = null;
+        }
+        
+        // Сбрасываем флаги
+        this.isUserListRendered = false;
+        this.hasRendered = false;
+        
         this.sidebarEl1 = null;
         this.sidebarEl2 = null;
         this.userList = null;
         
-        // Удаляем pageWrapper из DOM
         if (this.pageWrapper && this.pageWrapper.parentNode) {
             this.pageWrapper.parentNode.removeChild(this.pageWrapper);
         }
         
         this.pageWrapper = null;
-        this.hasRendered = false;
     }
 }

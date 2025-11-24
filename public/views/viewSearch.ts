@@ -18,6 +18,7 @@ export class SearchView {
     private currentQuery: string = '';
     private headerInstance: Header;
     private isHandlingStoreUpdate: boolean = false;
+    private isDestroyed: boolean = false;
 
     // Статическое поле для хранения единственного экземпляра Header
     private static headerInstance: Header | null = null;
@@ -39,24 +40,23 @@ export class SearchView {
     }
 
     async render(): Promise<HTMLElement> {
+        this.isDestroyed = false;
+        
         // Создаем корневой элемент
         this.rootElement = document.createElement('div');
         
         // Header - добавляем как в других view
         const headerContainer = document.createElement('header');
         
-        // Проверяем, не отрендерен ли Header уже на странице
-        const existingHeader = document.querySelector('header');
-        if (existingHeader) {
-            console.log('🔍 SearchView: Header already exists on page, reusing');
-            // Если Header уже есть, используем его
-            this.rootElement.appendChild(existingHeader.cloneNode(true));
-        } else {
-            console.log('🔍 SearchView: Rendering new Header');
-            const headerEl = await this.headerInstance.render(headerContainer);
-            headerContainer.appendChild(headerEl);
-            this.rootElement.appendChild(headerContainer);
+        // ПРОВЕРЯЕМ, НЕ УНИЧТОЖЕН ЛИ VIEW
+        if (this.isDestroyed) {
+            return this.rootElement;
         }
+        
+        console.log('🔍 SearchView: Rendering Header');
+        const headerEl = await this.headerInstance.render(headerContainer);
+        headerContainer.appendChild(headerEl);
+        this.rootElement.appendChild(headerContainer);
         
         // Основной контент
         const contentContainer = document.createElement('div');
@@ -146,19 +146,23 @@ export class SearchView {
             this.showEmptySearch();
         }
 
-        // Подписываемся на stores ПОСЛЕ инициализации поиска
-        // Это предотвращает обработку начальных состояний store
-        setTimeout(() => {
-            searchStore.addListener(this.boundStoreHandler);
-            userListStore.addListener(this.boundUserListHandler);
-        }, 0);
+        // ПРОВЕРЯЕМ, НЕ УНИЧТОЖЕН ЛИ VIEW ПЕРЕД ПОДПИСКОЙ
+        if (!this.isDestroyed) {
+            // Подписываемся на stores ПОСЛЕ инициализации поиска
+            setTimeout(() => {
+                if (!this.isDestroyed) {
+                    searchStore.addListener(this.boundStoreHandler);
+                    userListStore.addListener(this.boundUserListHandler);
+                }
+            }, 0);
+        }
 
         return this.rootElement;
     }
 
     private handleStoreChange(): void {
-        // Защита от рекурсивных вызовов
-        if (this.isHandlingStoreUpdate) {
+        // ЗАЩИТА ОТ ВЫЗОВОВ ПОСЛЕ УНИЧТОЖЕНИЯ
+        if (this.isDestroyed || this.isHandlingStoreUpdate) {
             return;
         }
         
@@ -169,7 +173,7 @@ export class SearchView {
             
             console.log('🔍 SearchView: Store changed - query:', state.query, 'current:', this.currentQuery);
             
-            // Обновляем ТОЛЬКО если запрос совпадает с текущим и не идет загрузка от Header
+            // Обновляем ТОЛЬКО если запрос совпадает с текущим
             if (state.query === this.currentQuery) {
                 console.log('🔍 SearchView: Updating results for query:', state.query);
                 this.updateSearchResults(state);
@@ -180,10 +184,13 @@ export class SearchView {
     }
 
     private handleUserListChange(): void {
+        if (this.isDestroyed) return;
         this.updateUserListContent();
     }
 
     private async updateUserListContent(): Promise<void> {
+        if (this.isDestroyed) return;
+        
         const rightMenu = this.rootElement?.querySelector('.sidebar-right');
         
         if (!rightMenu) return;
@@ -206,7 +213,7 @@ export class SearchView {
     }
 
     private async updateSearchResults(state: any): Promise<void> {
-        if (!this.contentWrapper) return;
+        if (this.isDestroyed || !this.contentWrapper) return;
 
         console.log('🔍 SearchView: Updating results with state:', state);
 
@@ -281,7 +288,7 @@ export class SearchView {
     }
 
     private showLoading(query: string): void {
-        if (!this.contentWrapper) return;
+        if (this.isDestroyed || !this.contentWrapper) return;
 
         this.contentWrapper.innerHTML = `
             <div class="search-loading-state">
@@ -292,7 +299,7 @@ export class SearchView {
     }
 
     private showEmptySearch(): void {
-        if (!this.contentWrapper) return;
+        if (this.isDestroyed || !this.contentWrapper) return;
 
         this.contentWrapper.innerHTML = `
             <div class="search-empty-state">
@@ -303,7 +310,7 @@ export class SearchView {
     }
 
     private showNoResults(query: string): void {
-        if (!this.contentWrapper) return;
+        if (this.isDestroyed || !this.contentWrapper) return;
 
         const noResultsEl = document.createElement('div');
         noResultsEl.className = 'search-no-results';
@@ -319,18 +326,16 @@ export class SearchView {
 
     destroy(): void {
         console.log('🔍 SearchView destroy called');
+        
+        // УСТАНАВЛИВАЕМ ФЛАГ УНИЧТОЖЕНИЯ ПЕРВЫМ ДЕЛОМ
+        this.isDestroyed = true;
         this.hasInitializedSearch = false;
         this.currentQuery = '';
         this.isHandlingStoreUpdate = false;
         
-        // Отписываемся от stores ПЕРВЫМ делом
+        // Отписываемся от stores
         searchStore.removeListener(this.boundStoreHandler);
         userListStore.removeListener(this.boundUserListHandler);
-        
-        // НЕ уничтожаем Header, так как он используется другими view
-        // if (this.headerInstance && typeof this.headerInstance.destroy === 'function') {
-        //     this.headerInstance.destroy();
-        // }
         
         // Уничтожаем компоненты
         if (this.postsView) {

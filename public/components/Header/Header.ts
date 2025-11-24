@@ -68,7 +68,9 @@ export class Header {
     private searchResults: SearchResults | null = null;
     private searchInput: HTMLInputElement | null = null;
     private searchTimeout: number | null = null;
-    private lastShownQuery: string = ''; // ЗАПОМИНАЕМ ПОСЛЕДНИЙ ПОКАЗАННЫЙ ЗАПРОС
+    private lastShownQuery: string = '';
+    private isRendering: boolean = false; // ДОБАВИТЬ: флаг для предотвращения ререндера
+    private lastLoginState: any = null; // ДОБАВИТЬ: кэш состояния логина
 
     constructor() {
         this.boundStoreHandler = this.handleStoreChange.bind(this);
@@ -78,37 +80,62 @@ export class Header {
     private init(): void {
         loginStore.addListener(this.boundStoreHandler);
         searchStore.addListener(this.boundStoreHandler);
+        this.lastLoginState = loginStore.getState(); // ИНИЦИАЛИЗИРУЕМ
         dispatcher.dispatch('LOGIN_CHECK_REQUEST');
     }
 
     async render(container?: HTMLElement): Promise<HTMLElement> {
-        if (container) {
-            this.container = container;
-        }
-
-        const template = await getHeaderTemplate();
-        const authState = loginStore.getState();
-
-        const html = template({
-            isLoggedIn: authState.isLoggedIn,
-            user: authState.user
-        });
-
-        const div = document.createElement('div');
-        div.innerHTML = html.trim();
-        
-        if (this.headerElement && this.headerElement.parentNode) {
-            this.headerElement.remove();
+        // ЗАЩИТА ОТ РЕКУРСИВНОГО РЕНДЕРА
+        if (this.isRendering) {
+            return this.headerElement!;
         }
         
-        this.headerElement = div.firstElementChild as HTMLElement;
+        this.isRendering = true;
         
-        if (!this.headerElement) {
-            throw new Error('Header element not found');
-        }
+        try {
+            if (container) {
+                this.container = container;
+            }
 
-        this.setupEventHandlers();
-        return this.headerElement;
+            const template = await getHeaderTemplate();
+            const authState = loginStore.getState();
+
+            // ПРОВЕРЯЕМ, ДЕЙСТВИТЕЛЬНО ЛИ ИЗМЕНИЛОСЬ СОСТОЯНИЕ
+            if (this.headerElement && 
+                this.lastLoginState && 
+                this.lastLoginState.isLoggedIn === authState.isLoggedIn &&
+                this.lastLoginState.user?.id === authState.user?.id) {
+                // Состояние не изменилось - возвращаем существующий элемент
+                return this.headerElement;
+            }
+
+            // ОБНОВЛЯЕМ КЭШ
+            this.lastLoginState = { ...authState };
+
+            const html = template({
+                isLoggedIn: authState.isLoggedIn,
+                user: authState.user
+            });
+
+            const div = document.createElement('div');
+            div.innerHTML = html.trim();
+            
+            // УДАЛЯЕМ СТАРЫЙ HEADER ТОЛЬКО ЕСЛИ ОН СУЩЕСТВУЕТ
+            if (this.headerElement && this.headerElement.parentNode) {
+                this.headerElement.remove();
+            }
+            
+            this.headerElement = div.firstElementChild as HTMLElement;
+            
+            if (!this.headerElement) {
+                throw new Error('Header element not found');
+            }
+
+            this.setupEventHandlers();
+            return this.headerElement;
+        } finally {
+            this.isRendering = false;
+        }
     }
 
     private async showLoginForm(targetUrl?: string): Promise<void> {
@@ -328,9 +355,9 @@ export class Header {
         
         const currentInputValue = this.searchInput?.value.trim() || '';
         
-        // КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: ПОКАЗЫВАЕМ РЕЗУЛЬТАТЫ ТОЛЬКО ЕСЛИ:
+        // ПОКАЗЫВАЕМ РЕЗУЛЬТАТЫ ТОЛЬКО ЕСЛИ:
         // 1. Запрос в store совпадает с текущим значением инпута
-        // 2. Есть результаты ИЛИ запрос не пустой (чтобы показывать футер)
+        // 2. Есть результаты ИЛИ запрос не пустой
         // 3. Это НЕ тот же запрос, который уже показан
         if (searchState.query === currentInputValue && 
             currentInputValue.length >= 1 &&
@@ -340,18 +367,24 @@ export class Header {
             await this.showSearchResults(searchState.blogs, searchState.query);
         }
         
-        // Обновляем header только если изменился loginStore
+        // ОБНОВЛЯЕМ HEADER ТОЛЬКО ЕСЛИ ДЕЙСТВИТЕЛЬНО ИЗМЕНИЛОСЬ СОСТОЯНИЕ ЛОГИНА
         const loginState = loginStore.getState();
-        const shouldUpdateHeader = this.container && this.headerElement && 
-                                loginState !== loginStore.getState();
+        const shouldUpdateHeader = this.container && 
+                                this.lastLoginState && 
+                                (this.lastLoginState.isLoggedIn !== loginState.isLoggedIn ||
+                                 this.lastLoginState.user?.id !== loginState.user?.id);
         
         if (shouldUpdateHeader) {
+            console.log('🔄 Header: Login state changed, updating header');
             const currentSearchValue = this.searchInput?.value || '';
             const hadFocus = document.activeElement === this.searchInput;
             
             const newHeader = await this.render();
-            this.container.appendChild(newHeader);
+            if (this.container && newHeader.parentNode !== this.container) {
+                this.container.appendChild(newHeader);
+            }
             
+            // ВОССТАНАВЛИВАЕМ СОСТОЯНИЕ ПОИСКА
             const newSearchInput = newHeader.querySelector('.header__search') as HTMLInputElement;
             if (newSearchInput && currentSearchValue) {
                 newSearchInput.value = currentSearchValue;
@@ -388,16 +421,20 @@ export class Header {
 
         document.removeEventListener('click', this.handleClickOutside);
 
-        // ВАЖНО: полностью удаляем header из DOM
+        // УДАЛЯЕМ HEADER ИЗ DOM
         if (this.headerElement && this.headerElement.parentNode) {
             this.headerElement.parentNode.removeChild(this.headerElement);
             this.headerElement = null;
         }
         
-        // Если используется контейнер, тоже очищаем
+        // ОЧИЩАЕМ КОНТЕЙНЕР
         if (this.container) {
             this.container.innerHTML = '';
             this.container = null;
         }
+        
+        // СБРАСЫВАЕМ СОСТОЯНИЕ
+        this.lastLoginState = null;
+        this.isRendering = false;
     }
 }

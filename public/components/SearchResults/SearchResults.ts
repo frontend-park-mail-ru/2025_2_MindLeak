@@ -85,8 +85,12 @@ export class SearchResults {
             showAllLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 console.log('🔍 Show all results clicked for query:', this.props.query);
-                this.props.onShowAllResults();
+                
+                // Сначала скрываем результаты поиска
                 this.hide();
+                
+                // Затем выполняем навигацию
+                this.props.onShowAllResults();
             });
         }
     }

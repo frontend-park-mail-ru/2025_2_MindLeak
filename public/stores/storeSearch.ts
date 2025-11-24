@@ -39,12 +39,15 @@ class SearchStore extends BaseStore<SearchState> {
     }
 
     private handleSearchBlogsSuccess(payload?: any): void {
-        this.setState({
-            ...this.state,
-            isLoading: false,
-            blogs: payload?.users || [], // ГАРАНТИРУЕМ МАССИВ
-            query: payload?.query || this.state.query
-        });
+        // ПРЕДОТВРАЩАЕМ ДУБЛИРОВАНИЕ - проверяем query
+        if (this.state.query === payload?.query) {
+            this.setState({
+                ...this.state,
+                isLoading: false,
+                blogs: payload?.users || [],
+                query: payload?.query || this.state.query
+            });
+        }
     }
 
     private handleSearchBlogsFail(payload?: any): void {
@@ -66,12 +69,15 @@ class SearchStore extends BaseStore<SearchState> {
     }
 
     private handleSearchPostsSuccess(payload?: any): void {
-        this.setState({
-            ...this.state,
-            isLoading: false,
-            posts: payload?.posts || [],
-            query: payload?.query || this.state.query
-        });
+        // ПРЕДОТВРАЩАЕМ ДУБЛИРОВАНИЕ - проверяем query
+        if (this.state.query === payload?.query) {
+            this.setState({
+                ...this.state,
+                isLoading: false,
+                posts: payload?.posts || [],
+                query: payload?.query || this.state.query
+            });
+        }
     }
 
     private handleSearchPostsFail(payload?: any): void {

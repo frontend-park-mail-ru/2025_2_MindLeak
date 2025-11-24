@@ -1,50 +1,71 @@
-import { Header } from '../components/Header/Header';
 import { UserList } from '../components/UserList/UserList';
 import { PostsView } from './viewPosts';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
 import { searchStore } from '../stores/storeSearch';
 import { dispatcher } from '../dispatcher/dispatcher';
 import { userListStore } from '../stores/storeUserList';
+import { Header } from '../components/Header/Header';
 
 export class SearchView {
-    private headerInstance: Header;
     private postsView: PostsView | null = null;
     private contentWrapper: HTMLElement | null = null;
     private boundStoreHandler: () => void;
     private boundUserListHandler: () => void;
     private userListElement: HTMLElement | null = null;
     private isUserListRendered: boolean = false;
+    private rootElement: HTMLElement | null = null;
+    private hasInitializedSearch: boolean = false;
+    private currentQuery: string = '';
+    private headerInstance: Header;
+    private isHandlingStoreUpdate: boolean = false;
+
+    // Статическое поле для хранения единственного экземпляра Header
+    private static headerInstance: Header | null = null;
 
     constructor() {
-        this.headerInstance = new Header();
         this.postsView = new PostsView();
+        
+        // Используем синглтон для Header - создаем только один экземпляр
+        if (!SearchView.headerInstance) {
+            SearchView.headerInstance = new Header();
+            console.log('🔍 SearchView: Created new Header instance');
+        } else {
+            console.log('🔍 SearchView: Reusing existing Header instance');
+        }
+        this.headerInstance = SearchView.headerInstance;
+        
         this.boundStoreHandler = this.handleStoreChange.bind(this);
         this.boundUserListHandler = this.handleUserListChange.bind(this);
     }
 
     async render(): Promise<HTMLElement> {
-        const rootElem = document.createElement('div');
+        // Создаем корневой элемент
+        this.rootElement = document.createElement('div');
         
-        // Header
+        // Header - добавляем как в других view
         const headerContainer = document.createElement('header');
-        const headerEl = await this.headerInstance.render(headerContainer);
-        headerContainer.appendChild(headerEl);
-        rootElem.appendChild(headerContainer);
-
-        // Основной контент с такой же структурой как HomeView
+        
+        // Проверяем, не отрендерен ли Header уже на странице
+        const existingHeader = document.querySelector('header');
+        if (existingHeader) {
+            console.log('🔍 SearchView: Header already exists on page, reusing');
+            // Если Header уже есть, используем его
+            this.rootElement.appendChild(existingHeader.cloneNode(true));
+        } else {
+            console.log('🔍 SearchView: Rendering new Header');
+            const headerEl = await this.headerInstance.render(headerContainer);
+            headerContainer.appendChild(headerEl);
+            this.rootElement.appendChild(headerContainer);
+        }
+        
+        // Основной контент
         const contentContainer = document.createElement('div');
         contentContainer.className = 'content-layout';
-        rootElem.appendChild(contentContainer);
+        this.rootElement.appendChild(contentContainer);
 
         // Левое меню (категории)
         const leftMenu = document.createElement('aside');
         leftMenu.className = 'sidebar-left';
-
-        const deactivateAll = (sidebarEl: HTMLElement) => {
-            sidebarEl.querySelectorAll('.menu-item').forEach(item => {
-                item.classList.remove('menu-item--active');
-            });
-        };
 
         // Верхнее меню категорий
         const sidebar1 = new SidebarMenu(
@@ -99,10 +120,6 @@ export class SearchView {
         contentContainer.appendChild(pageElement);
         contentContainer.appendChild(rightMenu);
 
-        // Подписываемся на stores
-        searchStore.addListener(this.boundStoreHandler);
-        userListStore.addListener(this.boundUserListHandler);
-        
         // Загружаем топ блогов для правого меню
         if (!this.isUserListRendered) {
             dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
@@ -112,20 +129,54 @@ export class SearchView {
         // Загружаем результаты поиска
         const urlParams = new URLSearchParams(window.location.search);
         const query = urlParams.get('q') || '';
+        this.currentQuery = query;
         
-        if (query) {
+        if (query && !this.hasInitializedSearch) {
+            // ВСЕГДА делаем свежий поиск при первом рендере
+            console.log('🔍 SearchView: Making fresh search for query:', query);
+            dispatcher.dispatch('SEARCH_CLEAR');
             dispatcher.dispatch('SEARCH_BLOGS_REQUEST', { query });
             dispatcher.dispatch('SEARCH_POSTS_REQUEST', { query });
-        } else {
+            
+            this.hasInitializedSearch = true;
+            
+            // Показываем состояние загрузки сразу
+            this.showLoading(query);
+        } else if (!query) {
             this.showEmptySearch();
         }
 
-        return rootElem;
+        // Подписываемся на stores ПОСЛЕ инициализации поиска
+        // Это предотвращает обработку начальных состояний store
+        setTimeout(() => {
+            searchStore.addListener(this.boundStoreHandler);
+            userListStore.addListener(this.boundUserListHandler);
+        }, 0);
+
+        return this.rootElement;
     }
 
     private handleStoreChange(): void {
-        const state = searchStore.getState();
-        this.updateSearchResults(state);
+        // Защита от рекурсивных вызовов
+        if (this.isHandlingStoreUpdate) {
+            return;
+        }
+        
+        this.isHandlingStoreUpdate = true;
+        
+        try {
+            const state = searchStore.getState();
+            
+            console.log('🔍 SearchView: Store changed - query:', state.query, 'current:', this.currentQuery);
+            
+            // Обновляем ТОЛЬКО если запрос совпадает с текущим и не идет загрузка от Header
+            if (state.query === this.currentQuery) {
+                console.log('🔍 SearchView: Updating results for query:', state.query);
+                this.updateSearchResults(state);
+            }
+        } finally {
+            this.isHandlingStoreUpdate = false;
+        }
     }
 
     private handleUserListChange(): void {
@@ -133,8 +184,7 @@ export class SearchView {
     }
 
     private async updateUserListContent(): Promise<void> {
-        const rightMenu = this.contentWrapper?.closest('.content-layout')?.querySelector('.sidebar-right') || 
-                         document.querySelector('.sidebar-right');
+        const rightMenu = this.rootElement?.querySelector('.sidebar-right');
         
         if (!rightMenu) return;
 
@@ -158,9 +208,16 @@ export class SearchView {
     private async updateSearchResults(state: any): Promise<void> {
         if (!this.contentWrapper) return;
 
-        this.contentWrapper.innerHTML = '';
+        console.log('🔍 SearchView: Updating results with state:', state);
 
-        console.log('🔍 SearchView: Updating results with state:', state); // Добавляем лог
+        // Если загружается, показываем индикатор загрузки
+        if (state.isLoading) {
+            this.showLoading(state.query);
+            return;
+        }
+
+        // Обновляем только контент
+        this.contentWrapper.innerHTML = '';
 
         // Заголовок поиска
         const titleEl = document.createElement('h1');
@@ -171,7 +228,7 @@ export class SearchView {
         let hasResults = false;
 
         // Секция авторов
-        console.log('👥 Authors found:', state.blogs.length, state.blogs); // Лог авторов
+        console.log('👥 Authors found:', state.blogs.length, state.blogs);
         if (state.blogs.length > 0) {
             hasResults = true;
             const authorsSection = document.createElement('section');
@@ -193,7 +250,7 @@ export class SearchView {
         }
 
         // Секция постов
-        console.log('📝 Posts found:', state.posts.length, state.posts); // Лог постов
+        console.log('📝 Posts found:', state.posts.length, state.posts);
         if (state.posts.length > 0) {
             hasResults = true;
             const postsSection = document.createElement('section');
@@ -216,11 +273,22 @@ export class SearchView {
         }
 
         // Сообщение если ничего не найдено
-        console.log('📊 Total results:', hasResults, 'Loading:', state.isLoading); // Лог статуса
+        console.log('📊 Total results:', hasResults, 'Loading:', state.isLoading);
         if (!hasResults && !state.isLoading) {
-            console.log('❌ Showing no results message'); // Лог сообщения
+            console.log('❌ Showing no results message');
             this.showNoResults(state.query);
         }
+    }
+
+    private showLoading(query: string): void {
+        if (!this.contentWrapper) return;
+
+        this.contentWrapper.innerHTML = `
+            <div class="search-loading-state">
+                <h1 class="search-loading-state__title">Поиск: "${query}"</h1>
+                <p class="search-loading-state__text">Ищем авторов и посты...</p>
+            </div>
+        `;
     }
 
     private showEmptySearch(): void {
@@ -250,17 +318,51 @@ export class SearchView {
     }
 
     destroy(): void {
-        this.headerInstance.destroy();
-        if (this.postsView) {
-            this.postsView.destroy();
-        }
+        console.log('🔍 SearchView destroy called');
+        this.hasInitializedSearch = false;
+        this.currentQuery = '';
+        this.isHandlingStoreUpdate = false;
+        
+        // Отписываемся от stores ПЕРВЫМ делом
         searchStore.removeListener(this.boundStoreHandler);
         userListStore.removeListener(this.boundUserListHandler);
         
-        if (this.userListElement) {
-            this.userListElement.remove();
+        // НЕ уничтожаем Header, так как он используется другими view
+        // if (this.headerInstance && typeof this.headerInstance.destroy === 'function') {
+        //     this.headerInstance.destroy();
+        // }
+        
+        // Уничтожаем компоненты
+        if (this.postsView) {
+            this.postsView.destroy();
+            this.postsView = null;
         }
         
+        // Очищаем user list
+        if (this.userListElement) {
+            this.userListElement.remove();
+            this.userListElement = null;
+        }
+        
+        // Удаляем корневой элемент
+        if (this.rootElement && this.rootElement.parentNode) {
+            this.rootElement.parentNode.removeChild(this.rootElement);
+            this.rootElement = null;
+        }
+        
+        // Сбрасываем флаги
         this.isUserListRendered = false;
+        this.contentWrapper = null;
+        
+        console.log('🔍 SearchView destroyed completely');
+    }
+
+    // Статический метод для очистки синглтона (опционально)
+    public static cleanup(): void {
+        if (SearchView.headerInstance) {
+            SearchView.headerInstance.destroy();
+            SearchView.headerInstance = null;
+            console.log('🔍 SearchView: Header singleton cleaned up');
+        }
     }
 }

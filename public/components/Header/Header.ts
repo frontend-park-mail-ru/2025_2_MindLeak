@@ -388,8 +388,16 @@ export class Header {
 
         document.removeEventListener('click', this.handleClickOutside);
 
+        // ВАЖНО: полностью удаляем header из DOM
         if (this.headerElement && this.headerElement.parentNode) {
-            this.headerElement.remove();
+            this.headerElement.parentNode.removeChild(this.headerElement);
+            this.headerElement = null;
+        }
+        
+        // Если используется контейнер, тоже очищаем
+        if (this.container) {
+            this.container.innerHTML = '';
+            this.container = null;
         }
     }
 }

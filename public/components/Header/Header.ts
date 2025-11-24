@@ -68,6 +68,7 @@ export class Header {
     private searchResults: SearchResults | null = null;
     private searchInput: HTMLInputElement | null = null;
     private searchTimeout: number | null = null;
+    private lastShownQuery: string = ''; // ЗАПОМИНАЕМ ПОСЛЕДНИЙ ПОКАЗАННЫЙ ЗАПРОС
 
     constructor() {
         this.boundStoreHandler = this.handleStoreChange.bind(this);
@@ -120,7 +121,6 @@ export class Header {
         if (!this.headerElement) return;
 
         console.log('🔄 Setting up header event handlers');
-        console.log('🔍 Header element:', this.headerElement);
 
         const authState = loginStore.getState();
 
@@ -137,15 +137,12 @@ export class Header {
                 userMenu.addEventListener('click', async (e: Event) => {
                 e.stopPropagation();
 
-                // ПРОВЕРКА АВТОРИЗАЦИИ ПРЯМО ЗДЕСЬ
                 if (!authState.isLoggedIn) {
-                    // Сохраняем текущий URL для редиректа после логина
                     const currentPath = window.location.pathname + window.location.search;
                     await this.showLoginForm(currentPath);
                     return;
                 }
 
-                // Если авторизован - показываем меню как раньше
                 const existingMenu = document.querySelector('.popUp-menu');
                 if (existingMenu) {
                     existingMenu.remove();
@@ -167,8 +164,8 @@ export class Header {
 
                 const menuEl = await popUpMenu.render();
                 const rect = userMenu.getBoundingClientRect();
-                menuEl.style.position = 'fixed'; // ← вместо 'absolute'
-                menuEl.style.top = `${rect.bottom + 10}px`; // ← учитываем скролл
+                menuEl.style.position = 'fixed';
+                menuEl.style.top = `${rect.bottom + 10}px`;
                 menuEl.style.right = `${window.innerWidth - rect.right}px`;
                 menuEl.style.zIndex = '1000';
 
@@ -215,12 +212,11 @@ export class Header {
         this.searchInput = this.headerElement.querySelector('.header__search') as HTMLInputElement;
         if (this.searchInput) {
             console.log('✅ Search input found, adding event listeners');
-            this.setupSearchHandlers(); // ИСПОЛЬЗУЕМ НОВЫЙ МЕТОД
+            this.setupSearchHandlers();
         } else {
             console.error('❌ Search input not found!');
         }
 
-        // Закрытие результатов при клике вне области
         document.addEventListener('click', this.handleClickOutside.bind(this));
     }
 
@@ -232,132 +228,143 @@ export class Header {
         const target = e.target as HTMLInputElement;
         const query = target.value.trim();
         
-        console.log('🔍 Search input:', query); // Добавьте эту строку
+        console.log('🔍 Search input:', query);
 
-        // Очищаем предыдущий таймаут
         if (this.searchTimeout) {
             clearTimeout(this.searchTimeout);
+            this.searchTimeout = null;
         }
 
-        if (query.length >= 2) {
-            console.log('🚀 Dispatching SEARCH_BLOGS_REQUEST'); // Добавьте эту строку
-            // Дебаунс запросов - отправляем через 300мс
+        // ОЧИЩАЕМ РЕЗУЛЬТАТЫ ПРИ ЛЮБОМ ИЗМЕНЕНИИ
+        this.clearSearchResults();
+
+        if (query.length >= 1) { 
+            // Используем таймаут для дебаунса
             this.searchTimeout = window.setTimeout(() => {
+                console.log('🚀 Dispatching SEARCH_BLOGS_REQUEST');
                 dispatcher.dispatch('SEARCH_BLOGS_REQUEST', { query });
             }, 300);
         } else {
-            // Скрываем результаты если запрос слишком короткий
-            if (this.searchResults) {
-                this.searchResults.hide();
-            }
-            // Очищаем результаты в store если запрос пустой
-            if (query.length === 0) {
-                dispatcher.dispatch('SEARCH_CLEAR');
-            }
+            dispatcher.dispatch('SEARCH_CLEAR');
         }
     }
 
     private handleSearchFocus(): void {
         const query = this.searchInput?.value.trim();
-        if (query && query.length >= 2) {
-            // Показываем предыдущие результаты при фокусе
+        if (query && query.length >= 1) {
             const state = searchStore.getState();
-            if (state.blogs.length > 0) {
+            // ПОКАЗЫВАЕМ РЕЗУЛЬТАТЫ ТОЛЬКО ЕСЛИ ЗАПРОС СОВПАДАЕТ И ЕСТЬ РЕЗУЛЬТАТЫ
+            if (state.query === query && state.blogs.length > 0 && this.lastShownQuery !== query) {
                 this.showSearchResults(state.blogs, state.query);
             }
         }
     }
 
     private async showSearchResults(users: any[], query: string): Promise<void> {
-        // Скрываем предыдущие результаты
-        if (this.searchResults) {
-            this.searchResults.destroy();
-        }
+        // ВСЕГДА ОЧИЩАЕМ ПРЕДЫДУЩИЕ РЕЗУЛЬТАТЫ
+        this.clearSearchResults();
 
         console.log('🔍 Showing search results with users:', users, 'query:', query);
 
-        this.searchResults = new SearchResults({
-            users: users,
-            query: query,
-            onShowAllResults: () => {
-                console.log('🔍 Navigate to search page with query:', query);
-                router.navigate(`/search?q=${encodeURIComponent(query)}`);
+        // СОЗДАЕМ РЕЗУЛЬТАТЫ ТОЛЬКО ЕСЛИ ЕСТЬ ПОЛЬЗОВАТЕЛИ ИЛИ ЗАПРОС НЕ ПУСТОЙ
+        if (users.length > 0 || query.length > 0) {
+            this.searchResults = new SearchResults({
+                users: users,
+                query: query,
+                onShowAllResults: () => {
+                    console.log('🔍 Navigate to search page with query:', query);
+                    router.navigate(`/search?q=${encodeURIComponent(query)}`);
+                }
+            });
+
+            const resultsElement = await this.searchResults.render();
+            
+            if (this.searchInput) {
+                const rect = this.searchInput.getBoundingClientRect();
+                resultsElement.style.position = 'absolute';
+                resultsElement.style.top = `${rect.bottom + window.scrollY}px`;
+                resultsElement.style.left = `${rect.left + window.scrollX}px`;
+                resultsElement.style.width = `${rect.width}px`;
+                resultsElement.style.zIndex = '1000';
+                resultsElement.style.background = 'white';
+                resultsElement.style.border = '1px solid #ccc';
+                resultsElement.style.borderRadius = '4px';
+                resultsElement.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
             }
-        });
 
-        const resultsElement = await this.searchResults.render();
-        
-        // Детальная проверка элементов после рендера
-        const showAllButton = resultsElement.querySelector('[data-action="show-all"]');
-        const footer = resultsElement.querySelector('.search-results__footer');
-        const listItems = resultsElement.querySelectorAll('.search-result-item');
-        
-        console.log('🔍 After SearchResults render:');
-        console.log('  - Show-all button:', !!showAllButton);
-        console.log('  - Footer:', !!footer);
-        console.log('  - List items count:', listItems.length);
-        console.log('  - Results element HTML:', resultsElement.outerHTML);
-        
-        // Позиционируем под поиском
-        if (this.searchInput) {
-            const rect = this.searchInput.getBoundingClientRect();
-            resultsElement.style.position = 'absolute';
-            resultsElement.style.top = `${rect.bottom + window.scrollY}px`;
-            resultsElement.style.left = `${rect.left + window.scrollX}px`;
-            resultsElement.style.width = `${rect.width}px`;
-            resultsElement.style.zIndex = '1000';
-            resultsElement.style.background = 'white';
-            resultsElement.style.border = '1px solid #ccc';
-            resultsElement.style.borderRadius = '4px';
-            resultsElement.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
+            document.body.appendChild(resultsElement);
+            this.lastShownQuery = query; // ЗАПОМИНАЕМ ПОСЛЕДНИЙ ПОКАЗАННЫЙ ЗАПРОС
         }
+    }
 
-        document.body.appendChild(resultsElement);
+    private clearSearchResults(): void {
+        // УДАЛЯЕМ ВСЕ СУЩЕСТВУЮЩИЕ РЕЗУЛЬТАТЫ ИЗ DOM
+        const existingResults = document.querySelectorAll('.search-results');
+        existingResults.forEach(result => {
+            result.remove();
+        });
+        
+        // ОЧИЩАЕМ ССЫЛКУ
+        if (this.searchResults) {
+            this.searchResults.destroy();
+            this.searchResults = null;
+        }
     }
 
     private handleClickOutside(e: Event): void {
         const target = e.target as Node;
         
         if (this.searchInput && !this.searchInput.contains(target)) {
-            // Используем публичный метод contains вместо прямого доступа к element
             if (this.searchResults && this.searchResults.contains(target)) {
-                return; // Клик внутри результатов поиска - не закрываем
+                return;
             }
-            // Клик вне области поиска и результатов - закрываем результаты
-            this.searchResults?.hide();
+            this.clearSearchResults();
         }
     }
 
     private async handleStoreChange(): Promise<void>  {
         const searchState = searchStore.getState();
-        console.log('🔍 Header: Search store changed:', searchState)
+        console.log('🔍 Header: Search store changed:', searchState);
         
-        // СОХРАНЯЕМ ТЕКУЩЕЕ ЗНАЧЕНИЕ ПОИСКА
-        const currentSearchValue = this.searchInput?.value || '';
+        const currentInputValue = this.searchInput?.value.trim() || '';
         
-        // ВСЕГДА ПОКАЗЫВАЕМ РЕЗУЛЬТАТЫ ПОИСКА С КНОПКОЙ "ПОКАЗАТЬ ВСЕ РЕЗУЛЬТАТЫ"
-        if (this.searchInput?.value.trim() && searchState.query) {
-            console.log('🔍 Showing search results:', searchState.blogs);
+        // КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: ПОКАЗЫВАЕМ РЕЗУЛЬТАТЫ ТОЛЬКО ЕСЛИ:
+        // 1. Запрос в store совпадает с текущим значением инпута
+        // 2. Есть результаты ИЛИ запрос не пустой (чтобы показывать футер)
+        // 3. Это НЕ тот же запрос, который уже показан
+        if (searchState.query === currentInputValue && 
+            currentInputValue.length >= 1 &&
+            this.lastShownQuery !== currentInputValue) {
+            
+            console.log('🔄 Store updated, showing search results');
             await this.showSearchResults(searchState.blogs, searchState.query);
-        }
-        
-        // ВОССТАНАВЛИВАЕМ ЗНАЧЕНИЕ ПОИСКА ПОСЛЕ ПЕРЕРИСОВКИ
-        if (this.searchInput && this.searchInput.value !== currentSearchValue) {
-            this.searchInput.value = currentSearchValue;
         }
         
         // Обновляем header только если изменился loginStore
         const loginState = loginStore.getState();
-        if (this.container && this.headerElement && loginState !== loginStore.getState()) {
+        const shouldUpdateHeader = this.container && this.headerElement && 
+                                loginState !== loginStore.getState();
+        
+        if (shouldUpdateHeader) {
+            const currentSearchValue = this.searchInput?.value || '';
+            const hadFocus = document.activeElement === this.searchInput;
+            
             const newHeader = await this.render();
             this.container.appendChild(newHeader);
             
-            // ВОССТАНАВЛИВАЕМ ЗНАЧЕНИЕ ПОИСКА ПОСЛЕ ПЕРЕРИСОВКИ HEADER
             const newSearchInput = newHeader.querySelector('.header__search') as HTMLInputElement;
             if (newSearchInput && currentSearchValue) {
                 newSearchInput.value = currentSearchValue;
                 this.searchInput = newSearchInput;
                 this.setupSearchHandlers();
+                
+                if (hadFocus) {
+                    this.searchInput.focus();
+                    this.searchInput.setSelectionRange(
+                        currentSearchValue.length, 
+                        currentSearchValue.length
+                    );
+                }
             }
         }
     }
@@ -377,9 +384,7 @@ export class Header {
             clearTimeout(this.searchTimeout);
         }
         
-        if (this.searchResults) {
-            this.searchResults.destroy();
-        }
+        this.clearSearchResults();
 
         document.removeEventListener('click', this.handleClickOutside);
 

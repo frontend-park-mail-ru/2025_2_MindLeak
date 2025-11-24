@@ -203,7 +203,6 @@ export class PostsView {
     }
 
     private transformPost(apiPost: Post): PostCardProps {
-        console.log('🔄 Transforming post for PostCard:', apiPost);
 
         const authState = loginStore.getState();
         const currentUserId = authState.user?.id;

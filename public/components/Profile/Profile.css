@@ -257,3 +257,53 @@
 .post-card__menu-button {
     cursor: pointer;
 }
+
+.comment-card {
+    background-color: var(--section-color);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border-color);
+    transition: box-shadow 0.2s ease;
+}
+
+.comment-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.comment-card__author {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.comment-card__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border-color);
+}
+
+.comment-card__name {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-color);
+    font-size: var(--text-base);
+}
+
+.comment-card__content {
+    color: var(--text-color);
+    line-height: 1.5;
+    margin-bottom: 12px;
+    word-wrap: break-word;
+    font-size: var(--text-base);
+}
+
+.comment-card__post-title {
+    font-size: var(--text-sm);
+    color: var(--text-lighter);
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+    font-style: italic;
+}

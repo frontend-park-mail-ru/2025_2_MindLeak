@@ -5,10 +5,24 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const path = require('path');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
+const BACKEND = 'https://mindleak.ru';
 
 app.use(morgan('dev'));
+
+app.use(
+    '/chat/ws',
+    createProxyMiddleware({
+        target: BACKEND,
+        changeOrigin: true,
+        ws: true,
+        secure: false,
+        onProxyReqWs: () => console.log('🔄 WS proxy upgrade → backend')
+    })
+);
+
 app.use(express.static(path.resolve(__dirname, '..', 'public')));
 app.use(express.static(path.resolve(__dirname, '..', 'node_modules')));
 app.use('/dist', express.static(path.resolve(__dirname, '..', 'dist')));

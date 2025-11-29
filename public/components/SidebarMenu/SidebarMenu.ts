@@ -11,7 +11,7 @@ export const MAIN_MENU_ITEMS: MenuItem[] = [
     { topic_id: 11, key: 'fresh', icon: '/img/icons/Fresh_icon.svg', text: 'Свежее' },
     { topic_id: 12, key: 'тренды', icon: '/img/icons/trends_icon.svg', text: 'Тренды' },
     { topic_id: 13, key: 'Лента', icon: '/img/icons/feed_icon.svg', text: 'Лента' },
-    { topic_id: 14, key: 'Сообщения', icon: '/img/icons/chat_icon.svg', text: 'Сообщения' }
+    { topic_id: 14, key: 'messages', icon: '/img/icons/chat_icon.svg', text: 'Сообщения' }
 ];
 
 export const SECONDARY_MENU_ITEMS: MenuItem[] = [
@@ -80,6 +80,10 @@ export class SidebarMenu {
             item.addEventListener('click', (e: Event) => {
                 e.preventDefault();
                 const key = (item as HTMLElement).dataset.key;
+
+                console.log("CLICKED ITEM =", item);
+                console.log("dataset.key =", key);
+
                 if (!key) return;
 
                 setActiveItem(key);

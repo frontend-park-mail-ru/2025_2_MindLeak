@@ -119,7 +119,6 @@ class API {
             case 'REPLIES_LOAD_REQUEST':
                 this.loadReplies(payload.commentId, payload.articleId);
                 break;
-
             case 'REPLY_CREATE_REQUEST':
                 this.createReply(payload.commentId, payload.text, payload.postId);
                 break;

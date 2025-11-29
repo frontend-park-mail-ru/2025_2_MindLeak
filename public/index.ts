@@ -9,6 +9,8 @@ import { PostView } from './views/viewPost';
 import { PostsView } from './views/viewPosts';
 import { StatisticsView } from './views/viewStatistic';
 import { ReplyView } from './views/viewReply';
+import { MessengerView } from './views/viewMessenger';
+import WebsocketClient from './modules/websocket';
 
 interface Route {
     path: string;
@@ -30,6 +32,8 @@ async function initApp(): Promise<void> {
     // Защищенные маршруты (требуют авторизации)
     router.addRoute('/profile', ProfileView, 'Mindleak - Мой профиль', true);
     router.addRoute('/profile/:id', ProfileView, 'Mindleak - Профиль', true);
+    router.addRoute('/messages', MessengerView, 'Сообщения', true);
+    router.addRoute('/messages/:id', MessengerView, 'Чат', true);
     
     // Настройки (все защищенные)
     router.addRoute('/settings', SettingsView, 'Mindleak - Настройки', true);
@@ -39,6 +43,9 @@ async function initApp(): Promise<void> {
     router.addRoute('/appeals/statistics', StatisticsView, 'Статистика', true);
     
     router.addRoute('/replies/:commentId', ReplyView, 'Ответы на комментарий', true);
+
+    const wsUrl = 'wss://mindleak.ru/chat/ws';
+    new WebsocketClient(wsUrl);
 
     router.init();
 }

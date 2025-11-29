@@ -36,4 +36,18 @@ export abstract class BaseStore<T> {
     protected registerAction(actionType: string, handler: (payload?: any) => void): void {
         dispatcher.register(actionType, handler);
     }
+
+    public subscribe(listener: () => void): () => void {
+        this.listeners.push(listener);
+
+        return () => {
+            this.listeners = this.listeners.filter(l => l !== listener);
+        };
+    }
+
+    /** Уведомляет все подписанные View */
+    protected emit() {
+        this.listeners.forEach(cb => cb());
+    }
+
 }

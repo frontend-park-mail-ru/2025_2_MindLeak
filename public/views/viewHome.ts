@@ -74,7 +74,9 @@ export class HomeView {
                 if (sidebarEl2) deactivateAll(sidebarEl2);
                 
                 let newUrl = '';
-                if (key === 'fresh') {
+                if (key === 'messages'  || key === 'Сообщения') {
+                    newUrl = '/messages';
+                } else if (key === 'fresh') {
                     newUrl = '/feed';
                 } else {
                     newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
@@ -94,7 +96,9 @@ export class HomeView {
                 if (sidebarEl1) deactivateAll(sidebarEl1);
                 
                 let newUrl = '';
-                if (key === 'fresh') {
+                if (key === 'messages') {
+                    newUrl = '/messages';
+                } else if (key === 'fresh') {
                     newUrl = '/feed';
                 } else {
                     newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;

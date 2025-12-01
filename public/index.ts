@@ -18,6 +18,14 @@ interface Route {
     requiresAuth?: boolean;
 }
 
+function registerServiceWorker(): void {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/service-worker.js')
+            .then(() => console.log('✅ Service Worker зарегистрирован'))
+            .catch(err => console.log('❌ Ошибка регистрации Service Worker:', err));
+    }
+}
+
 async function initApp(): Promise<void> {
 
 
@@ -44,4 +52,9 @@ async function initApp(): Promise<void> {
     router.init();
 }
 
-initApp().catch(console.error);
+async function startApp(): Promise<void> {
+    registerServiceWorker(); // Регистрируем SW
+    await initApp(); // Запускаем приложение
+}
+
+startApp().catch(console.error);

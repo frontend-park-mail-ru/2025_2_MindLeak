@@ -506,7 +506,7 @@ private normalizeAppealData(appeal: any): any {
                 break;
             default:
                 this.sendAction('POSTS_LOAD_FAIL', { 
-                    error: response.message || 'Ошибка загрузки постов' 
+                    error: response.message || 'Ошибка загрузки постов (проверьте соединение с интернетом)' 
                 });
         }
     }
@@ -568,50 +568,78 @@ private normalizeAppealData(appeal: any): any {
             url = `/profile?id=${userId}`;
         }
         
-        const response = await ajax.get(url);
-        switch (response.status) {
-            case STATUS.ok:
-                if (response.data) {
-                    const profileData = {
-                        id: response.data.id,
-                        name: response.data.name,
-                        email: response.data.email,
-                        avatar_url: response.data.avatar_url,
-                        cover_url: response.data.cover_url,
-                        description: response.data.description,
-                        subscribers: response.data.subscribers || 0,
-                        subscriptions: response.data.subscriptions || 0,
-                        postsCount: response.data.posts_count || 0,
-                        isSubscribed: response.data.is_subscribed || false
-                    };
+        try {
+            const response = await ajax.get(url);
+            
+            // todo Проверяем статус 408 (Оффлайн режим)
+            if (response.status === 408) {
+                this.sendAction('PROFILE_LOAD_FAIL', { 
+                    error: 'Профиль не доступен в оффлайн режиме 😴',
+                    isOffline: true
+                });
+                return;
+            }
+            
+            switch (response.status) {
+                case STATUS.ok:
+                    if (response.data) {
+                        const profileData = {
+                            id: response.data.id,
+                            name: response.data.name,
+                            email: response.data.email,
+                            avatar_url: response.data.avatar_url,
+                            cover_url: response.data.cover_url,
+                            description: response.data.description,
+                            subscribers: response.data.subscribers || 0,
+                            subscriptions: response.data.subscriptions || 0,
+                            postsCount: response.data.posts_count || 0,
+                            isSubscribed: response.data.is_subscribed || false
+                        };
 
-                    const userPosts = await this.loadUserPosts(profileData.id);
-                        
-                    this.sendAction('PROFILE_LOAD_SUCCESS', {
-                        profile: profileData,
-                        posts: userPosts
-                    });
-                } else {
+                        const userPosts = await this.loadUserPosts(profileData.id);
+                            
+                        this.sendAction('PROFILE_LOAD_SUCCESS', {
+                            profile: profileData,
+                            posts: userPosts
+                        });
+                    } else {
+                        this.sendAction('PROFILE_LOAD_FAIL', { 
+                            error: 'No profile data' 
+                        });
+                    }
+                    break;
+                case STATUS.notFound:
                     this.sendAction('PROFILE_LOAD_FAIL', { 
-                        error: 'No profile data' 
+                        error: 'Профиль не найден' 
                     });
-                }
-                break;
-            case STATUS.notFound:
+                    break;
+                case STATUS.unauthorized:
+                    this.sendAction('USER_UNAUTHORIZED');
+                    this.sendAction('PROFILE_LOAD_FAIL', { 
+                        error: 'Not authenticated' 
+                    });
+                    break;
+                default:
+                    this.sendAction('PROFILE_LOAD_FAIL', { 
+                        error: response.message || 'Ошибка загрузки профиля' 
+                    });
+            }
+        } catch (error: any) {
+            // Ловим сетевые ошибки (Failed to fetch и т.д.)
+            if (error.message && (
+                error.message.includes('Failed to fetch') || 
+                error.message.includes('NetworkError') ||
+                error.message.includes('Network request failed')
+            )) {
                 this.sendAction('PROFILE_LOAD_FAIL', { 
-                    error: 'Профиль не найден' 
+                    error: 'Профиль не доступен в оффлайн режиме 😴',
+                    isOffline: true
                 });
-                break;
-            case STATUS.unauthorized:
-                this.sendAction('USER_UNAUTHORIZED');
+            } else {
                 this.sendAction('PROFILE_LOAD_FAIL', { 
-                    error: 'Not authenticated' 
+                    error: error.message || 'Неизвестная ошибка загрузки профиля' 
                 });
-                break;
-            default:
-                this.sendAction('PROFILE_LOAD_FAIL', { 
-                    error: response.message || 'Ошибка загрузки профиля' 
-                });
+            }
         }
     }
 

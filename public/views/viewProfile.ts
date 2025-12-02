@@ -1,4 +1,3 @@
-// views/viewProfile.ts
 import { Profile } from '../components/Profile/Profile';
 import { UserList } from '../components/UserList/UserList';
 import { Header } from '../components/Header/Header';
@@ -9,7 +8,8 @@ import { router } from '../router/router';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
 import { CreatePostFormView } from '../views/viewCreatePostForm';
 import { userListStore } from '../stores/storeUserList';
-import { HashtagParser } from '../utils/hashtagParser'; // Добавляем импорт
+import { HashtagParser } from '../utils/hashtagParser';
+import { OfflineWarning } from '../components/OfflineWarning/OfflineWarning';
 
 export class ProfileView {
     private currentCategory: string = '';
@@ -215,6 +215,34 @@ export class ProfileView {
 
         const state = profileStore.getState();
         const loginState = loginStore.getState();
+
+        if (state.isOffline || (state.error && (
+            state.error.includes('оффлайн') || 
+            state.error.includes('408') || 
+            state.error.includes('Failed to fetch')
+        ))) {
+            
+            const params = new URLSearchParams(window.location.search);
+            const requestedId = params.get('id') || state.requestedId || 'неизвестный';
+            
+            const offlineWarning = new OfflineWarning({
+                title: 'Профиль недоступен оффлайн',
+                message: 'Этот профиль не был сохранён для просмотра без интернета.',
+                requestedId: requestedId,
+                onReload: () => {
+                    // Сбрасываем оффлайн состояние перед повторной попыткой
+                    dispatcher.dispatch('PROFILE_RESET_OFFLINE');
+                    dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
+                        userId: this.userId 
+                    });
+                },
+                onBack: () => {
+                    history.back();
+                }
+            });
+            
+            return await offlineWarning.render();
+        }
         
         if (state.isLoading || !state.profile) {
             const skeleton = document.createElement('div');

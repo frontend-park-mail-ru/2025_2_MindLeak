@@ -1,3 +1,6 @@
+import { CacheChecker } from '../../utils/cacheChecker';
+import { OfflineWarning } from '../OfflineWarning/OfflineWarning';
+
 let userListTemplate: Handlebars.TemplateDelegate | null = null;
 
 interface User {
@@ -47,22 +50,22 @@ export class UserList {
         }
       
         // Добавляем обработчики кликов для пользователей
-        this.attachUserClickHandlers(userListElement);
+        await this.attachUserClickHandlers(userListElement);
         
         return userListElement;
     }
 
-private attachUserClickHandlers(container: HTMLElement): void {
+    private async attachUserClickHandlers(container: HTMLElement): Promise<void> {
         const userItems = container.querySelectorAll('.user-list__item');
         
-        userItems.forEach((userItem, index) => {
+        for (const [index, userItem] of userItems.entries()) {
             const user = this.props.users?.[index];
             if (user && user.id) {
                 const userItemElement = userItem as HTMLElement;
                 
                 userItemElement.style.cursor = 'pointer';
                 
-                userItemElement.addEventListener('click', (e) => {
+                userItemElement.addEventListener('click', async (e) => {
                     // Предотвращаем переход если кликнули на кнопку подписки
                     const target = e.target as HTMLElement;
                     if (target.closest('.user-menu__button') || 
@@ -72,12 +75,48 @@ private attachUserClickHandlers(container: HTMLElement): void {
                     
                     e.preventDefault();
                     e.stopPropagation();
+
+                    // Проверяем оффлайн режим
+                    if (!navigator.onLine) {
+                        const isCached = await CacheChecker.isProfileCached(user.id);
+                        
+                        if (!isCached) {
+                            // Показываем модальное окно с ошибкой
+                            await this.showOfflineProfileWarning(user.name, user.id);
+                            return;
+                        }
+                    }
                     
                     // Переход в профиль пользователя
                     console.log('Переход в профиль пользователя:', user.id);
                     window.history.pushState({}, '', `/profile?id=${user.id}`);
                     window.dispatchEvent(new PopStateEvent('popstate'));
                 });
+            }
+        }
+    }
+
+    private async showOfflineProfileWarning(userName: string, userId: string): Promise<void> {
+        const overlay = document.createElement('div');
+        overlay.className = 'offline-modal-overlay';
+        
+        const offlineWarning = new OfflineWarning({
+            title: 'Профиль недоступен оффлайн',
+            message: `Профиль "${userName}" не был сохранён для просмотра без интернета.`,
+            requestedId: userId,
+            onBack: () => overlay.remove()
+        });
+        
+        const warningElement = await offlineWarning.render();
+        warningElement.classList.add('offline-modal-content');
+        
+        overlay.appendChild(warningElement);
+        document.body.appendChild(overlay);
+        
+        // Закрытие при клике на фон
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                overlay.remove();
             }
         });
     }

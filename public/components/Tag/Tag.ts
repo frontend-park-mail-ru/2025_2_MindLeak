@@ -1,21 +1,11 @@
-/**
- * Кэшированный шаблон тега
- */
 let tagTemplate: Handlebars.TemplateDelegate | null = null;
 
-/**
- * Интерфейс для свойств тега
- */
 interface TagProps {
     icon: string;
     count?: number;
     key?: string;
 }
 
-/**
- * Асинхронно загружает шаблон тега
- * @returns {Promise<Handlebars.TemplateDelegate>} - скомпилированный Handlebars-шаблон тега
- */
 async function getTagTemplate(): Promise<Handlebars.TemplateDelegate> {
     if (tagTemplate) return tagTemplate;
 
@@ -25,9 +15,6 @@ async function getTagTemplate(): Promise<Handlebars.TemplateDelegate> {
     return tagTemplate;
 }
 
-/**
- * Класс для рендеринга тега
- */
 export class Tag {
     private icon: string;
     private count: number;
@@ -39,10 +26,6 @@ export class Tag {
         this.key = key;
     }
 
-    /**
-     * Рендерит тег
-     * @returns {Promise<HTMLElement>} - DOM-элемент тега
-     */
     async render(): Promise<HTMLElement> {
         const template = await getTagTemplate();
         const html = template(this);

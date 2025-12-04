@@ -257,23 +257,24 @@ export class Header {
         
         console.log('🔍 Search input:', query);
 
-        if (this.searchTimeout) {
-            clearTimeout(this.searchTimeout);
-            this.searchTimeout = null;
-        }
-
-        // ОЧИЩАЕМ РЕЗУЛЬТАТЫ ПРИ ЛЮБОМ ИЗМЕНЕНИИ
-        this.clearSearchResults();
-
-        if (query.length >= 1) { 
-            // Используем таймаут для дебаунса
-            this.searchTimeout = window.setTimeout(() => {
-                console.log('🚀 Dispatching SEARCH_BLOGS_REQUEST');
-                dispatcher.dispatch('SEARCH_BLOGS_REQUEST', { query });
-            }, 300);
-        } else {
+        // Сбрасываем последний показанный запрос
+        this.lastShownQuery = '';
+        
+        // Очищаем результаты при пустом запросе
+        if (query.length === 0) {
+            this.clearSearchResults();
             dispatcher.dispatch('SEARCH_CLEAR');
+            return;
         }
+
+        // НЕМЕДЛЕННО отправляем запрос (без таймаута)
+        console.log('🚀 Immediate SEARCH_BLOGS_REQUEST for:', query);
+        
+        // Очищаем предыдущие результаты
+        this.clearSearchResults();
+        
+        // Отправляем запрос
+        dispatcher.dispatch('SEARCH_BLOGS_REQUEST', { query });
     }
 
     private handleSearchFocus(): void {
@@ -308,19 +309,18 @@ export class Header {
             
             if (this.searchInput) {
                 const rect = this.searchInput.getBoundingClientRect();
-                resultsElement.style.position = 'absolute';
+                
+                // Добавляем позиционирующий класс
+                resultsElement.classList.add('search-results--positioned');
+                
+                // Устанавливаем стили позиционирования
                 resultsElement.style.top = `${rect.bottom + window.scrollY}px`;
                 resultsElement.style.left = `${rect.left + window.scrollX}px`;
                 resultsElement.style.width = `${rect.width}px`;
-                resultsElement.style.zIndex = '1000';
-                resultsElement.style.background = 'white';
-                resultsElement.style.border = '1px solid #ccc';
-                resultsElement.style.borderRadius = '4px';
-                resultsElement.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
             }
 
             document.body.appendChild(resultsElement);
-            this.lastShownQuery = query; // ЗАПОМИНАЕМ ПОСЛЕДНИЙ ПОКАЗАННЫЙ ЗАПРОС
+            this.lastShownQuery = query;
         }
     }
 
@@ -338,6 +338,15 @@ export class Header {
         }
     }
 
+    private resetSearchState(): void {
+        this.lastShownQuery = '';
+        if (this.searchTimeout) {
+            clearTimeout(this.searchTimeout);
+            this.searchTimeout = null;
+        }
+        this.clearSearchResults();
+    }
+
     private handleClickOutside(e: Event): void {
         const target = e.target as Node;
         
@@ -349,21 +358,76 @@ export class Header {
         }
     }
 
-    private async handleStoreChange(): Promise<void>  {
+    private async handleStoreChange(): Promise<void> {
         const searchState = searchStore.getState();
-        console.log('🔍 Header: Search store changed:', searchState);
-        
         const currentInputValue = this.searchInput?.value.trim() || '';
         
-        // ПОКАЗЫВАЕМ РЕЗУЛЬТАТЫ ТОЛЬКО ЕСЛИ:
-        // 1. Запрос в store совпадает с текущим значением инпута
-        // 2. Есть результаты ИЛИ запрос не пустой
-        // 3. Это НЕ тот же запрос, который уже показан
-        if (searchState.query === currentInputValue && 
-            currentInputValue.length >= 1 &&
-            this.lastShownQuery !== currentInputValue) {
+        console.log('🔍 Header: Store changed -', {
+            storeQuery: searchState.query,
+            inputQuery: currentInputValue,
+            lastShown: this.lastShownQuery,
+            usersCount: searchState.blogs.length,
+            isLoading: searchState.isLoading
+        });
+        
+        // Проверяем что результаты в store соответствуют ТЕКУЩЕМУ значению инпута
+        
+        // Если запросы не совпадают - игнорируем эти результаты
+        // Это защита от "устаревших" (stale) результатов
+        if (searchState.query !== currentInputValue) {
+            console.log('🔄 Ignoring stale results - query mismatch:', {
+                storeQuery: searchState.query,
+                currentInput: currentInputValue
+            });
             
-            console.log('🔄 Store updated, showing search results');
+            // Если в store пустой запрос, но у нас есть ввод - тоже игнорируем
+            if (searchState.query === '' && currentInputValue.length > 0) {
+                console.log('🔄 Store is empty but input has value - waiting for proper response');
+                return;
+            }
+            
+            // Если store ещё загружается для другого запроса - ждём
+            if (searchState.isLoading && searchState.query !== currentInputValue) {
+                console.log('🔄 Store is loading different query - waiting');
+                return;
+            }
+            
+            return;
+        }
+        
+        // Теперь мы знаем, что запросы совпадают
+        // Показываем результаты ТОЛЬКО если:
+        // 1. Запросы совпадают (уже проверили)
+        // 2. Запрос не пустой
+        // 3. Это не тот же запрос, что уже показан
+        // 4. Store не в состоянии загрузки (или мы хотим показать loading state)
+        
+        if (currentInputValue.length === 0) {
+            // Пустой запрос - очищаем результаты
+            this.clearSearchResults();
+            this.lastShownQuery = '';
+            return;
+        }
+        
+        // Проверяем, не показывали ли мы уже результаты для этого запроса
+        if (this.lastShownQuery === currentInputValue) {
+            console.log('🔄 Already shown results for this query:', currentInputValue);
+            return;
+        }
+        
+        // Если всё ок, показываем результаты
+        console.log('✅ Showing results for current query:', currentInputValue);
+        
+        if (searchState.isLoading) {
+            // Можно показать индикатор загрузки
+            console.log('⏳ Results are still loading...');
+            // Здесь можно добавить показ loading state если нужно
+        } else if (searchState.error) {
+            // Показываем ошибку если есть
+            console.error('❌ Search error:', searchState.error);
+            this.clearSearchResults();
+        } else {
+            // Показываем результаты
             await this.showSearchResults(searchState.blogs, searchState.query);
         }
         
@@ -372,7 +436,7 @@ export class Header {
         const shouldUpdateHeader = this.container && 
                                 this.lastLoginState && 
                                 (this.lastLoginState.isLoggedIn !== loginState.isLoggedIn ||
-                                 this.lastLoginState.user?.id !== loginState.user?.id);
+                                this.lastLoginState.user?.id !== loginState.user?.id);
         
         if (shouldUpdateHeader) {
             console.log('🔄 Header: Login state changed, updating header');

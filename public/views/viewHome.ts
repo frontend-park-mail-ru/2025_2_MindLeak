@@ -1,31 +1,22 @@
-import { Header } from '../components/Header/Header';
-import { UserList } from '../components/UserList/UserList';
-import { dispatcher } from '../dispatcher/dispatcher';
+import { BaseView } from './viewBase';
 import { PostsView } from './viewPosts';
-import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
 import { CreatePostFormView } from '../views/viewCreatePostForm';
 import { userListStore } from '../stores/storeUserList';
 
-export class HomeView {
-    private headerInstance: Header;
+export class HomeView extends BaseView {
     private postsView: PostsView | null = null;
     private feedWrapper: HTMLElement | null = null;
-    private currentCategory: string = 'fresh';
     private createPostFormView: CreatePostFormView | null = null; 
     private boundStoreHandler: () => void;
-    private userListElement: HTMLElement | null = null;
-    private isUserListRendered: boolean = false; // Флаг чтобы отслеживать рендер UserList
-    private isDestroyed: boolean = false; // Добавляем флаг уничтожения
 
     constructor() {
-        this.headerInstance = new Header();
+        super();
         this.postsView = new PostsView();
-        this.determineCurrentCategory();
         this.createPostFormView = new CreatePostFormView();
         this.boundStoreHandler = this.handleStoreChange.bind(this);
     }
 
-    private determineCurrentCategory(): void {
+    protected determineCurrentCategory(): void {
         const url = new URL(window.location.href);
         const pathname = url.pathname;
         
@@ -35,111 +26,24 @@ export class HomeView {
             const topicParam = url.searchParams.get('topic');
             this.currentCategory = topicParam || 'fresh';
         }
-        
-        // Отправляем в store текущий фильтр
-        dispatcher.dispatch('POSTS_SET_FILTER', { filter: this.currentCategory });
     }
 
-    async render(): Promise<HTMLElement> {
-        this.isDestroyed = false;
+    protected async renderMainContent(): Promise<HTMLElement> {
         // Определяем категорию перед рендером
         this.determineCurrentCategory();
-
-        const rootElem = document.createElement('div');
         
-        // header
-        const headerContainer = document.createElement('header');
-        const headerEl = await this.headerInstance.render(headerContainer);
-        headerContainer.appendChild(headerEl);
-        rootElem.appendChild(headerContainer);
+        // Отправляем в store текущий фильтр
+        const dispatcher = (await import('../dispatcher/dispatcher')).dispatcher;
+        dispatcher.dispatch('POSTS_SET_FILTER', { filter: this.currentCategory });
 
-        // основной контент
-        const contentContainer = document.createElement('div');
-        contentContainer.className = 'content-layout';
-        rootElem.appendChild(contentContainer);
-
-        const leftMenu = document.createElement('aside');
-        leftMenu.className = 'sidebar-left';
-
-        let sidebarEl1: HTMLElement | null = null;
-        let sidebarEl2: HTMLElement | null = null;
-
-        const deactivateAll = (sidebarEl: HTMLElement) => {
-            sidebarEl.querySelectorAll('.menu-item').forEach(item => {
-                item.classList.remove('menu-item--active');
-            });
-        };
-
-        // левое меню - передаем текущую категорию для подсветки
-        const sidebar1 = new SidebarMenu(
-            MAIN_MENU_ITEMS,
-            this.currentCategory,
-            (key) => {
-                if (sidebarEl2) deactivateAll(sidebarEl2);
-                
-                let newUrl = '';
-                if (key === 'fresh') {
-                    newUrl = '/feed';
-                } else {
-                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
-                }
-                
-                window.history.pushState({}, '', newUrl);
-                window.dispatchEvent(new PopStateEvent('popstate'));
-            }
-        );
-        sidebarEl1 = await sidebar1.render();
-
-        // нижнее меню - также передаем текущую категорию
-        const sidebar2 = new SidebarMenu(
-            SECONDARY_MENU_ITEMS,
-            this.currentCategory,
-            (key) => {
-                if (sidebarEl1) deactivateAll(sidebarEl1);
-                
-                let newUrl = '';
-                if (key === 'fresh') {
-                    newUrl = '/feed';
-                } else {
-                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
-                }
-                
-                window.history.pushState({}, '', newUrl);
-                window.dispatchEvent(new PopStateEvent('popstate'));
-            }
-        );
-        sidebarEl2 = await sidebar2.render();
-
-        leftMenu.appendChild(sidebarEl1);
-        leftMenu.appendChild(sidebarEl2);
-
-        // центр
-        const pageElement = document.createElement('main');
-        pageElement.className = 'main-content';
-        
         // контейнер для постов
         this.feedWrapper = document.createElement('div');
         this.feedWrapper.className = 'feed';
         this.feedWrapper.id = 'feed-wrapper';
-        pageElement.appendChild(this.feedWrapper);
-
-        // правое меню
-        const rightMenu = document.createElement('aside');
-        rightMenu.className = 'sidebar-right';
-
-        contentContainer.appendChild(leftMenu);
-        contentContainer.appendChild(pageElement);
-        contentContainer.appendChild(rightMenu);
-
+        
         // Подписываемся и запускаем загрузку топ-блогеров
         userListStore.addListener(this.boundStoreHandler);
         
-        // Загружаем топ блогов только если еще не загружали
-        if (!this.isUserListRendered && !this.isDestroyed) {
-            dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
-            this.isUserListRendered = true;
-        }
-
         // инициализация feed
         try {
             if (this.postsView) {
@@ -149,12 +53,10 @@ export class HomeView {
             const errorEl = document.createElement('div');
             errorEl.className = 'feed-error';
             errorEl.textContent = 'Не удалось загрузить ленту постов';
-            if (this.feedWrapper) {
-                this.feedWrapper.appendChild(errorEl);
-            }
+            this.feedWrapper.appendChild(errorEl);
         }
-
-        return rootElem;
+        
+        return this.feedWrapper;
     }
 
     private handleStoreChange(): void {
@@ -166,50 +68,19 @@ export class HomeView {
         this.updateUserListContent();
     }
 
-    private async updateUserListContent(): Promise<void> {
-        if (this.isDestroyed) return;
-        const rightMenu = this.feedWrapper?.closest('.content-layout')?.querySelector('.sidebar-right') || 
-                         document.querySelector('.sidebar-right');
-        
-        if (!rightMenu) return;
-
-        if (this.userListElement) {
-            this.userListElement.remove();
-            this.userListElement = null;
-        }
-
-        const state = userListStore.getState();
-        // Рендерим только если есть пользователи
-        if (state.users && state.users.length > 0) {
-            const newList = new UserList({
-                title: 'Топ блогов',
-                users: state.users
-            });
-            
-            this.userListElement = await newList.render();
-            rightMenu.appendChild(this.userListElement);
-        }
-    }
-
     destroy(): void {
-        this.isDestroyed = true; 
-        this.headerInstance.destroy();
+        super.destroy();
+        
         if (this.postsView) {
             this.postsView.destroy();
             this.postsView = null;
         }
+        
         if (this.createPostFormView) {
             this.createPostFormView.destroy();
             this.createPostFormView = null;
         }
         
-        // Очищаем UserList при уничтожении
-        if (this.userListElement) {
-            this.userListElement.remove();
-            this.userListElement = null;
-        }
-        
-        this.isUserListRendered = false;
         userListStore.removeListener(this.boundStoreHandler);
     }
 }

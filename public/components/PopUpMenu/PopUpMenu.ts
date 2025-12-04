@@ -74,22 +74,21 @@ function openTechSupportModal(): void {
     // Ждем загрузки iframe и отправляем данные
     iframe.addEventListener('load', () => {
         console.log('📄 Iframe loaded, sending user data...');
-        // Даем iframe время на инициализацию
-        setTimeout(() => {
-            iframe.contentWindow?.postMessage({
-                type: 'INIT_DATA',
-                payload: {
-                    userEmail: userEmail,
-                    userName: userName,
-                    userContactEmail: userContactEmail
-                }
-            }, '*');
-            console.log('✅ User data sent to iframe:', {
-                userEmail,
-                userName,
-                userContactEmail
-            });
-        }, 500);
+
+        iframe.contentWindow?.postMessage({
+            type: 'INIT_DATA',
+            payload: {
+                userEmail: userEmail,
+                userName: userName,
+                userContactEmail: userContactEmail
+            }
+        }, '*');
+        console.log('✅ User data sent to iframe:', {
+            userEmail,
+            userName,
+            userContactEmail
+        });
+
     });
 
     // Стили для модального окна (если их еще нет)

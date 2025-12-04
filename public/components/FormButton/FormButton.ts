@@ -1,20 +1,10 @@
-/**
- * Кэшированный шаблон кнопки
- */
 let buttonTemplate: Handlebars.TemplateDelegate | null = null;
 
-/**
- * Интерфейс для свойств кнопки
- */
 interface ButtonProps {
     text: string;
     key?: string;
 }
 
-/**
- * Асинхронно загружает шаблон кнопки
- * @returns {Promise<Handlebars.TemplateDelegate>} - скомпилированный Handlebars-шаблон кнопки
- */
 async function getButtonTemplate(): Promise<Handlebars.TemplateDelegate> {
     if (buttonTemplate) return buttonTemplate;
 
@@ -24,9 +14,6 @@ async function getButtonTemplate(): Promise<Handlebars.TemplateDelegate> {
     return buttonTemplate;
 }
 
-/**
- * Класс для рендеринга кнопки
- */
 export class Button {
     private text: string;
     private key: string;
@@ -36,10 +23,6 @@ export class Button {
         this.key = key;
     }
 
-    /**
-     * Рендерит кнопку
-     * @returns {Promise<HTMLElement>} - DOM-элемент кнопки
-     */
     async render(): Promise<HTMLElement> {
         const template = await getButtonTemplate();
         const html = template({

@@ -55,7 +55,8 @@ class SearchStore extends BaseStore<SearchState> {
             ...this.state,
             isLoading: false,
             error: payload?.error || 'Search failed',
-            blogs: [] // ПРИ ОШИБКЕ ТОЖЕ УСТАНАВЛИВАЕМ ПУСТОЙ МАССИВ
+            blogs: [],
+            query: '' // Сбрасываем query при ошибке
         });
     }
 
@@ -79,13 +80,14 @@ class SearchStore extends BaseStore<SearchState> {
             });
         }
     }
-
+    
     private handleSearchPostsFail(payload?: any): void {
         this.setState({
             ...this.state,
             isLoading: false,
             error: payload?.error || 'Posts search failed',
-            posts: []
+            posts: [],
+            query: '' // Сбрасываем query при ошибке
         });
     }
 

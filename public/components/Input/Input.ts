@@ -1,21 +1,11 @@
-/**
- * Кэшированный шаблон input
- */
 let inputTemplate: Handlebars.TemplateDelegate | null = null;
 
-/**
- * Интерфейс для свойств input
- */
 interface InputProps {
     type?: string;
     placeholder?: string;
     name?: string;
 }
 
-/**
- * Асинхронно загружает шаблон input
- * @returns {Promise<Handlebars.TemplateDelegate>} - скомпилированный Handlebars-шаблон input
- */
 async function getInputTemplate(): Promise<Handlebars.TemplateDelegate> {
     if (inputTemplate) return inputTemplate;
 
@@ -25,9 +15,6 @@ async function getInputTemplate(): Promise<Handlebars.TemplateDelegate> {
     return inputTemplate;
 }
 
-/**
- * Класс для рендеринга input
- */
 export class Input {
     private type: string;
     private placeholder: string;
@@ -39,10 +26,6 @@ export class Input {
         this.name = name;
     }
 
-    /**
-     * Рендерит input
-     * @returns {Promise<HTMLElement>} - DOM-элемент input
-     */
     async render(): Promise<HTMLElement> {
         const template = await getInputTemplate();
         const html = template({

@@ -1,4 +1,3 @@
-// views/viewSettings.ts
 import { BaseView } from './viewBase';
 import { Settings } from '../components/Settings/Settings';
 import { router } from '../router/router';
@@ -17,12 +16,7 @@ export class SettingsView extends BaseView {
         this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
     }
 
-    /**
-     * Переопределяем определение категории для главной страницы настроек
-     */
     protected determineCurrentCategory(): void {
-        // Для страницы настроек устанавливаем пустую категорию,
-        // чтобы ни один пункт меню не был активным
         this.currentCategory = '';
     }
 

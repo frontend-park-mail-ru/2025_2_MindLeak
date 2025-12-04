@@ -1,4 +1,3 @@
-// views/viewSettingsNotifications.ts
 import { BaseView } from './viewBase';
 import { SettingsNotifications } from '../components/SettingsNotifications/SettingsNotifications';
 import { userListStore } from '../stores/storeUserList';
@@ -13,25 +12,16 @@ export class SettingsNotificationsView extends BaseView {
         this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
     }
 
-    /**
-     * Переопределяем определение категории для страницы уведомлений
-     */
     protected determineCurrentCategory(): void {
-        // Для страницы уведомлений устанавливаем пустую категорию,
-        // чтобы ни один пункт меню не был активным
         this.currentCategory = '';
     }
 
     async render(): Promise<HTMLElement> {
         this.isDestroyed = false;
         
-        // Подписываемся на userListStore
         userListStore.addListener(this.boundUserListStoreHandler);
-        
-        // Рендерим базовую структуру
         await this.renderPageLayout();
         
-        // Добавляем контент в container
         if (this.container && this.rootElement) {
             this.container.appendChild(this.rootElement);
         }
@@ -73,7 +63,6 @@ export class SettingsNotificationsView extends BaseView {
         
         super.destroy();
         
-        // Удаляем из container
         if (this.container && this.rootElement && this.rootElement.parentNode === this.container) {
             this.container.removeChild(this.rootElement);
         }

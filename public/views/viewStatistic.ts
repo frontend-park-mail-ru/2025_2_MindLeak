@@ -1,4 +1,3 @@
-// views/viewStatistic.ts
 import { BaseView } from './viewBase';
 import { Statistic } from '../components/Statistic/Statistic';
 import { router } from '../router/router';
@@ -18,12 +17,7 @@ export class StatisticsView extends BaseView {
         this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
     }
 
-    /**
-     * Переопределяем определение категории для страницы статистики
-     */
     protected determineCurrentCategory(): void {
-        // Для страницы статистики устанавливаем пустую категорию,
-        // чтобы ни один пункт меню не был активным
         this.currentCategory = '';
     }
 

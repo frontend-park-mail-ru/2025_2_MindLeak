@@ -1,4 +1,3 @@
-// views/viewSearch.ts
 import { BaseView } from './viewBase';
 import { PostsView } from './viewPosts';
 import { UserList } from '../components/UserList/UserList';

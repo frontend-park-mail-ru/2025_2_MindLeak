@@ -1,4 +1,3 @@
-// views/BaseView.ts
 import { Header } from '../components/Header/Header';
 import { UserList } from '../components/UserList/UserList';
 import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';

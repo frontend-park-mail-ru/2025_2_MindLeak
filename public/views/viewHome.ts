@@ -1,4 +1,3 @@
-// views/viewHome.ts
 import { BaseView } from './viewBase';
 import { PostsView } from './viewPosts';
 import { CreatePostFormView } from '../views/viewCreatePostForm';

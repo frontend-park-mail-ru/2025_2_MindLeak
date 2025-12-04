@@ -1,4 +1,3 @@
-// views/viewSettingsAccount.ts
 import { BaseView } from './viewBase';
 import { SettingsAccount } from '../components/SettingsAccount/SettingsAccount';
 import { settingsAccountStore, SettingsAccountState } from '../stores/storeSettingsAccount';

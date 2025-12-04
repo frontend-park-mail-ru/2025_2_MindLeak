@@ -1,4 +1,3 @@
-// views/viewProfile.ts
 import { BaseView } from './viewBase';
 import { Profile } from '../components/Profile/Profile';
 import { profileStore } from '../stores/storeProfile';

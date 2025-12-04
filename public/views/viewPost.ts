@@ -1,4 +1,3 @@
-// views/viewPost.ts
 import { BaseView } from './viewBase';
 import { PostCard, PostCardProps } from '../components/PostCard/PostCard';
 import { dispatcher } from '../dispatcher/dispatcher';
@@ -26,12 +25,7 @@ export class PostView extends BaseView {
         postStore.addListener(this.boundPostStoreHandler);
     }
 
-    /**
-     * Переопределяем определение категории для страницы поста
-     */
     protected determineCurrentCategory(): void {
-        // Для страницы поста устанавливаем пустую категорию,
-        // чтобы ни один пункт меню не был активным
         this.currentCategory = '';
     }
 

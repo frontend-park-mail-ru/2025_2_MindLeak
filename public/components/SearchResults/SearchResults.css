@@ -1,22 +1,31 @@
 .search-results {
-    background: white;
-    border: 1px solid var(--border-color);
+    background: #2F2F2F; /* Fallback значение */
+    background: var(--section-color, #2F2F2F);
+    border: 1px solid #6B6B6B; /* Fallback */
+    border: 1px solid var(--section-hover, #6B6B6B);
     border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     max-height: 300px;
     overflow-y: auto;
     position: absolute;
-    z-index: 1000;
+    z-index: 99999;
     width: 100%;
     display: flex;
     flex-direction: column;
+    color: #E0E1DD; /* Fallback */
+    color: var(--text-color, #E0E1DD);
+}
+
+.search-results--positioned {
+    position: absolute;
+    z-index: 99999;
 }
 
 .search-results__list {
     padding: 0;
     flex: 1;
     overflow-y: auto;
-    min-height: 0; /* Важно для flex контейнера */
+    min-height: 0;
 }
 
 .search-result-item {
@@ -24,12 +33,16 @@
     align-items: center;
     padding: 12px;
     cursor: pointer;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid #6B6B6B; /* Fallback */
+    border-bottom: 1px solid var(--section-hover, #6B6B6B);
     transition: background-color 0.2s;
+    background: #2F2F2F; /* Явный фон для элементов */
+    background: var(--section-color, #2F2F2F);
 }
 
 .search-result-item:hover {
-    background-color: var(--section-hover);
+    background-color: #6B6B6B; /* Fallback */
+    background-color: var(--section-hover, #6B6B6B);
 }
 
 .search-result-item:last-child {
@@ -42,6 +55,8 @@
     border-radius: 50%;
     object-fit: cover;
     margin-right: 12px;
+    border: 1px solid #6B6B6B; /* Fallback */
+    border: 1px solid var(--section-hover, #6B6B6B);
 }
 
 .search-result-item__info {
@@ -49,43 +64,63 @@
 }
 
 .search-result-item__name {
-    font-weight: 500;
+    font-weight: 500; /* Fallback */
+    font-weight: var(--font-weight-medium, 500);
     margin-bottom: 4px;
-    color: var(--text-primary);
+    color: #E0E1DD; /* Fallback */
+    color: var(--text-color, #E0E1DD);
 }
 
 .search-result-item__subtitle {
-    font-size: 12px;
-    color: var(--text-secondary);
+    font-size: 12px; /* Fallback */
+    font-size: var(--text-xs, 12px);
+    color: #A1A1A1; /* Fallback */
+    color: var(--text-lighter, #A1A1A1);
 }
 
-/* Стили для пустого состояния */
 .search-results__empty {
     padding: 20px 12px;
     text-align: center;
-    color: var(--text-secondary);
-    font-size: 14px;
-    border-bottom: 1px solid var(--border-color);
+    color: #A1A1A1; /* Fallback */
+    color: var(--text-lighter, #A1A1A1);
+    font-size: 16px; /* Fallback */
+    font-size: var(--text-base, 16px);
+    border-bottom: 1px solid #6B6B6B; /* Fallback */
+    border-bottom: 1px solid var(--section-hover, #6B6B6B);
+    background: #2F2F2F; /* Явный фон */
+    background: var(--section-color, #2F2F2F);
 }
 
-/* ФУТЕР ВСЕГДА ВИДЕН */
 .search-results__footer {
     padding: 12px;
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid #6B6B6B; /* Fallback */
+    border-top: 1px solid var(--section-hover, #6B6B6B);
     text-align: center;
-    background: white;
-    flex-shrink: 0; /* Предотвращает сжатие */
+    background: #2F2F2F; /* Явный фон */
+    background: var(--section-color, #2F2F2F);
+    flex-shrink: 0;
 }
 
 .search-results__show-all {
-    color: var(--primary-color);
+    color: #0E7AF6; /* Fallback */
+    color: var(--accent-color, #0E7AF6);
     text-decoration: none;
-    font-weight: 500;
-    font-size: 14px;
+    font-weight: 500; /* Fallback */
+    font-weight: var(--font-weight-medium, 500);
+    font-size: 16px; /* Fallback */
+    font-size: var(--text-base, 16px);
     display: block;
     width: 100%;
+    padding: 8px;
+    background: #2F2F2F; /* Fallback */
+    background: var(--section-color, #2F2F2F);
+    border-radius: 4px;
+    transition: background-color 0.2s, color 0.2s;
 }
 
 .search-results__show-all:hover {
-    text-decoration: underline;
+    color: #E0E1DD; /* Fallback */
+    color: var(--text-color, #E0E1DD);
+    background-color: #6B6B6B; /* Fallback */
+    background-color: var(--section-hover, #6B6B6B);
 }

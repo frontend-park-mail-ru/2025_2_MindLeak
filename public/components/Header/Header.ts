@@ -309,19 +309,18 @@ export class Header {
             
             if (this.searchInput) {
                 const rect = this.searchInput.getBoundingClientRect();
-                resultsElement.style.position = 'absolute';
+                
+                // Добавляем позиционирующий класс
+                resultsElement.classList.add('search-results--positioned');
+                
+                // Устанавливаем стили позиционирования
                 resultsElement.style.top = `${rect.bottom + window.scrollY}px`;
                 resultsElement.style.left = `${rect.left + window.scrollX}px`;
                 resultsElement.style.width = `${rect.width}px`;
-                resultsElement.style.zIndex = '1000';
-                resultsElement.style.background = 'white';
-                resultsElement.style.border = '1px solid #ccc';
-                resultsElement.style.borderRadius = '4px';
-                resultsElement.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
             }
 
             document.body.appendChild(resultsElement);
-            this.lastShownQuery = query; // ЗАПОМИНАЕМ ПОСЛЕДНИЙ ПОКАЗАННЫЙ ЗАПРОС
+            this.lastShownQuery = query;
         }
     }
 

@@ -141,9 +141,7 @@ export class UserMenu {
                 }
             };
 
-            setTimeout(() => {
-                document.addEventListener('click', closeMenu);
-            }, 0);
+            document.addEventListener('click', closeMenu);
         });
     }
 }

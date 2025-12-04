@@ -1,133 +1,36 @@
 // views/viewSearch.ts
-import { UserList } from '../components/UserList/UserList';
+import { BaseView } from './viewBase';
 import { PostsView } from './viewPosts';
-import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
+import { UserList } from '../components/UserList/UserList';
 import { searchStore } from '../stores/storeSearch';
-import { dispatcher } from '../dispatcher/dispatcher';
 import { userListStore } from '../stores/storeUserList';
-import { Header } from '../components/Header/Header';
+import { dispatcher } from '../dispatcher/dispatcher';
 import { HashtagParser } from '../utils/hashtagParser';
 
-export class SearchView {
+export class SearchView extends BaseView {
     private postsView: PostsView | null = null;
     private contentWrapper: HTMLElement | null = null;
-    private boundStoreHandler: () => void;
-    private boundUserListHandler: () => void;
-    private userListElement: HTMLElement | null = null;
-    private isUserListRendered: boolean = false;
-    private rootElement: HTMLElement | null = null;
+    private boundSearchStoreHandler: () => void;
+    private boundUserListStoreHandler: () => void;
     private hasInitializedSearch: boolean = false;
     private currentQuery: string = '';
-    private headerInstance: Header;
     private isHandlingStoreUpdate: boolean = false;
-    private isDestroyed: boolean = false;
-
-    // Статическое поле для хранения единственного экземпляра Header
-    private static headerInstance: Header | null = null;
 
     constructor() {
+        super();
         this.postsView = new PostsView();
-        
-        // Используем синглтон для Header - создаем только один экземпляр
-        if (!SearchView.headerInstance) {
-            SearchView.headerInstance = new Header();
-            console.log('🔍 SearchView: Created new Header instance');
-        } else {
-            console.log('🔍 SearchView: Reusing existing Header instance');
-        }
-        this.headerInstance = SearchView.headerInstance;
-        
-        this.boundStoreHandler = this.handleStoreChange.bind(this);
-        this.boundUserListHandler = this.handleUserListChange.bind(this);
+        this.boundSearchStoreHandler = this.handleSearchStoreChange.bind(this);
+        this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
+    }
+
+    protected determineCurrentCategory(): void {
+        this.currentCategory = '';
     }
 
     async render(): Promise<HTMLElement> {
         this.isDestroyed = false;
+        await this.renderPageLayout();
         
-        // Создаем корневой элемент
-        this.rootElement = document.createElement('div');
-        
-        // Header - добавляем как в других view
-        const headerContainer = document.createElement('header');
-        
-        // ПРОВЕРЯЕМ, НЕ УНИЧТОЖЕН ЛИ VIEW
-        if (this.isDestroyed) {
-            return this.rootElement;
-        }
-        
-        console.log('🔍 SearchView: Rendering Header');
-        const headerEl = await this.headerInstance.render(headerContainer);
-        headerContainer.appendChild(headerEl);
-        this.rootElement.appendChild(headerContainer);
-        
-        // Основной контент
-        const contentContainer = document.createElement('div');
-        contentContainer.className = 'content-layout';
-        this.rootElement.appendChild(contentContainer);
-
-        // Левое меню (категории)
-        const leftMenu = document.createElement('aside');
-        leftMenu.className = 'sidebar-left';
-
-        // Верхнее меню категорий
-        const sidebar1 = new SidebarMenu(
-            MAIN_MENU_ITEMS,
-            '', // Никакая категория не активна в поиске
-            (key) => {
-                let newUrl = '';
-                if (key === 'fresh') {
-                    newUrl = '/feed';
-                } else {
-                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
-                }
-                window.history.pushState({}, '', newUrl);
-                window.dispatchEvent(new PopStateEvent('popstate'));
-            }
-        );
-        const sidebarEl1 = await sidebar1.render();
-
-        // Нижнее меню категорий
-        const sidebar2 = new SidebarMenu(
-            SECONDARY_MENU_ITEMS,
-            '', // Никакая категория не активна в поиске
-            (key) => {
-                let newUrl = '';
-                if (key === 'fresh') {
-                    newUrl = '/feed';
-                } else {
-                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
-                }
-                window.history.pushState({}, '', newUrl);
-                window.dispatchEvent(new PopStateEvent('popstate'));
-            }
-        );
-        const sidebarEl2 = await sidebar2.render();
-
-        leftMenu.appendChild(sidebarEl1);
-        leftMenu.appendChild(sidebarEl2);
-
-        // Центральная часть
-        const pageElement = document.createElement('main');
-        pageElement.className = 'main-content';
-        
-        this.contentWrapper = document.createElement('div');
-        this.contentWrapper.className = 'search-page';
-        pageElement.appendChild(this.contentWrapper);
-
-        // Правое меню (топ блогов)
-        const rightMenu = document.createElement('aside');
-        rightMenu.className = 'sidebar-right';
-
-        contentContainer.appendChild(leftMenu);
-        contentContainer.appendChild(pageElement);
-        contentContainer.appendChild(rightMenu);
-
-        // Загружаем топ блогов для правого меню
-        if (!this.isUserListRendered) {
-            dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
-            this.isUserListRendered = true;
-        }
-
         // Загружаем результаты поиска
         const urlParams = new URLSearchParams(window.location.search);
         const query = urlParams.get('q') || '';
@@ -150,19 +53,20 @@ export class SearchView {
 
         // ПРОВЕРЯЕМ, НЕ УНИЧТОЖЕН ЛИ VIEW ПЕРЕД ПОДПИСКОЙ
         if (!this.isDestroyed) {
-            // Подписываемся на stores ПОСЛЕ инициализации поиска
-            setTimeout(() => {
-                if (!this.isDestroyed) {
-                    searchStore.addListener(this.boundStoreHandler);
-                    userListStore.addListener(this.boundUserListHandler);
-                }
-            }, 0);
+            searchStore.addListener(this.boundSearchStoreHandler);
+            userListStore.addListener(this.boundUserListStoreHandler); // Подписываемся на топ-блоги
         }
 
-        return this.rootElement;
+        return this.rootElement!;
     }
 
-    private handleStoreChange(): void {
+    protected async renderMainContent(): Promise<HTMLElement> {
+        this.contentWrapper = document.createElement('div');
+        this.contentWrapper.className = 'search-page';
+        return this.contentWrapper;
+    }
+
+    private handleSearchStoreChange(): void {
         // ЗАЩИТА ОТ ВЫЗОВОВ ПОСЛЕ УНИЧТОЖЕНИЯ
         if (this.isDestroyed || this.isHandlingStoreUpdate) {
             return;
@@ -185,33 +89,10 @@ export class SearchView {
         }
     }
 
-    private handleUserListChange(): void {
+    private handleUserListStoreChange(): void {
         if (this.isDestroyed) return;
+        // Обновляем топ-блоги в правой колонке
         this.updateUserListContent();
-    }
-
-    private async updateUserListContent(): Promise<void> {
-        if (this.isDestroyed) return;
-        
-        const rightMenu = this.rootElement?.querySelector('.sidebar-right');
-        
-        if (!rightMenu) return;
-
-        if (this.userListElement) {
-            this.userListElement.remove();
-            this.userListElement = null;
-        }
-
-        const state = userListStore.getState();
-        if (state.users && state.users.length > 0) {
-            const newList = new UserList({
-                title: 'Топ блогов',
-                users: state.users
-            });
-            
-            this.userListElement = await newList.render();
-            rightMenu.appendChild(this.userListElement);
-        }
     }
 
     private async updateSearchResults(state: any): Promise<void> {
@@ -351,49 +232,19 @@ export class SearchView {
     }
 
     destroy(): void {
-        console.log('🔍 SearchView destroy called');
+        super.destroy();
         
-        // УСТАНАВЛИВАЕМ ФЛАГ УНИЧТОЖЕНИЯ ПЕРВЫМ ДЕЛОМ
-        this.isDestroyed = true;
-        this.hasInitializedSearch = false;
-        this.currentQuery = '';
-        this.isHandlingStoreUpdate = false;
+        searchStore.removeListener(this.boundSearchStoreHandler);
+        userListStore.removeListener(this.boundUserListStoreHandler); // Отписываемся
         
-        // Отписываемся от stores
-        searchStore.removeListener(this.boundStoreHandler);
-        userListStore.removeListener(this.boundUserListHandler);
-        
-        // Уничтожаем компоненты
         if (this.postsView) {
             this.postsView.destroy();
             this.postsView = null;
         }
         
-        // Очищаем user list
-        if (this.userListElement) {
-            this.userListElement.remove();
-            this.userListElement = null;
-        }
-        
-        // Удаляем корневой элемент
-        if (this.rootElement && this.rootElement.parentNode) {
-            this.rootElement.parentNode.removeChild(this.rootElement);
-            this.rootElement = null;
-        }
-        
-        // Сбрасываем флаги
-        this.isUserListRendered = false;
+        this.hasInitializedSearch = false;
+        this.currentQuery = '';
+        this.isHandlingStoreUpdate = false;
         this.contentWrapper = null;
-        
-        console.log('🔍 SearchView destroyed completely');
-    }
-
-    // Статический метод для очистки синглтона (опционально)
-    public static cleanup(): void {
-        if (SearchView.headerInstance) {
-            SearchView.headerInstance.destroy();
-            SearchView.headerInstance = null;
-            console.log('🔍 SearchView: Header singleton cleaned up');
-        }
     }
 }

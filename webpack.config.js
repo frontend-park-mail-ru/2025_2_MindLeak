@@ -22,6 +22,14 @@ module.exports = (env, argv) => {
                     exclude: /node_modules/,
                 },
                 {
+                    test: /\.scss$/i,
+                    use: [
+                    'style-loader',
+                    'css-loader',
+                    'sass-loader'
+                    ]
+                },
+                {
                     test: /\.hbs$/,
                     use: 'handlebars-loader',
                     exclude: /node_modules/,
@@ -81,11 +89,6 @@ module.exports = (env, argv) => {
                     },
                     {
                         from: 'public/components/TechSupport/TechSupport.hbs',
-                        to: 'components/TechSupport/[name][ext]',
-                        noErrorOnMissing: true
-                    },
-                    {
-                        from: 'public/components/TechSupport/TechSupport.css',
                         to: 'components/TechSupport/[name][ext]',
                         noErrorOnMissing: true
                     },

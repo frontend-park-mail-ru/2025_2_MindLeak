@@ -1,12 +1,11 @@
 .offline-warning {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 60vh;
-    padding: 20px;
-}
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 20px;
 
-.offline-warning__content {
+  &__content {
     background: var(--section-color);
     border-radius: 15px;
     padding: 40px;
@@ -14,43 +13,43 @@
     max-width: 500px;
     width: 100%;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-}
+  }
 
-.offline-warning__logo {
+  &__logo {
     height: 45px;
     margin: 40px auto 24px auto;
-}
+  }
 
-.offline-warning__title {
+  &__title {
     font-size: var(--text-2xl);
     color: var(--text-color);
     margin-bottom: 15px;
-}
+  }
 
-.offline-warning__message {
+  &__message {
     font-size: var(--text-lg);
     color: var(--text-lighter);
     margin-bottom: 20px;
     line-height: 1.5;
-}
+  }
 
-.offline-warning__details {
+  &__details {
     font-size: var(--text-base);
     color: var(--accent-color);
     margin-bottom: 30px;
     padding: 10px;
     background: rgba(var(--accent-rgb), 0.1);
     border-radius: 8px;
-}
+  }
 
-.offline-warning__actions {
+  &__actions {
     display: flex;
     gap: 15px;
     justify-content: center;
     margin-top: 25px;
-}
+  }
 
-.offline-warning__btn {
+  &__btn {
     padding: 12px 24px;
     border: none;
     border-radius: 8px;
@@ -58,24 +57,25 @@
     cursor: pointer;
     transition: all 0.2s ease;
     font-weight: 500;
-}
 
-.offline-warning__btn--primary {
-    background: var(--accent-color);
-    color: white;
-}
+    &--primary {
+      background: var(--accent-color);
+      color: white;
 
-.offline-warning__btn--primary:hover {
-    background: var(--accent-hover);
-    transform: translateY(-2px);
-}
+      &:hover {
+        background: var(--accent-hover);
+        transform: translateY(-2px);
+      }
+    }
 
-.offline-warning__btn--secondary {
-    background: var(--section-hover);
-    color: var(--text-color);
-}
+    &--secondary {
+      background: var(--section-hover);
+      color: var(--text-color);
 
-.offline-warning__btn--secondary:hover {
-    background: var(--section-hover);
-    opacity: 0.9;
+      &:hover {
+        background: var(--section-hover);
+        opacity: 0.9;
+      }
+    }
+  }
 }

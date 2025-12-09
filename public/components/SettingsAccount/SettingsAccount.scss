@@ -6,18 +6,27 @@
   &__container {
     max-width: 800px;
     margin: 0 auto;
-    padding: 30px;
-  }
-
-  &__header {
-    margin-bottom: 30px;
   }
 
   &__title {
     font-size: var(--text-2xl);
     font-weight: var(--font-weight-medium);
     color: var(--text-color);
-    margin: 0 0 8px 0;
+    margin: 0;
+  }
+
+  &__title-line {
+    flex-grow: 1;
+    height: 1px;
+    background-color: var(--text-lighter);
+    max-width: calc(100% - 20px);
+  }
+
+  &__title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
   }
 
   &__content {

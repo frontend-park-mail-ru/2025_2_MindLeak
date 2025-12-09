@@ -100,13 +100,12 @@ class API {
                     this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Unknown list type' });
                 }
                 break;
-            // Добавляем обработку обращений в поддержку
             case 'SUPPORT_TICKET_SUBMIT_REQUEST':
-                console.log('🔄 Processing support ticket submit request');
+                console.log('Processing support ticket submit request');
                 this.submitSupportTicket(payload);
                 break;
             case 'APPEALS_LOAD_REQUEST':
-                console.log('🔄 Processing appeals load request');
+                console.log('Processing appeals load request');
                 this.loadAppeals();
                 break;
             // комменты
@@ -122,6 +121,11 @@ class API {
 
             case 'REPLY_CREATE_REQUEST':
                 this.createReply(payload.commentId, payload.text, payload.postId);
+            case 'SEARCH_BLOGS_REQUEST':
+                this.searchBlogs(payload.query);
+                break;
+            case 'SEARCH_POSTS_REQUEST':
+                this.searchPosts(payload.query);
                 break;
         }
     }
@@ -262,12 +266,6 @@ private async submitSupportTicket(payload: any): Promise<void> {
         }
     }
 
-    /**
-     * Нормализует данные обращения, приводя их к единой структуре
-     */
-    /**
- * Нормализует данные обращения, приводя их к единой структуре
- */
 private normalizeAppealData(appeal: any): any {
     const normalized = {
         id: appeal.appeal_id || appeal.id || appeal.ID,
@@ -359,8 +357,8 @@ private normalizeAppealData(appeal: any): any {
         return {
             id: post.id || post.ID || post.postId,
             authorId: post.author_id || post.AuthorID,
-            authorName: post.author_name || post.AuthorName,
-            authorAvatar: post.author_avatar || post.AuthorAvatar,
+            authorName: post.author_name || post.AuthorName || 'Неизвестный автор',
+            authorAvatar: post.author_avatar || post.AuthorAvatar || '/img/defaultAvatar.jpg',
             title: post.title || post.Title,
             content: post.content || post.Content,
             image: post.media_url || post.MediaURL || post.image || '',
@@ -511,7 +509,7 @@ private normalizeAppealData(appeal: any): any {
                     const postsWithAuthorId = postsArray.map((post: any) => this.normalizePostData(post));
                     this.sendAction('POSTS_LOAD_SUCCESS', { posts: postsWithAuthorId });
                 } else {
-                    this.sendAction('POSTS_LOAD_FAIL', { error: 'No posts data' });
+                    this.sendAction('POSTS_LOAD_FAIL', { error: 'Здесь пока нет постов' });
                 }
                 break;
             case STATUS.noMoreContent:
@@ -525,7 +523,7 @@ private normalizeAppealData(appeal: any): any {
                 break;
             default:
                 this.sendAction('POSTS_LOAD_FAIL', { 
-                    error: response.message || 'Ошибка загрузки постов' 
+                    error: response.message || 'Ошибка загрузки постов (проверьте соединение с интернетом)' 
                 });
         }
     }
@@ -557,21 +555,26 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private async loadUserPosts(userId: number): Promise<any[]> {
+        console.log('🔄 [API] Loading user posts for userId:', userId);
         let url = `/posts?author_id=${userId}`;
         
         const response = await ajax.get(url);
+        console.log('📥 [API] User posts response:', response);
         
         if (response.status === STATUS.ok && response.data) {
             const postsArray = response.data.articles || response.data || [];
+            console.log('📊 [API] Raw posts data:', postsArray);
             
             const normalizedPosts = postsArray.map((post: any) => {
                 const normalized = this.normalizePostData(post);
                 return normalized;
             });
             
+            console.log('✅ [API] Normalized posts count:', normalizedPosts.length);
             return normalizedPosts;
         }
         
+        console.log('❌ [API] No posts data');
         return [];
     }
 
@@ -582,50 +585,78 @@ private normalizeAppealData(appeal: any): any {
             url = `/profile?id=${userId}`;
         }
         
-        const response = await ajax.get(url);
-        switch (response.status) {
-            case STATUS.ok:
-                if (response.data) {
-                    const profileData = {
-                        id: response.data.id,
-                        name: response.data.name,
-                        email: response.data.email,
-                        avatar_url: response.data.avatar_url,
-                        cover_url: response.data.cover_url,
-                        description: response.data.description,
-                        subscribers: response.data.subscribers || 0,
-                        subscriptions: response.data.subscriptions || 0,
-                        postsCount: response.data.posts_count || 0,
-                        isSubscribed: response.data.is_subscribed || false
-                    };
+        try {
+            const response = await ajax.get(url);
+            
+            // todo Проверяем статус 408 (Оффлайн режим)
+            if (response.status === 408) {
+                this.sendAction('PROFILE_LOAD_FAIL', { 
+                    error: 'Профиль не доступен в оффлайн режиме 😴',
+                    isOffline: true
+                });
+                return;
+            }
+            
+            switch (response.status) {
+                case STATUS.ok:
+                    if (response.data) {
+                        const profileData = {
+                            id: response.data.id,
+                            name: response.data.name,
+                            email: response.data.email,
+                            avatar_url: response.data.avatar_url,
+                            cover_url: response.data.cover_url,
+                            description: response.data.description,
+                            subscribers: response.data.subscribers || 0,
+                            subscriptions: response.data.subscriptions || 0,
+                            postsCount: response.data.posts_count || 0,
+                            isSubscribed: response.data.is_subscribed || false
+                        };
 
-                    const userPosts = await this.loadUserPosts(profileData.id);
-                        
-                    this.sendAction('PROFILE_LOAD_SUCCESS', {
-                        profile: profileData,
-                        posts: userPosts
-                    });
-                } else {
+                        const userPosts = await this.loadUserPosts(profileData.id);
+                            
+                        this.sendAction('PROFILE_LOAD_SUCCESS', {
+                            profile: profileData,
+                            posts: userPosts
+                        });
+                    } else {
+                        this.sendAction('PROFILE_LOAD_FAIL', { 
+                            error: 'No profile data' 
+                        });
+                    }
+                    break;
+                case STATUS.notFound:
                     this.sendAction('PROFILE_LOAD_FAIL', { 
-                        error: 'No profile data' 
+                        error: 'Профиль не найден' 
                     });
-                }
-                break;
-            case STATUS.notFound:
+                    break;
+                case STATUS.unauthorized:
+                    this.sendAction('USER_UNAUTHORIZED');
+                    this.sendAction('PROFILE_LOAD_FAIL', { 
+                        error: 'Not authenticated' 
+                    });
+                    break;
+                default:
+                    this.sendAction('PROFILE_LOAD_FAIL', { 
+                        error: response.message || 'Ошибка загрузки профиля' 
+                    });
+            }
+        } catch (error: any) {
+            // Ловим сетевые ошибки (Failed to fetch и т.д.)
+            if (error.message && (
+                error.message.includes('Failed to fetch') || 
+                error.message.includes('NetworkError') ||
+                error.message.includes('Network request failed')
+            )) {
                 this.sendAction('PROFILE_LOAD_FAIL', { 
-                    error: 'Профиль не найден' 
+                    error: 'Профиль не доступен в оффлайн режиме 😴',
+                    isOffline: true
                 });
-                break;
-            case STATUS.unauthorized:
-                this.sendAction('USER_UNAUTHORIZED');
+            } else {
                 this.sendAction('PROFILE_LOAD_FAIL', { 
-                    error: 'Not authenticated' 
+                    error: error.message || 'Неизвестная ошибка загрузки профиля' 
                 });
-                break;
-            default:
-                this.sendAction('PROFILE_LOAD_FAIL', { 
-                    error: response.message || 'Ошибка загрузки профиля' 
-                });
+            }
         }
     }
 
@@ -1118,6 +1149,133 @@ private normalizeAppealData(appeal: any): any {
             });
         }
     }
+    private async searchBlogs(query: string): Promise<void> {
+        console.log('🔍 API: Searching blogs with query:', query);
+        
+        try {
+            const response = await ajax.get(`/blogssearch?q=${encodeURIComponent(query)}`);
+            console.log('📡 API: Search response:', response);
+            
+            switch (response.status) {
+                case STATUS.ok:
+                    if (response.data) {
+                        let users = [];
+                        
+                        // Обрабатываем разные форматы ответа
+                        if (Array.isArray(response.data.users)) {
+                            // Формат: { users: [...] }
+                            users = response.data.users;
+                        } else if (Array.isArray(response.data)) {
+                            // Формат: [...]
+                            users = response.data;
+                        } else if (response.data.Blogs && Array.isArray(response.data.Blogs)) {
+                            // Формат: { Blogs: [...] }
+                            users = response.data.Blogs;
+                        }
+                        
+                        console.log('👥 Normalized users:', users);
+                        
+                        const normalizedUsers = users.map((item: any) => ({
+                            id: item.id || item.userId,
+                            name: item.name || item.username || 'Неизвестный пользователь',
+                            subtitle: `Подписчики: ${item.subscribers || item.subscribersCount || 0}`,
+                            avatar: item.avatar || item.avatar_url || '/img/defaultAvatar.jpg',
+                            isSubscribed: false,
+                            hideSubscribeButton: true
+                        }));
+                        
+                        console.log('✅ Sending normalized users:', normalizedUsers);
+                        this.sendAction('SEARCH_BLOGS_SUCCESS', { users: normalizedUsers, query });
+                    } else {
+                        // ЕСЛИ НЕТ РЕЗУЛЬТАТОВ - отправляем пустой массив
+                        console.log('📭 No data in response, sending empty array');
+                        this.sendAction('SEARCH_BLOGS_SUCCESS', { users: [], query });
+                    }
+                    break;
+                case STATUS.notFound:
+                    // ЕСЛИ 404 - отправляем пустой массив
+                    console.log('🔍 404 - No results found');
+                    this.sendAction('SEARCH_BLOGS_SUCCESS', { users: [], query });
+                    break;
+                case STATUS.unauthorized:
+                    this.sendAction('USER_UNAUTHORIZED');
+                    this.sendAction('SEARCH_BLOGS_FAIL', { error: 'Not authenticated' });
+                    break;
+                default:
+                    this.sendAction('SEARCH_BLOGS_FAIL', {
+                        error: response.message || 'Ошибка поиска блогов'
+                    });
+            }
+        } catch (error) {
+            console.error('❌ API: Search exception:', error);
+            this.sendAction('SEARCH_BLOGS_FAIL', {
+                error: 'Ошибка при выполнении поиска'
+            });
+        }
+    }
+
+    private async searchPosts(query: string): Promise<void> {
+        console.log('🔍 API: Searching posts with query:', query);
+        
+        try {
+            const response = await ajax.get(`/postssearch?q=${encodeURIComponent(query)}`);
+            console.log('📡 API: Search posts response:', response);
+            
+            switch (response.status) {
+                case STATUS.ok:
+                    if (response.data) {
+                        let postsArray = [];
+                        
+                        if (response.data.articles && Array.isArray(response.data.articles)) {
+                            postsArray = response.data.articles;
+                        } else if (Array.isArray(response.data)) {
+                            postsArray = response.data;
+                        }
+                        
+                        console.log('📝 Found posts:', postsArray.length, postsArray);
+                        
+                        const postsWithAuthorId = postsArray.map((post: any) => this.normalizePostData(post));
+                        
+                        console.log('✅ Sending normalized posts:', postsWithAuthorId);
+                        this.sendAction('SEARCH_POSTS_SUCCESS', { 
+                            posts: postsWithAuthorId, 
+                            query 
+                        });
+                    } else {
+                        console.log('📭 No posts data in response');
+                        this.sendAction('SEARCH_POSTS_SUCCESS', { 
+                            posts: [], 
+                            query 
+                        });
+                    }
+                    break;
+                case STATUS.noMoreContent:
+                    console.log('🔍 204 - No posts content');
+                    this.sendAction('SEARCH_POSTS_SUCCESS', { 
+                        posts: [], 
+                        query 
+                    });
+                    break;
+                case STATUS.notFound:
+                    console.log('🔍 404 - No posts found');
+                    this.sendAction('SEARCH_POSTS_SUCCESS', { 
+                        posts: [], 
+                        query 
+                    });
+                    break;
+                default:
+                    this.sendAction('SEARCH_POSTS_FAIL', { 
+                        error: response.message || 'Ошибка поиска постов' 
+                    });
+            }
+        } catch (error) {
+            console.error('❌ API: Search posts exception:', error);
+            this.sendAction('SEARCH_POSTS_FAIL', {
+                error: 'Ошибка при выполнении поиска постов'
+            });
+        }
+    }
+
 }
 
 export const api = new API();

@@ -57,6 +57,7 @@ class ThemeSelectorPopup {
         menuEl.classList.add('theme-selector-popup__menu');
         div.appendChild(menuEl);
 
+        // для того чтобы два клика обрабатывались нормально
         setTimeout(() => {
             const handleClickOutside = (e: MouseEvent) => {
                 if (!div.contains(e.target as Node)) {

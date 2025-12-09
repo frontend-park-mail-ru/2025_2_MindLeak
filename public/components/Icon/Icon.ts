@@ -1,16 +1,7 @@
-/**
- * Кэшированный шаблон иконки
- */
 let iconTemplate: Handlebars.TemplateDelegate | null = null;
 
-/**
- * Размеры иконки
- */
 type IconSize = 'small' | 'medium' | 'large';
 
-/**
- * Интерфейс для свойств иконки
- */
 interface IconProps {
     src: string;
     key?: string;
@@ -20,10 +11,6 @@ interface IconProps {
     customStyle?: string;
 }
 
-/**
- * Асинхронно загружает шаблон иконки
- * @returns {Promise<Handlebars.TemplateDelegate>} - скомпилированный Handlebars-шаблон иконки
- */
 async function getIconTemplate(): Promise<Handlebars.TemplateDelegate> {
     if (iconTemplate) return iconTemplate;
 
@@ -33,9 +20,6 @@ async function getIconTemplate(): Promise<Handlebars.TemplateDelegate> {
     return iconTemplate;
 }
 
-/**
- * Класс для рендеринга иконки
- */
 export class Icon {
     private src: string;
     private key: string;
@@ -57,7 +41,7 @@ export class Icon {
         this.title = title;
         this.customStyle = customStyle;
         
-        // Добавляем класс размера
+        // добав класс размера
         if (size === 'small') {
             this.className += ' icon--small';
         } else if (size === 'large') {
@@ -65,10 +49,6 @@ export class Icon {
         }
     }
 
-    /**
-     * Рендерит иконку
-     * @returns {Promise<HTMLElement>} - DOM-элемент иконки
-     */
     async render(): Promise<HTMLElement> {
         const template = await getIconTemplate();
         const html = template({

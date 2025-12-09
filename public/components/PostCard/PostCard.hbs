@@ -1,6 +1,7 @@
+{{! components/PostCard/PostCard.hbs }}
 <div class="post-card" data-post-id="{{dataPostId}}">
     <div class="post-card">
-        <div class="post_header">
+        <div class="header">
             {{> user-menu name=user.name subtitle=user.subtitle avatar=user.avatar isSubscribed=user.isSubscribed}}
             <button class="post-card__menu-button" aria-label="Дополнительные действия">
                 <svg width="40" height="10" viewBox="0 0 40 10" fill="none" xmlns="http://www.w3.org/2000/svg" class="post-card__menu-icon">
@@ -11,17 +12,19 @@
             </button>
         </div>
         
-        <h2 class="post-card__title">{{title}}</h2>
+        {{! Заголовок с поддержкой HTML для хештегов }}
+        <h2 class="post-card__title">{{{title}}}</h2>
 
-        <p class="post-card__text">
+        {{! Текст с поддержкой HTML для хештегов }}
+        <div class="post-card__text">
             {{#if textTruncated}}
-                <span class="post-card__text-preview">{{textTruncated}}...</span>
-                <span class="post-card__text-full" hidden>{{text}} {{#if link}}<a href="{{link}}" class="post-card__link">{{linkText}}</a>{{/if}}</span>
+                <span class="post-card__text-preview">{{{textTruncated}}}...</span>
+                <span class="post-card__text-full" hidden>{{{text}}} {{#if link}}<a href="{{link}}" class="post-card__link">{{linkText}}</a>{{/if}}</span>
                 <span class="post-card__toggle-text" data-key="toggle-text">Показать полностью</span>
             {{else}}
-                {{text}} {{#if link}}<a href="{{link}}" class="post-card__link">{{linkText}}</a>{{/if}}
+                {{{text}}} {{#if link}}<a href="{{link}}" class="post-card__link">{{linkText}}</a>{{/if}}
             {{/if}}
-        </p>
+        </div>
 
         {{#if image}}
             <div class="post-card__image-container">

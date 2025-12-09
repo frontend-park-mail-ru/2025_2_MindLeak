@@ -1,134 +1,93 @@
-import { Header } from '../components/Header/Header';
-import { UserList } from '../components/UserList/UserList';
-import { dispatcher } from '../dispatcher/dispatcher';
-import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
+import { BaseView } from './viewBase';
 import { PostCard, PostCardProps } from '../components/PostCard/PostCard';
+import { dispatcher } from '../dispatcher/dispatcher';
 import { postStore, Post } from '../stores/storePost';
 import { loginStore } from '../stores/storeLogin';
 import { userListStore } from '../stores/storeUserList';
-import { CommentView } from './viewComments';
+import { HashtagParser } from '../utils/hashtagParser';
+import { CommentView } from './viewComments'; // Импортируем CommentView
 
-export class PostView {
-    private container: HTMLElement;
+export class PostView extends BaseView {
     private postId: string;
-    private headerInstance: Header;
     private postCard: PostCard | null = null;
     private boundPostStoreHandler: () => void;
+    private postWrapper: HTMLElement | null = null;
+    private container: HTMLElement;
     private boundUserListStoreHandler: () => void;
-    private rightMenu: HTMLElement | null = null;
+    private commentView: CommentView | null = null; // Добавляем для комментариев
 
     constructor(container: HTMLElement, params: { id: string }) {
+        super();
         this.container = container;
         this.postId = params.id;
-        this.headerInstance = new Header();
         this.boundPostStoreHandler = this.handlePostStoreChange.bind(this);
         this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
+        
+        // Подписываемся ТОЛЬКО на postStore
         postStore.addListener(this.boundPostStoreHandler);
-        userListStore.addListener(this.boundUserListStoreHandler);
+    }
+
+    protected determineCurrentCategory(): void {
+        this.currentCategory = '';
     }
 
     async render(): Promise<HTMLElement> {
+        this.isDestroyed = false;
+        
         // Запускаем загрузку поста
         dispatcher.dispatch('POST_LOAD_REQUEST', { postId: this.postId });
-        // Запускаем загрузку топ-блогеров
-        dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
+        
+        // Рендерим базовую структуру
+        await this.renderPageLayout();
+        
+        // Подписываемся на обновления userListStore
+        userListStore.addListener(this.boundUserListStoreHandler);
+        
+        // Добавляем контент в container
+        if (this.container && this.rootElement) {
+            this.container.appendChild(this.rootElement);
+        }
+        
+        return this.rootElement!;
+    }
 
-        const rootElem = document.createElement('div');
-
-        // Header
-        const headerContainer = document.createElement('header');
-        const headerEl = await this.headerInstance.render(headerContainer);
-        headerContainer.appendChild(headerEl);
-        rootElem.appendChild(headerContainer);
-
-        // Основной контент
-        const contentContainer = document.createElement('div');
-        contentContainer.className = 'content-layout';
-        rootElem.appendChild(contentContainer);
-
-        const leftMenu = document.createElement('aside');
-        leftMenu.className = 'sidebar-left';
-
-        let sidebarEl1: HTMLElement | null = null;
-        let sidebarEl2: HTMLElement | null = null;
-
-        const deactivateAll = (sidebarEl: HTMLElement) => {
-            sidebarEl.querySelectorAll('.menu-item').forEach(item => {
-                item.classList.remove('menu-item--active');
-            });
-        };
-
-        const sidebar1 = new SidebarMenu(
-            MAIN_MENU_ITEMS,
-            '',
-            (key) => {
-                if (sidebarEl2) deactivateAll(sidebarEl2);
-                const newUrl = key === 'fresh' ? '/feed' : `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
-                window.history.pushState({}, '', newUrl);
-                window.dispatchEvent(new PopStateEvent('popstate'));
-            }
-        );
-        sidebarEl1 = await sidebar1.render();
-
-        const sidebar2 = new SidebarMenu(
-            SECONDARY_MENU_ITEMS,
-            '',
-            (key) => {
-                if (sidebarEl1) deactivateAll(sidebarEl1);
-                const newUrl = key === 'fresh' ? '/feed' : `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
-                window.history.pushState({}, '', newUrl);
-                window.dispatchEvent(new PopStateEvent('popstate'));
-            }
-        );
-        sidebarEl2 = await sidebar2.render();
-
-        leftMenu.appendChild(sidebarEl1);
-        leftMenu.appendChild(sidebarEl2);
-
-        // Центр — один пост
+    protected async renderMainContent(): Promise<HTMLElement> {
         const pageElement = document.createElement('main');
         pageElement.className = 'main-content';
 
-        const postWrapper = document.createElement('div');
-        postWrapper.className = 'post-wrapper';
-        postWrapper.id = 'post-wrapper';
+        this.postWrapper = document.createElement('div');
+        this.postWrapper.className = 'post-wrapper';
+        this.postWrapper.id = 'post-wrapper';
 
-        postWrapper.innerHTML = `
+        // Показываем загрузку
+        this.postWrapper.innerHTML = `
             <div class="post-view__loader" style="text-align: center; padding: 40px;">
                 Загрузка поста...
             </div>
         `;
 
-        pageElement.appendChild(postWrapper);
+        pageElement.appendChild(this.postWrapper);
 
+        // Создаем контейнер для комментариев (из основной ветки)
         const commentsContainer = document.createElement('div');
         commentsContainer.id = 'comments-section';
+        commentsContainer.className = 'comments-section';
         pageElement.appendChild(commentsContainer);
 
-        const commentView = new CommentView(commentsContainer, this.postId);
-        commentView.init();
+        // Инициализируем CommentView (из основной ветки)
+        this.commentView = new CommentView(commentsContainer, this.postId);
+        this.commentView.init();
 
-        // Правое меню — сохраняем ссылку
-        this.rightMenu = document.createElement('aside');
-        this.rightMenu.className = 'sidebar-right';
-
-        contentContainer.appendChild(leftMenu);
-        contentContainer.appendChild(pageElement);
-        contentContainer.appendChild(this.rightMenu);
-
-        // Инициализируем правое меню сразу (можно и в handleUserListStoreChange)
-        this.updateUserListContent();
-
-        return rootElem;
+        return pageElement;
     }
 
     private handlePostStoreChange(): void {
+        if (this.isDestroyed || !this.postWrapper) return;
+
         const state = postStore.getState();
-        const postWrapper = document.getElementById('post-wrapper');
-        if (!postWrapper) return;
 
         if (state.isLoading) {
-            postWrapper.innerHTML = `
+            this.postWrapper.innerHTML = `
                 <div class="post-view__loader" style="text-align: center; padding: 40px;">
                     Загрузка поста...
                 </div>
@@ -137,7 +96,7 @@ export class PostView {
         }
 
         if (state.error) {
-            postWrapper.innerHTML = `
+            this.postWrapper.innerHTML = `
                 <div class="post-view__error" style="text-align: center; padding: 40px; color: var(--text-failure);">
                     ${state.error}
                 </div>
@@ -146,38 +105,24 @@ export class PostView {
         }
 
         if (state.post) {
-            this.renderPostInWrapper(state.post, postWrapper);
+            this.renderPostInWrapper(state.post, this.postWrapper);
         }
     }
 
     private handleUserListStoreChange(): void {
+        if (this.isDestroyed) return;
+        // Используем метод из BaseView
         this.updateUserListContent();
-    }
-
-    private async updateUserListContent(): Promise<void> {
-        if (!this.rightMenu) return;
-
-        const oldContent = this.rightMenu.querySelector('.user-list');
-        if (oldContent) oldContent.remove();
-
-        const state = userListStore.getState();
-        if (state.error) {
-            console.error('UserList error in PostView:', state.error);
-            return;
-        }
-
-        const userList = new UserList({
-            title: 'Топ блогов',
-            users: state.users || []
-        });
-        const userListElement = await userList.render();
-        this.rightMenu.appendChild(userListElement);
     }
 
     private async renderPostInWrapper(post: Post, wrapper: HTMLElement): Promise<void> {
         const authState = loginStore.getState();
         const currentUserId = authState.user?.id;
         const isOwnPost = !!currentUserId && currentUserId.toString() === post.authorId.toString();
+
+        // Обрабатываем хештеги в заголовке и тексте
+        const processedTitle = HashtagParser.replaceHashtagsWithLinks(post.title || '');
+        const processedText = HashtagParser.replaceHashtagsWithLinks(post.content || '');
 
         const postData: PostCardProps = {
             postId: post.id,
@@ -189,8 +134,8 @@ export class PostView {
                 isSubscribed: true,
                 id: post.authorId
             },
-            title: post.title || '',
-            text: post.content || '',
+            title: processedTitle,
+            text: processedText,
             tags: Array.isArray(post.tags) ? post.tags : [],
             commentsCount: post.commentsCount || 0,
             repostsCount: post.repostsCount || 0,
@@ -204,6 +149,7 @@ export class PostView {
             wrapper.innerHTML = '';
             wrapper.appendChild(postElement);
         } catch (error) {
+            console.error('Error rendering post:', error);
             wrapper.innerHTML = `
                 <div class="post-view__error" style="text-align: center; padding: 40px; color: var(--text-failure);">
                     Не удалось отобразить пост
@@ -213,10 +159,27 @@ export class PostView {
     }
 
     destroy(): void {
-        this.headerInstance.destroy();
+        // Отписываемся от userListStore
+        userListStore.removeListener(this.boundUserListStoreHandler);
+        
+        // Отписываемся от postStore
         postStore.removeListener(this.boundPostStoreHandler);
-        userListStore.removeListener(this.boundUserListStoreHandler); // ← важно!
+        
+        // Уничтожаем CommentView (новое)
+        if (this.commentView) {
+            this.commentView.destroy?.(); // Используем optional chaining на случай если destroy нет
+            this.commentView = null;
+        }
+        
+        super.destroy();
+        
+        // Очищаем ссылки
         this.postCard = null;
-        this.rightMenu = null;
+        this.postWrapper = null;
+        
+        // Удаляем из container
+        if (this.container && this.rootElement && this.rootElement.parentNode === this.container) {
+            this.container.removeChild(this.rootElement);
+        }
     }
 }

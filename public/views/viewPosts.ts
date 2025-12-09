@@ -1,7 +1,9 @@
+// views/viewPosts.ts
 import { PostCard, PostCardProps } from '../components/PostCard/PostCard';
 import { dispatcher } from '../dispatcher/dispatcher';
 import { postsStore, Post } from '../stores/storePosts';
 import { loginStore } from '../stores/storeLogin';
+import { HashtagParser } from '../utils/hashtagParser'; // Добавляем импорт
 
 export class PostsView {
     private feedWrapper: HTMLElement | null = null;
@@ -23,6 +25,7 @@ export class PostsView {
         postsStore.addListener(this.boundStoreHandler);
     }
 
+    // ОСНОВНОЙ метод - для обычного использования (сам загружает данные)
     public async init(feedWrapper?: HTMLElement): Promise<void> {
         if (feedWrapper) {
             this.feedWrapper = feedWrapper;
@@ -34,7 +37,6 @@ export class PostsView {
             throw new Error('Feed wrapper not found');
         }
 
-        // Очищаем предыдущий observer если был
         this.cleanupScroll();
 
         // Определяем категорию из URL
@@ -53,6 +55,74 @@ export class PostsView {
 
         this.setupInfiniteScroll();
         this.isInitialized = true;
+    }
+
+    // НОВЫЙ метод - для использования готовых постов (для поиска)
+    public async initWithPosts(feedWrapper: HTMLElement, externalPosts: Post[]): Promise<void> {
+        console.log('🔍 PostsView: initWithPosts called with posts:', externalPosts);
+        
+        this.feedWrapper = feedWrapper;
+        this.cleanupScroll();
+
+        if (externalPosts && externalPosts.length > 0) {
+            this.allPosts = externalPosts;
+            console.log('📝 PostsView: Rendering', this.allPosts.length, 'posts');
+            await this.renderAllPosts();
+            this.isInitialized = true;
+            return;
+        }
+
+        console.log('📭 PostsView: No external posts provided');
+        this.showEmptyMessage();
+        this.isInitialized = true;
+    }
+
+    private async renderAllPosts(): Promise<void> {
+        if (!this.feedWrapper) {
+            console.error('❌ PostsView: No feed wrapper');
+            return;
+        }
+
+        console.log('🎨 PostsView: Starting to render', this.allPosts.length, 'posts');
+        
+        this.feedWrapper.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+        
+        let renderedCount = 0;
+        
+        for (const apiPost of this.allPosts) {
+            console.log('📄 Processing post:', apiPost);
+            
+            const postData = this.transformPost(apiPost);
+            console.log('🔄 Transformed post data:', postData);
+            
+            const postCard = new PostCard({
+                ...postData,
+                onMenuAction: (action) => this.handlePostAction(action, apiPost.id)
+            });
+            
+            try {
+                const postElement = await postCard.render(); // ← ТУТ НУЖЕН async
+                fragment.appendChild(postElement);
+                renderedCount++;
+                console.log('✅ Post rendered successfully');
+            } catch (error) {
+                console.error('❌ Error rendering post:', error, apiPost);
+            }
+        }
+
+        this.feedWrapper.appendChild(fragment);
+        console.log(`🎉 PostsView: Rendered ${renderedCount} out of ${this.allPosts.length} posts`);
+    }
+
+    private showEmptyMessage(): void {
+        if (!this.feedWrapper) return;
+        
+        this.feedWrapper.innerHTML = '';
+        const emptyEl = document.createElement('div');
+        emptyEl.className = 'feed-empty';
+        emptyEl.textContent = 'Постов не найдено';
+        this.feedWrapper.appendChild(emptyEl);
     }
 
     private setupInfiniteScroll(): void {
@@ -139,6 +209,10 @@ export class PostsView {
         const currentUserId = authState.user?.id;
         const isOwnPost = !!currentUserId && currentUserId.toString() === apiPost.authorId?.toString();
 
+        // Обрабатываем хештеги в заголовке и тексте
+        const processedTitle = HashtagParser.replaceHashtagsWithLinks(apiPost.title || '');
+        const processedText = HashtagParser.replaceHashtagsWithLinks(apiPost.content || '');
+
         return {
             postId: apiPost.id || '',
             authorId: apiPost.authorId,
@@ -149,8 +223,8 @@ export class PostsView {
                 isSubscribed: false,
                 id: apiPost.authorId
             },
-            title: apiPost.title || '',
-            text: apiPost.content || '',
+            title: processedTitle, // Используем обработанный заголовок с хештегами
+            text: processedText,   // Используем обработанный текст с хештегами
             image: apiPost.image || '',
             tags: Array.isArray(apiPost.tags) ? apiPost.tags : [],
             commentsCount: apiPost.commentsCount || 0,
@@ -167,7 +241,6 @@ export class PostsView {
 
         const POSTS_PER_LOAD = 10;
         const fragment = document.createDocumentFragment();
-        
         
         let postsRendered = 0;
         for (let i = 0; i < POSTS_PER_LOAD; i++) {
@@ -189,6 +262,7 @@ export class PostsView {
                 fragment.appendChild(postElement);
                 postsRendered++;
             } catch (error) {
+                console.error('❌ Error rendering post in renderNextPosts:', error);
             }
             
             this.virtualPostIndex++;

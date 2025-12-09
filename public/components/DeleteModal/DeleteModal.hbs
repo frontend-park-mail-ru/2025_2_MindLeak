@@ -1,0 +1,16 @@
+<div class="delete-modal">
+    <div class="delete-modal__content">
+        <h3 class="delete-modal__title">{{title}}</h3>
+        <p class="delete-modal__message">
+            {{message}}
+        </p>
+        <div class="delete-modal__actions">
+            <button class="delete-modal__cancel" type="button">
+                {{cancelText}}
+            </button>
+            <button class="delete-modal__delete" type="button" {{#if isLoading}}disabled{{/if}}>
+                {{#if isLoading}}{{deleteLoadingText}}{{else}}{{deleteText}}{{/if}}
+            </button>
+        </div>
+    </div>
+</div>

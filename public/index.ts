@@ -9,12 +9,22 @@ import { PostView } from './views/viewPost';
 import { PostsView } from './views/viewPosts';
 import { StatisticsView } from './views/viewStatistic';
 import { ReplyView } from './views/viewReply';
+import { SearchView } from './views/viewSearch';
+import './index.scss'; 
 
 interface Route {
     path: string;
     view: any;
     title?: string;
     requiresAuth?: boolean;
+}
+
+function registerServiceWorker(): void {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/service-worker.js')
+            .then(() => console.log('✅ Service Worker зарегистрирован'))
+            .catch(err => console.log('❌ Ошибка регистрации Service Worker:', err));
+    }
 }
 
 async function initApp(): Promise<void> {
@@ -40,7 +50,14 @@ async function initApp(): Promise<void> {
     
     router.addRoute('/replies/:commentId', ReplyView, 'Ответы на комментарий', true);
 
+    router.addRoute('/search', SearchView, 'Mindleak - Поиск');
+
     router.init();
 }
 
-initApp().catch(console.error);
+async function startApp(): Promise<void> {
+    registerServiceWorker(); // Регистрируем SW
+    await initApp(); // Запускаем приложение
+}
+
+startApp().catch(console.error);

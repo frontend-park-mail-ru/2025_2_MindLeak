@@ -3,7 +3,6 @@ import { Post } from './storePosts';
 import { loginStore } from './storeLogin';
 import { dispatcher } from '../dispatcher/dispatcher';
 
-
 export interface ProfileData {
     id: string;
     name: string;
@@ -26,6 +25,8 @@ export interface ProfileState {
     error: string | null;
     isEditingDescription: boolean;
     isMyProfile?: boolean;
+    isOffline?: boolean; // Добавляем флаг оффлайн
+    requestedId?: string; // Добавляем запрошенный ID
 }
 
 class ProfileStore extends BaseStore<ProfileState> {
@@ -38,15 +39,19 @@ class ProfileStore extends BaseStore<ProfileState> {
             isLoading: false,
             error: null,
             isEditingDescription: false,
-            isMyProfile: false
+            isMyProfile: false,
+            isOffline: false, // Инициализируем
+            requestedId: undefined
         });
     }
 
     protected registerActions(): void {
-        this.registerAction('PROFILE_LOAD_REQUEST', () => {
+        this.registerAction('PROFILE_LOAD_REQUEST', (payload: { userId?: string }) => {
             this.setState({
                 isLoading: true,
-                error: null
+                error: null,
+                isOffline: false, // Сбрасываем при новом запросе
+                requestedId: payload?.userId // Сохраняем запрошенный ID
             });
         });
 
@@ -61,20 +66,49 @@ class ProfileStore extends BaseStore<ProfileState> {
                 isMyProfile = payload.profile.id === loginState.user.id.toString();
             }
             
-            
             this.setState({
                 profile: payload.profile,
                 posts: payload.posts,
                 isLoading: false,
                 error: null,
-                isMyProfile: isMyProfile
+                isMyProfile: isMyProfile,
+                isOffline: false // Успешная загрузка - не оффлайн
             });
         });
 
-        this.registerAction('PROFILE_LOAD_FAIL', (payload: { error: string }) => {
+        // ОБНОВЛЯЕМ: Добавляем обработку оффлайн ошибки
+        this.registerAction('PROFILE_LOAD_FAIL', (payload: { error: string; isOffline?: boolean; requestedId?: string }) => {
+            const currentState = this.getState();
+            
+            // Если это оффлайн ошибка, не очищаем данные полностью
+            if (payload.isOffline) {
+                this.setState({
+                    isLoading: false,
+                    error: payload.error,
+                    isOffline: true,
+                    requestedId: payload.requestedId,
+                    // Сохраняем старые данные, если они есть
+                    profile: currentState.profile,
+                    posts: currentState.posts
+                });
+            } else {
+                // Если обычная ошибка - очищаем
+                this.setState({
+                    profile: null,
+                    posts: [],
+                    isLoading: false,
+                    error: payload.error,
+                    isOffline: false,
+                    requestedId: payload.requestedId
+                });
+            }
+        });
+
+        // ДОБАВЛЯЕМ: Обработчик для сброса оффлайн состояния
+        this.registerAction('PROFILE_RESET_OFFLINE', () => {
             this.setState({
-                isLoading: false,
-                error: payload.error
+                isOffline: false,
+                error: null
             });
         });
 
@@ -107,12 +141,6 @@ class ProfileStore extends BaseStore<ProfileState> {
                     userId: state.profile.id 
                 });
             }
-        });
-
-        this.registerAction('PROFILE_CHANGE_TAB', (payload: { tab: 'posts' | 'comments' }) => {
-            this.setState({
-                activeTab: payload.tab
-            });
         });
 
         this.registerAction('PROFILE_CHANGE_TAB', (payload: { tab: 'posts' | 'comments' }) => {

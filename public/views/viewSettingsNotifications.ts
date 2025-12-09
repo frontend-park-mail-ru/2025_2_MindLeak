@@ -1,119 +1,54 @@
+import { BaseView } from './viewBase';
 import { SettingsNotifications } from '../components/SettingsNotifications/SettingsNotifications';
-import { UserList } from '../components/UserList/UserList';
-import { Header } from '../components/Header/Header';
 import { userListStore } from '../stores/storeUserList';
-import { dispatcher } from '../dispatcher/dispatcher';
-import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
 
-export class SettingsNotificationsView {
+export class SettingsNotificationsView extends BaseView {
     private container: HTMLElement;
-    private sidebarMenu: SidebarMenu | null = null;
-    private userList: UserList | null = null;
-    private headerInstance: Header;
-    private pageWrapper: HTMLElement | null = null;
-    private boundStoreHandler: () => void;
+    private boundUserListStoreHandler: () => void;
 
     constructor(container: HTMLElement) {
+        super();
         this.container = container;
-        this.headerInstance = new Header();
-        this.boundStoreHandler = this.handleStoreChange.bind(this);
+        this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
+    }
+
+    protected determineCurrentCategory(): void {
+        this.currentCategory = '';
     }
 
     async render(): Promise<HTMLElement> {
-        await this.renderFullPage();
-        return this.pageWrapper!;
+        this.isDestroyed = false;
+        
+        userListStore.addListener(this.boundUserListStoreHandler);
+        await this.renderPageLayout();
+        
+        if (this.container && this.rootElement) {
+            this.container.appendChild(this.rootElement);
+        }
+        
+        return this.rootElement!;
     }
 
-    private async renderFullPage(): Promise<void> {
-        this.container.innerHTML = '';
-
-        this.pageWrapper = document.createElement('div');
-        
-        // Header
-        const headerContainer = document.createElement('header');
-        const headerEl = await this.headerInstance.render(headerContainer);
-        headerContainer.appendChild(headerEl);
-        this.pageWrapper.appendChild(headerContainer);
-
-        // Основной контент
-        const contentContainer = document.createElement('div');
-        contentContainer.className = 'content-layout';
-        
-        const leftMenu = document.createElement('aside');
-        leftMenu.className = 'sidebar-left';
-
-        // Сохраняем ссылки на DOM-элементы сайдбаров
-        let sidebarEl1: HTMLElement | null = null;
-        let sidebarEl2: HTMLElement | null = null;
-
-        // Функция для сброса активности в сайдбаре
-        const deactivateAll = (sidebarEl: HTMLElement) => {
-            sidebarEl.querySelectorAll('.menu-item').forEach(item => {
-                item.classList.remove('menu-item--active');
-            });
-        };
-
-        // Левое меню
-        const sidebar1 = new SidebarMenu(
-            MAIN_MENU_ITEMS,
-            '',
-            (key) => {
-
-            const newUrl = key === 'fresh' ? '/feed' : `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
-            window.history.pushState({}, '', newUrl);
-            
-            window.dispatchEvent(new PopStateEvent('popstate'));
-            }
-        );
-        sidebarEl1 = await sidebar1.render();
-        
-        // Нижнее меню
-        const sidebar2 = new SidebarMenu(
-            SECONDARY_MENU_ITEMS,
-            '',
-            (key) => {
-            
-            const newUrl = key === '' ? '/feed' : `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
-            window.history.pushState({}, '', newUrl);
-            
-            window.dispatchEvent(new PopStateEvent('popstate'));
-            }
-        );
-        
-        sidebarEl2 = await sidebar2.render();
-
-        leftMenu.appendChild(sidebarEl1);
-        leftMenu.appendChild(sidebarEl2);
-
-        // Центральная область
+    protected async renderMainContent(): Promise<HTMLElement> {
         const mainContent = document.createElement('main');
         mainContent.className = 'main-content';
         
         const notificationsContent = await this.renderNotificationsContent();
         mainContent.appendChild(notificationsContent);
-
-        // Правое меню
-        const rightMenu = document.createElement('aside');
-        rightMenu.className = 'sidebar-right';
-
-        contentContainer.appendChild(leftMenu);
-        contentContainer.appendChild(mainContent);
-        contentContainer.appendChild(rightMenu);
-
-        // Подписываемся и запускаем загрузку топ-блогеров
-        userListStore.addListener(this.boundStoreHandler);
-        dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
-        
-        this.pageWrapper.appendChild(contentContainer);
-        this.container.appendChild(this.pageWrapper);
+        return mainContent;
     }
 
     private async renderNotificationsContent(): Promise<HTMLElement> {
+        if (this.isDestroyed) {
+            return document.createElement('div');
+        }
+
         const settingsNotificationsComponent = new SettingsNotifications({});
         return await settingsNotificationsComponent.render();
     }
 
-    private handleStoreChange(): void {
+    private handleUserListStoreChange(): void {
+        if (this.isDestroyed) return;
         const state = userListStore.getState();
         if (state.error) {
             console.error('UserList error:', state.error);
@@ -121,23 +56,15 @@ export class SettingsNotificationsView {
         this.updateUserListContent();
     }
 
-    private async updateUserListContent(): Promise<void> {
-        const rightMenu = this.pageWrapper?.querySelector('.sidebar-right') || document.querySelector('.sidebar-right');
-        if (!rightMenu) return;
-
-        const oldContent = rightMenu.querySelector('.user-list');
-        if (oldContent) oldContent.remove();
-
-        const newList = new UserList({
-            title: 'Топ блогов',
-            users: userListStore.getState().users || []
-        });
-        const newElement = await newList.render();
-        rightMenu.appendChild(newElement);
-    }
-
     destroy(): void {
-        userListStore.removeListener(this.boundStoreHandler);
-        this.headerInstance.destroy();
+        this.isDestroyed = true;
+        
+        userListStore.removeListener(this.boundUserListStoreHandler);
+        
+        super.destroy();
+        
+        if (this.container && this.rootElement && this.rootElement.parentNode === this.container) {
+            this.container.removeChild(this.rootElement);
+        }
     }
 }

@@ -259,6 +259,7 @@ export class Router {
             if (this.currentView && typeof this.currentView.destroy === 'function') {
                 console.log('[ROUTER] Destroying previous view');
                 this.currentView.destroy();
+                this.currentView = null;
             }
 
             if (route.title) {

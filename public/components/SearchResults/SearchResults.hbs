@@ -1,0 +1,27 @@
+{{! Список пользователей }}
+<div class="search-results__list">
+    {{#each users}}
+        <div class="search-result-item" data-user-id="{{this.id}}">
+            <img src="{{this.avatar}}" alt="{{this.name}}" class="search-result-item__avatar" 
+                 onerror="this.src='/img/defaultAvatar.jpg'">
+            <div class="search-result-item__info">
+                <div class="search-result-item__name">{{this.name}}</div>
+                <div class="search-result-item__subtitle">{{this.subtitle}}</div>
+            </div>
+        </div>
+    {{/each}}
+    
+    {{! Если пользователей нет, показываем сообщение }}
+    {{#unless users.length}}
+        <div class="search-results__empty">
+            <p>Авторы не найдены</p>
+        </div>
+    {{/unless}}
+</div>
+
+{{! ФУТЕР ВСЕГДА ВИДЕН }}
+<div class="search-results__footer">
+    <a href="#" class="search-results__show-all" data-action="show-all">
+        Показать все результаты
+    </a>
+</div>

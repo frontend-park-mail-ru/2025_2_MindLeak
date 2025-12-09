@@ -1,161 +1,80 @@
+import { BaseView } from './viewBase';
 import { SettingsAccount } from '../components/SettingsAccount/SettingsAccount';
-import { UserList } from '../components/UserList/UserList';
-import { userListStore } from '../stores/storeUserList';
-import { Header } from '../components/Header/Header';
 import { settingsAccountStore, SettingsAccountState } from '../stores/storeSettingsAccount';
-import { DeleteAccountModal } from '../components/DeleteAccount/DeleteAccount';
+import { DeleteModalFactory } from '../components/DeleteModal/DeleteModalFactory';
 import { loginStore } from '../stores/storeLogin';
+import { userListStore } from '../stores/storeUserList'; // todo изучить механику
 import { router } from '../router/router';
 import { dispatcher } from '../dispatcher/dispatcher';
-import { SidebarMenu, MAIN_MENU_ITEMS, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
 
-export class SettingsAccountView {
+export class SettingsAccountView extends BaseView {
     private container: HTMLElement;
-    private boundStoreHandler: () => void;
-    private sidebarMenu: SidebarMenu | null = null;
-    private userList: UserList | null = null;
-    private headerInstance: Header;
-    private pageWrapper: HTMLElement | null = null;
-    private deleteModal: DeleteAccountModal | null = null;
+    private boundSettingsStoreHandler: () => void;
     private boundLoginStoreHandler: () => void;
+    private boundUserListStoreHandler: () => void;
     private boundFormSubmitHandler: (e: SubmitEvent) => void;
-    private currentCategory: string = '';
+    private deleteModal: any = null;
+    private deleteAvatarModal: any = null;
+    private deleteCoverModal: any = null;
 
     constructor(container: HTMLElement) {
+        super();
         this.container = container;
-        this.headerInstance = new Header();
-        this.boundStoreHandler = this.handleStoreChange.bind(this);
+        this.boundSettingsStoreHandler = this.handleSettingsStoreChange.bind(this);
         this.boundLoginStoreHandler = this.handleLoginStoreChange.bind(this);
+        this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
         this.boundFormSubmitHandler = this.handleFormSubmit.bind(this);
-        this.determineCurrentCategory();
     }
 
-
-    private determineCurrentCategory(): void {
-        const url = new URL(window.location.href);
-        const pathname = url.pathname;
-        
-        if (pathname === '/' || pathname === '/feed') {
-            this.currentCategory = 'fresh';
-        } else if (pathname === '/feed/category') {
-            const topicParam = url.searchParams.get('topic');
-            this.currentCategory = topicParam || 'fresh';
-        }
-
+    protected determineCurrentCategory(): void {
+        this.currentCategory = '';
     }
 
     async render(): Promise<HTMLElement> {
+        this.isDestroyed = false;
         this.determineCurrentCategory();
 
-        await this.renderFullPage();
-        
-        settingsAccountStore.addListener(this.boundStoreHandler);
+        // Подписываемся на stores
+        settingsAccountStore.addListener(this.boundSettingsStoreHandler);
         loginStore.addListener(this.boundLoginStoreHandler);
+        userListStore.addListener(this.boundUserListStoreHandler);
         
+        // Рендерим базовую структуру
+        await this.renderPageLayout();
+        
+        // Загружаем данные аккаунта
         dispatcher.dispatch('SETTINGS_ACCOUNT_LOAD_REQUEST');
         
-        return this.pageWrapper!;
+        // Добавляем контент в container
+        if (this.container && this.rootElement) {
+            this.container.appendChild(this.rootElement);
+        }
+        
+        return this.rootElement!;
     }
 
-    private async renderFullPage(): Promise<void> {
-        this.container.innerHTML = '';
-
-        this.pageWrapper = document.createElement('div');
-        
-        const headerContainer = document.createElement('header');
-        const headerEl = await this.headerInstance.render(headerContainer);
-        headerContainer.appendChild(headerEl);
-        this.pageWrapper.appendChild(headerContainer);
-
-        const contentContainer = document.createElement('div');
-        contentContainer.className = 'content-layout';
-        
-        const leftMenu = document.createElement('aside');
-        leftMenu.className = 'sidebar-left';
-
-        // Сохраняем ссылки на DOM-элементы сайдбаров
-        let sidebarEl1: HTMLElement | null = null;
-        let sidebarEl2: HTMLElement | null = null;
-
-        // Функция для сброса активности в сайдбаре
-        const deactivateAll = (sidebarEl: HTMLElement) => {
-            sidebarEl.querySelectorAll('.menu-item').forEach(item => {
-                item.classList.remove('menu-item--active');
-            });
-        };
-
-// левое меню
-        const sidebar1 = new SidebarMenu(
-            MAIN_MENU_ITEMS,
-            this.currentCategory,
-            (key) => {
-                if (sidebarEl2) deactivateAll(sidebarEl2);
-                
-                let newUrl = '';
-                if (key === 'fresh') {
-                    newUrl = '/feed';
-                } else {
-                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
-                }
-                
-                window.history.pushState({}, '', newUrl);
-                window.dispatchEvent(new PopStateEvent('popstate'));
-            }
-        );
-        sidebarEl1 = await sidebar1.render();
-
-        // нижнее меню
-        const sidebar2 = new SidebarMenu(
-            SECONDARY_MENU_ITEMS,
-            this.currentCategory,
-            (key) => {
-                if (sidebarEl1) deactivateAll(sidebarEl1);
-                
-                let newUrl = '';
-                if (key === 'fresh') {
-                    newUrl = '/feed';
-                } else {
-                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
-                }
-                
-                window.history.pushState({}, '', newUrl);
-                window.dispatchEvent(new PopStateEvent('popstate'));
-            }
-        );
-        sidebarEl2 = await sidebar2.render();
-
-        leftMenu.appendChild(sidebarEl1);
-        leftMenu.appendChild(sidebarEl2);
-
-        // центр
+    protected async renderMainContent(): Promise<HTMLElement> {
         const mainContent = document.createElement('main');
         mainContent.className = 'main-content';
         
         const accountContent = await this.renderAccountContent();
         mainContent.appendChild(accountContent);
-
-        // правое меню
-        const rightMenu = document.createElement('aside');
-        rightMenu.className = 'sidebar-right';
-
-        contentContainer.appendChild(leftMenu);
-        contentContainer.appendChild(mainContent);
-        contentContainer.appendChild(rightMenu);
-
-        userListStore.addListener(this.boundStoreHandler);
-        dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
-        
-        this.pageWrapper.appendChild(contentContainer);
-        this.container.appendChild(this.pageWrapper);
+        return mainContent;
     }
 
     private async renderAccountContent(): Promise<HTMLElement> {
+        if (this.isDestroyed) {
+            return document.createElement('div');
+        }
+
         const currentState = settingsAccountStore.getState();
         
         const settingsAccountComponent = new SettingsAccount({
             userData: currentState.settings,
             isLoading: currentState.isUpdating,
-            error: currentState.error
+            error: currentState.error,
+            isUploadingAvatar: currentState.isUploadingAvatar,
+            isUploadingCover: currentState.isUploadingCover
         });
         
         const element = await settingsAccountComponent.render();
@@ -164,6 +83,8 @@ export class SettingsAccountView {
     }
 
     private attachEventListeners(container: HTMLElement): void {
+        if (this.isDestroyed) return;
+
         const form = container.querySelector('.settings-account__form') as HTMLFormElement;
         if (form) {
             form.addEventListener('submit', this.boundFormSubmitHandler);
@@ -221,7 +142,23 @@ export class SettingsAccountView {
         }
     }
 
+    private closeDeleteAvatarModal(): void {
+        if (this.deleteAvatarModal) {
+            this.deleteAvatarModal.destroy();
+            this.deleteAvatarModal = null;
+        }
+    }
+
+    private closeDeleteCoverModal(): void {
+        if (this.deleteCoverModal) {
+            this.deleteCoverModal.destroy();
+            this.deleteCoverModal = null;
+        }
+    }
+
     private async handleAvatarUpload(e: Event): Promise<void> {
+        if (this.isDestroyed) return;
+        
         const input = e.target as HTMLInputElement;
         if (!input.files || input.files.length === 0) return;
 
@@ -240,16 +177,33 @@ export class SettingsAccountView {
         }
 
         dispatcher.dispatch('AVATAR_UPLOAD_REQUEST', { file });
-
         input.value = '';
     }
 
-    private handleAvatarDelete(): void {
+    private async handleAvatarDelete(): Promise<void> {
+        if (this.isDestroyed) return;
+        
         this.clearAvatarError();
-        dispatcher.dispatch('AVATAR_DELETE_REQUEST');
+        await this.openDeleteAvatarModal();
+    }
+
+    private async openDeleteAvatarModal(): Promise<void> {
+        if (this.isDestroyed) return;
+        
+        this.deleteAvatarModal = DeleteModalFactory.createAvatarDeleteModal();
+        const modalElement = await this.deleteAvatarModal.render();
+        this.rootElement?.appendChild(modalElement);
+
+        const confirmed = await this.deleteAvatarModal.waitForResult();
+        if (confirmed) {
+            dispatcher.dispatch('AVATAR_DELETE_REQUEST');
+        }
+        this.closeDeleteAvatarModal();
     }
 
     private async handleCoverUpload(e: Event): Promise<void> {
+        if (this.isDestroyed) return;
+        
         const input = e.target as HTMLInputElement;
         if (!input.files || input.files.length === 0) return;
 
@@ -263,24 +217,41 @@ export class SettingsAccountView {
         }
 
         if (file.size > 5 * 1024 * 1024) {
-            this.showCoverError('Размер файла не должен превышать 10MB');
+            this.showCoverError('Размер файла не должен превышать 5MB');
             return;
         }
 
         dispatcher.dispatch('COVER_UPLOAD_REQUEST', { file });
-
         input.value = '';
     }
 
-    private handleCoverDelete(): void {
+    private async handleCoverDelete(): Promise<void> {
+        if (this.isDestroyed) return;
+        
         this.clearCoverError();
-        dispatcher.dispatch('COVER_DELETE_REQUEST');
+        await this.openDeleteCoverModal();
+    }
+
+    private async openDeleteCoverModal(): Promise<void> {
+        if (this.isDestroyed) return;
+        
+        this.deleteCoverModal = DeleteModalFactory.createCoverDeleteModal();
+        const modalElement = await this.deleteCoverModal.render();
+        this.rootElement?.appendChild(modalElement);
+
+        const confirmed = await this.deleteCoverModal.waitForResult();
+        if (confirmed) {
+            dispatcher.dispatch('COVER_DELETE_REQUEST');
+        }
+        this.closeDeleteCoverModal();
     }
 
     private showAvatarError(message: string): void {
+        if (this.isDestroyed) return;
+        
         this.clearAvatarError();
         
-        const avatarField = this.pageWrapper?.querySelector('.settings-account__field:nth-child(1)');
+        const avatarField = this.rootElement?.querySelector('.settings-account__field:nth-child(1)');
         if (avatarField) {
             const errorEl = document.createElement('div');
             errorEl.className = 'field-error';
@@ -290,9 +261,11 @@ export class SettingsAccountView {
     }
 
     private showCoverError(message: string): void {
+        if (this.isDestroyed) return;
+        
         this.clearCoverError();
         
-        const coverField = this.pageWrapper?.querySelector('.settings-account__field:nth-child(2)');
+        const coverField = this.rootElement?.querySelector('.settings-account__field:nth-child(2)');
         if (coverField) {
             const errorEl = document.createElement('div');
             errorEl.className = 'field-error';
@@ -302,7 +275,7 @@ export class SettingsAccountView {
     }
 
     private clearAvatarError(): void {
-        const avatarField = this.pageWrapper?.querySelector('.settings-account__field:nth-child(1)');
+        const avatarField = this.rootElement?.querySelector('.settings-account__field:nth-child(1)');
         if (avatarField) {
             const existingError = avatarField.querySelector('.field-error');
             if (existingError) {
@@ -312,7 +285,7 @@ export class SettingsAccountView {
     }
 
     private clearCoverError(): void {
-        const coverField = this.pageWrapper?.querySelector('.settings-account__field:nth-child(2)');
+        const coverField = this.rootElement?.querySelector('.settings-account__field:nth-child(2)');
         if (coverField) {
             const existingError = coverField.querySelector('.field-error');
             if (existingError) {
@@ -322,11 +295,13 @@ export class SettingsAccountView {
     }
 
     private async handleFormSubmit(e: SubmitEvent): Promise<void> {
+        if (this.isDestroyed) return;
+        
         e.preventDefault();
         
-        if (!this.pageWrapper) return;
+        if (!this.rootElement) return;
 
-        const form = this.pageWrapper.querySelector('.settings-account__form') as HTMLFormElement;
+        const form = this.rootElement.querySelector('.settings-account__form') as HTMLFormElement;
         if (!form) return;
 
         const formData = new FormData(form);
@@ -353,7 +328,6 @@ export class SettingsAccountView {
         if (language !== undefined) updatedData.language = language;
         if (sex !== undefined) updatedData.sex = sex;
         if (date_of_birth !== undefined) updatedData.date_of_birth = date_of_birth || '';
-
 
         const errors = this.validateForm(updatedData);
         if (errors.length > 0) {
@@ -421,6 +395,8 @@ export class SettingsAccountView {
     }
 
     private handleLoginStoreChange(): void {
+        if (this.isDestroyed) return;
+        
         const loginState = loginStore.getState();
         
         if (!loginState.isLoggedIn) {
@@ -429,20 +405,35 @@ export class SettingsAccountView {
         }
     }
 
-    private async openDeleteModal(): Promise<void> {
-        if (this.deleteModal) return;
+    //обработчик изменений userListStore
+    private handleUserListStoreChange(): void {
+        if (this.isDestroyed) return;
+        const state = userListStore.getState();
+        if (state.error) {
+            console.error('UserList error:', state.error);
+        }
+        // Используем метод из BaseView
+        this.updateUserListContent();
+    }
 
-        this.deleteModal = new DeleteAccountModal();
+    private async openDeleteModal(): Promise<void> {
+        if (this.isDestroyed) return;
+        
+        this.deleteModal = DeleteModalFactory.createAccountDeleteModal();
         const modalElement = await this.deleteModal.render();
         
-        modalElement.addEventListener('accountDeleteRequest', () => {
-            this.handleAccountDelete();
-        });
+        this.rootElement?.appendChild(modalElement);
 
-        this.pageWrapper?.appendChild(modalElement);
+        const confirmed = await this.deleteModal.waitForResult();
+        
+        if (confirmed) {
+            this.handleAccountDelete();
+        }
     }
 
     private handleAccountDelete(): void {
+        if (this.isDestroyed) return;
+        
         dispatcher.dispatch('ACCOUNT_DELETE_REQUEST');
         this.closeDeleteModal();
     }
@@ -454,50 +445,38 @@ export class SettingsAccountView {
         }
     }
 
-    private handleStoreChange(): void {
-        const state = userListStore.getState();
-        if (state.error) {
-            console.error('UserList error:', state.error);
-        }
-        this.updateUserListContent();
-    }
-
-    private async updateUserListContent(): Promise<void> {
-        const rightMenu = this.pageWrapper?.querySelector('.sidebar-right') || document.querySelector('.sidebar-right');
-        if (!rightMenu) return;
-
-        const oldContent = rightMenu.querySelector('.user-list');
-        if (oldContent) oldContent.remove();
-
-        const newList = new UserList({
-            title: 'Топ блогов',
-            users: userListStore.getState().users || []
-        });
-        const newElement = await newList.render();
-        rightMenu.appendChild(newElement);
+    private handleSettingsStoreChange(): void {
+        if (this.isDestroyed) return;
+        
+        const state = settingsAccountStore.getState();
+        this.updateAccountContent();
     }
 
     private async updateAccountContent(): Promise<void> {
-        if (!this.pageWrapper) return;
+        if (this.isDestroyed || !this.mainContent) return;
         
-        const mainContent = this.pageWrapper.querySelector('.main-content');
-        if (mainContent) {
-            const oldContent = mainContent.querySelector('.settings-account');
-            if (oldContent) {
-                oldContent.remove();
+        const oldContent = this.mainContent.querySelector('.settings-account');
+        if (oldContent) {
+            const form = oldContent.querySelector('.settings-account__form') as HTMLFormElement;
+            if (form) {
+                form.removeEventListener('submit', this.boundFormSubmitHandler);
             }
-            
-            const newContent = await this.renderAccountContent();
-            mainContent.appendChild(newContent);
+            oldContent.remove();
         }
+        
+        const newContent = await this.renderAccountContent();
+        this.mainContent.appendChild(newContent);
     }
 
     destroy(): void {
-        settingsAccountStore.removeListener(this.boundStoreHandler);
-        loginStore.removeListener(this.boundLoginStoreHandler);
+        this.isDestroyed = true;
         
-        if (this.pageWrapper) {
-            const form = this.pageWrapper.querySelector('.settings-account__form') as HTMLFormElement;
+        settingsAccountStore.removeListener(this.boundSettingsStoreHandler);
+        loginStore.removeListener(this.boundLoginStoreHandler);
+        userListStore.removeListener(this.boundUserListStoreHandler);
+        
+        if (this.rootElement) {
+            const form = this.rootElement.querySelector('.settings-account__form') as HTMLFormElement;
             if (form) {
                 form.removeEventListener('submit', this.boundFormSubmitHandler);
             }
@@ -506,6 +485,17 @@ export class SettingsAccountView {
         if (this.deleteModal) {
             this.deleteModal.destroy();
         }
-        this.headerInstance.destroy();
+        if (this.deleteAvatarModal) {
+            this.deleteAvatarModal.destroy();
+        }
+        if (this.deleteCoverModal) {
+            this.deleteCoverModal.destroy();
+        }
+        
+        super.destroy();
+        
+        if (this.container && this.rootElement && this.rootElement.parentNode === this.container) {
+            this.container.removeChild(this.rootElement);
+        }
     }
 }

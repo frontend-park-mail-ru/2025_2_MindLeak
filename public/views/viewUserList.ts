@@ -1,5 +1,3 @@
-// views/viewUserList.ts
-
 import { UserList } from '../components/UserList/UserList';
 import { Header } from '../components/Header/Header';
 import { userListStore, UserListState } from '../stores/storeUserList';
@@ -13,7 +11,10 @@ export class UserListView {
   private headerInstance: Header;
   private pageWrapper: HTMLElement | null = null;
   private currentCategory: string = '';
-  private listType: 'topblogs' | 'subscriptions' | 'subscribers' = 'topblogs'; // Тип списка
+  private listType: 'topblogs' | 'subscriptions' | 'subscribers' = 'topblogs';
+  private userListElement: HTMLElement | null = null; // Добавляем ссылку на элемент UserList
+  private isUserListRendered: boolean = false; // Добавляем флаг
+  private isDestroyed: boolean = false; // Добавляем флаг уничтожения
 
   constructor(container: HTMLElement, listType: 'topblogs' | 'subscriptions' | 'subscribers' = 'topblogs') {
     this.container = container;
@@ -35,10 +36,17 @@ export class UserListView {
   }
 
   async render(): Promise<HTMLElement> {
+    this.isDestroyed = false; // Сбрасываем флаг при рендере
     this.determineCurrentCategory();
     await this.renderFullPage();
     userListStore.addListener(this.boundStoreHandler);
-    dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: this.listType });
+    
+    // Загружаем данные только если еще не загружали
+    if (!this.isUserListRendered) {
+      dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: this.listType });
+      this.isUserListRendered = true;
+    }
+    
     return this.pageWrapper!;
   }
 
@@ -123,6 +131,10 @@ export class UserListView {
   }
 
   private async renderUserListContent(): Promise<HTMLElement> {
+    if (this.isDestroyed) {
+      return document.createElement('div');
+    }
+
     const currentState = userListStore.getState();
     const title = this.getTitleByType(this.listType);
     const userListComponent = new UserList({
@@ -147,6 +159,8 @@ export class UserListView {
   }
 
   private handleStoreChange(): void {
+    if (this.isDestroyed) return; // Защита от вызовов после уничтожения
+    
     const state = userListStore.getState();
     if (state.error) {
       console.error('UserList error:', state.error);
@@ -155,7 +169,8 @@ export class UserListView {
   }
 
   private async updateUserListContent(): Promise<void> {
-    if (!this.pageWrapper) return;
+    if (this.isDestroyed || !this.pageWrapper) return;
+    
     const mainContent = this.pageWrapper.querySelector('.main-content');
     if (mainContent) {
       const oldContent = mainContent.querySelector('.user-list');
@@ -168,7 +183,19 @@ export class UserListView {
   }
 
   destroy(): void {
+    this.isDestroyed = true; // Устанавливаем флаг уничтожения
+    
     userListStore.removeListener(this.boundStoreHandler);
+    
+    // Очищаем UserList
+    if (this.userListElement) {
+      this.userListElement.remove();
+      this.userListElement = null;
+    }
+    
+    // Сбрасываем флаги
+    this.isUserListRendered = false;
+    
     this.headerInstance.destroy();
   }
 }

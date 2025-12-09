@@ -1,23 +1,22 @@
 .user-menu {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: var(--section-color);
-    border-radius: 4px;
-    color: var(--text-color);
-    cursor: default;
-    transition: all 0.2s ease;
-}
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--section-color);
+  border-radius: 4px;
+  color: var(--text-color);
+  cursor: default;
+  transition: all 0.2s ease;
 
-.user-menu--clickable {
+  &--clickable {
     cursor: pointer;
-}
 
-.user-menu--clickable:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+  }
 
-.user-menu__avatar {
+  &__avatar {
     width: 40px;
     height: 40px;
     border-radius: 50%;
@@ -25,36 +24,37 @@
     display: flex;
     justify-content: center;
     align-items: center;
-}
+  }
 
-.user-menu__avatar-img {
+  &__avatar-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-}
+  }
 
-.user-menu__avatar-placeholder {
+  &__avatar-placeholder {
     font-size: var(--text-lg);
     color: var(--text-lighter);
-}
+  }
 
-.user-menu__info {
+  &__info {
     display: flex;
     flex-direction: column;
     gap: 2px;
-}
+    flex: 1;
+  }
 
-.user-menu__name {
+  &__name {
     font-weight: var(--font-weight-medium);
     font-size: var(--text-base);
-}
+  }
 
-.user-menu__subtitle {
+  &__subtitle {
     font-size: var(--text-xs);
     color: var(--text-lighter);
-}
+  }
 
-.user-menu__button {
+  &__button {
     padding: 3px 8px;
     margin-left: 10px;
     border: none;
@@ -64,14 +64,23 @@
     cursor: pointer;
     font-size: var(--text-xs);
     transition: all 0.2s ease;
-}
 
-.user-menu__button:hover {
-    background: var(--accent-color);
-}
+    &:hover {
+      background: var(--accent-color);
+    }
 
-.firstRowUser {
+    &--subscribed {
+      background: var(--text-success);
+    }
+
+    &--login {
+      background: var(--accent-color);
+    }
+  }
+
+  &__row {
     display: flex;
     align-items: center;
     gap: 8px;
+  }
 }

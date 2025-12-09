@@ -1,4 +1,5 @@
-// components/TechSupport/TechSupportIframe.ts
+import './TechSupport.scss';
+import '../FormButton/FormButton.scss';
 
 interface SupportFormData {
     email_registered: string;

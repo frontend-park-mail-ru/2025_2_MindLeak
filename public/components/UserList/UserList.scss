@@ -1,0 +1,35 @@
+.user-list {
+  background-color: var(--section-color);
+  border-radius: 10px;
+  padding: 20px;
+  width: 310px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  box-sizing: border-box;
+
+  &__title {
+    font-size: var(--text-xl);
+    color: var(--text-color);
+    margin-top: 0;
+    margin-bottom: 20px;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    transition: background-color 0.2s ease;
+    border-radius: 8px;
+    padding: 8px;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+  }
+}

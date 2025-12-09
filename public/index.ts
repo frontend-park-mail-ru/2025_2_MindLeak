@@ -7,9 +7,9 @@ import { SettingsNotificationsView } from './views/viewSettingsNotifications';
 import { SettingsPrivacyView } from './views/viewSettingsPrivacy';
 import { PostView } from './views/viewPost';
 import { PostsView } from './views/viewPosts';
-import { dispatcher } from './dispatcher/dispatcher';
 import { StatisticsView } from './views/viewStatistic';
 import { SearchView } from './views/viewSearch';
+import './index.scss'; 
 
 interface Route {
     path: string;

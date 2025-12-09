@@ -11,6 +11,8 @@ export interface CreatePostState {
     error: string | null;
     isEditing: boolean;
     editingPostId: string | null;
+    mediaUrls: string[]; // Добавляем массив URL медиафайлов
+    isUploadingMedia: boolean;
 }
 
 class CreatePostStore extends BaseStore<CreatePostState> {
@@ -24,7 +26,9 @@ class CreatePostStore extends BaseStore<CreatePostState> {
             success: false,
             error: null,
             isEditing: false,
-            editingPostId: null
+            editingPostId: null,
+            mediaUrls: [], // Инициализируем пустым массивом
+            isUploadingMedia: false
         });
     }
 
@@ -39,7 +43,9 @@ class CreatePostStore extends BaseStore<CreatePostState> {
                 success: false,
                 error: null,
                 isEditing: false,
-                editingPostId: null
+                editingPostId: null,
+                mediaUrls: [], // Сбрасываем медиа при инициализации
+                isUploadingMedia: false
             });
         });
 
@@ -59,7 +65,9 @@ class CreatePostStore extends BaseStore<CreatePostState> {
         });
 
         this.registerAction('POST_EDIT_LOAD_SUCCESS', (payload: { post: any }) => {
-            // ПЕРЕД загрузкой новых данных сбрасываем success флаг
+            // Парсим медиафайлы из контента или получаем отдельным полем
+            const mediaUrls = payload.post.mediaUrls || this.extractMediaUrls(payload.post.content) || [];
+            
             this.setState({
                 draftTitle: payload.post.title || '',
                 draftContent: payload.post.content || '',
@@ -67,6 +75,7 @@ class CreatePostStore extends BaseStore<CreatePostState> {
                 currentThemeId: payload.post.topic_id || 0,
                 isEditing: true,
                 editingPostId: payload.post.id,
+                mediaUrls: mediaUrls,
                 success: false, // СБРАСЫВАЕМ success флаг
                 error: null
             });
@@ -77,7 +86,12 @@ class CreatePostStore extends BaseStore<CreatePostState> {
         });
 
         this.registerAction('CREATE_POST_SUCCESS', () => {
-            this.setState({ isCreating: false, success: true, error: null });
+            this.setState({ 
+                isCreating: false, 
+                success: true, 
+                error: null,
+                mediaUrls: [] // Сбрасываем медиа после успешной публикации
+            });
         });
 
         this.registerAction('CREATE_POST_FAIL', (payload: { error: string }) => {
@@ -108,7 +122,8 @@ class CreatePostStore extends BaseStore<CreatePostState> {
                 success: true, 
                 error: null,
                 isEditing: false, // СБРАСЫВАЕМ флаг редактирования
-                editingPostId: null // СБРАСЫВАЕМ ID редактируемого поста
+                editingPostId: null, // СБРАСЫВАЕМ ID редактируемого поста
+                mediaUrls: [] // Сбрасываем медиа после успешного редактирования
             });
         });
 
@@ -118,12 +133,15 @@ class CreatePostStore extends BaseStore<CreatePostState> {
                 isEditing: false,
                 editingPostId: null,
                 success: false,
-                error: null
+                error: null,
+                mediaUrls: [] // Сбрасываем медиа при закрытии формы
             });
         });
 
         this.registerAction('POST_EDIT_LOAD_SUCCESS', (payload: { post: any }) => {
-            // ПЕРЕД загрузкой новых данных сбрасываем success флаг
+            // Парсим медиафайлы из контента или получаем отдельным полем
+            const mediaUrls = payload.post.mediaUrls || this.extractMediaUrls(payload.post.content) || [];
+            
             this.setState({
                 draftTitle: payload.post.title || '',
                 draftContent: payload.post.content || '',
@@ -131,6 +149,7 @@ class CreatePostStore extends BaseStore<CreatePostState> {
                 currentThemeId: payload.post.topic_id || 0,
                 isEditing: true,
                 editingPostId: payload.post.id,
+                mediaUrls: mediaUrls,
                 success: false, // СБРАСЫВАЕМ success флаг
                 error: null
             });
@@ -148,6 +167,72 @@ class CreatePostStore extends BaseStore<CreatePostState> {
         this.registerAction('EDIT_POST_FAIL', (payload: { error: string }) => {
             this.setState({ isCreating: false, error: payload.error });
         });
+
+        // ДЕЙСТВИЯ ДЛЯ РАБОТЫ С МЕДИАФАЙЛАМИ
+
+        this.registerAction('MEDIA_UPLOAD_REQUEST', (payload?: any) => {
+            console.log('MEDIA_UPLOAD_REQUEST in store, payload:', payload);
+            
+            if (!payload || !payload.files) {
+                console.error('MEDIA_UPLOAD_REQUEST: Missing files in payload');
+            }
+            
+            this.setState({ isUploadingMedia: true, error: null });
+        });
+
+        this.registerAction('MEDIA_UPLOAD_SUCCESS', (payload: { url: string }) => {
+            const currentUrls = this.state.mediaUrls || [];
+            this.setState({
+                isUploadingMedia: false,
+                mediaUrls: [...currentUrls, payload.url]
+            });
+        });
+
+        this.registerAction('MEDIA_UPLOAD_FAIL', (payload: { error: string }) => {
+            this.setState({ isUploadingMedia: false, error: payload.error });
+        });
+
+        this.registerAction('MEDIA_DELETE_REQUEST', () => {
+            this.setState({ error: null });
+        });
+
+        this.registerAction('MEDIA_DELETE_SUCCESS', (payload: { url: string }) => {
+            const currentUrls = this.state.mediaUrls || [];
+            this.setState({
+                mediaUrls: currentUrls.filter(url => url !== payload.url)
+            });
+        });
+
+        this.registerAction('MEDIA_DELETE_FAIL', (payload: { error: string }) => {
+            this.setState({ error: payload.error });
+        });
+
+        // ДОБАВЛЯЕМ: Сброс медиа при успешной публикации/редактировании
+        this.registerAction('CREATE_POST_SUCCESS', () => {
+            this.setState({ 
+                isCreating: false, 
+                success: true, 
+                error: null,
+                mediaUrls: [] // Сбрасываем медиа после успешной публикации
+            });
+        });
+
+        this.registerAction('EDIT_POST_SUCCESS', () => {
+            this.setState({ 
+                isCreating: false, 
+                success: true, 
+                error: null,
+                isEditing: false,
+                editingPostId: null,
+                mediaUrls: [] // Сбрасываем медиа после успешного редактирования
+            });
+        });
+    }
+
+    private extractMediaUrls(content: string): string[] {
+        const regex = /(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp|mp4|avi|mov|wmv|pdf|txt|doc|docx|zip))/gi;
+        const matches = content.match(regex);
+        return matches || [];
     }
 }
 

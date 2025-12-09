@@ -1,6 +1,6 @@
 import { dispatcher } from '../dispatcher/dispatcher';
 
-export const createPost = (data: { title: string; content: string; topic_id: number }) => {
+export const createPost = (data: { title: string; content: string; topic_id: number; mediaUrls?: string[] }) => {
     dispatcher.dispatch('CREATE_POST_REQUEST', data);
 };
 
@@ -10,6 +10,14 @@ export function selectTheme(themeName: string, topic_id: number): void {
 
 export const updatePostContent = (content: string) => {
     dispatcher.dispatch('POST_CONTENT_CHANGED', { content });
+};
+
+export const uploadMedia = (files: File[], postId?: string) => {
+    dispatcher.dispatch('MEDIA_UPLOAD_REQUEST', { files, postId });
+};
+
+export const deleteMedia = (mediaUrl: string, postId?: string) => {
+    dispatcher.dispatch('MEDIA_DELETE_REQUEST', { mediaUrl, postId });
 };
 
 export const addImage = () => {

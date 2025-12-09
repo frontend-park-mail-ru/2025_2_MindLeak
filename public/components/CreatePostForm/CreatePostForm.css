@@ -306,3 +306,163 @@ body .create-post-form__overlay {
     align-items: center;
     justify-content: center;
 }
+
+.create-post-form__media-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 15px 0;
+    min-height: 50px;
+}
+
+.create-post-form__media-preview {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--section-hover);
+}
+
+.create-post-form__media-preview-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.create-post-form__media-remove {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: background-color 0.2s ease;
+    padding: 0;
+}
+
+.create-post-form__media-remove:hover {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+.create-post-form__media-preview[data-media-type="video"]::before {
+    content: '🎬';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.create-post-form__media-preview[data-media-type="document"]::before {
+    content: '📄';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.create-post-form__media-upload-label {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.create-post-form__media-upload-label:hover .create-post-form__action-icon {
+    opacity: 0.8;
+}
+
+.create-post-form__upload-indicator {
+    display: inline-block;
+    margin-left: 10px;
+    color: var(--accent-color);
+    font-size: 12px;
+}
+
+/* Добавляем в конец файла */
+
+.create-post-form__media-preview-video,
+.create-post-form__media-preview-document,
+.create-post-form__media-preview-other {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--section-hover);
+}
+
+.create-post-form__media-preview-video .video-icon,
+.create-post-form__media-preview-document .document-icon,
+.create-post-form__media-preview-other .file-icon {
+    font-size: 24px;
+    margin-bottom: 5px;
+}
+
+.create-post-form__media-preview-document .document-name,
+.create-post-form__media-preview-other .file-name {
+    font-size: 10px;
+    color: var(--text-color);
+    text-align: center;
+}
+
+/* Стиль для иконок в медиа превью */
+.video-icon,
+.document-icon,
+.file-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    color: white;
+}
+
+/* Исправляем псевдоэлементы */
+.create-post-form__media-preview[data-media-type="video"]::before {
+    content: '🎬';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20px;
+    z-index: 1;
+    opacity: 0.8;
+}
+
+.create-post-form__media-preview[data-media-type="document"]::before {
+    content: '📄';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20px;
+    z-index: 1;
+    opacity: 0.8;
+}

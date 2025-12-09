@@ -197,6 +197,20 @@ class Ajax {
             body: formData
         });
     }
+
+    async uploadMedia(formData: FormData): Promise<ApiResponse> {
+        return this.request('/uploads/media', {
+            method: 'POST',
+            body: formData
+        });
+    }
+
+    async deleteMedia(mediaUrl: string): Promise<ApiResponse> {
+        return this.request('/delete/media', {
+            method: 'DELETE',
+            body: JSON.stringify({ url: mediaUrl })
+        });
+    }
 }
 
 export const ajax = new Ajax();

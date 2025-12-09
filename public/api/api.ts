@@ -110,6 +110,17 @@ class API {
             case 'SEARCH_POSTS_REQUEST':
                 this.searchPosts(payload.query);
                 break;
+            case 'MEDIA_UPLOAD_REQUEST':
+                if (!payload || !payload.files) {
+                    console.error('MEDIA_UPLOAD_REQUEST: No files in payload:', payload);
+                    this.sendAction('MEDIA_UPLOAD_FAIL', { error: 'Файлы не переданы' });
+                    return;
+                }
+                this.uploadMediaForPost(payload.files, payload.postId);
+                break;
+            case 'MEDIA_DELETE_REQUEST':
+                this.deleteMediaForPost(payload.mediaUrl, payload.postId);
+                break;
         }
     }
 
@@ -350,7 +361,8 @@ private normalizeAppealData(appeal: any): any {
             viewsCount: post.views_count || post.ViewsCount || 0,
             theme: post.Topic?.Title || post.theme || post.Topic?.title || 'Без темы',
             topic_id: post.topic_id || post.Topic?.TopicId || post.Topic?.topic_id || 0,
-            tags: []
+            tags: [],
+            mediaUrls: post.media_urls || post.mediaUrls || (post.image ? [post.image] : [])
         };
     }
 
@@ -1109,9 +1121,78 @@ private normalizeAppealData(appeal: any): any {
                     });
             }
         } catch (error) {
-            console.error('❌ API: Search posts exception:', error);
+            console.error(' API: Search posts exception:', error);
             this.sendAction('SEARCH_POSTS_FAIL', {
                 error: 'Ошибка при выполнении поиска постов'
+            });
+        }
+    }
+
+    private async uploadMediaForPost(files: File[], postId?: string): Promise<void> {
+        try {
+            // Проверяем, что files действительно массив File
+            if (!files || !Array.isArray(files) || files.length === 0) {
+                console.error('uploadMediaForPost: Invalid files parameter:', files);
+                this.sendAction('MEDIA_UPLOAD_FAIL', { error: 'Некорректные файлы' });
+                return;
+            }
+            
+            console.log('Uploading media files:', files.length, 'files');
+            
+            for (const file of files) {
+                // Проверяем каждый файл
+                if (!(file instanceof File)) {
+                    console.error('Invalid file object:', file);
+                    continue;
+                }
+                
+                console.log('Processing file:', file.name, 'type:', file.type, 'size:', file.size);
+                
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                if (postId) {
+                    formData.append('post_id', postId);
+                }
+
+                console.log('Sending to /uploads/media');
+                const response = await ajax.uploadMedia(formData);
+                console.log('Response status:', response.status, 'data:', response.data);
+                
+                if (response.status === STATUS.ok && response.data?.url) {
+                    console.log('File uploaded successfully, URL:', response.data.url);
+                    this.sendAction('MEDIA_UPLOAD_SUCCESS', { url: response.data.url });
+                } else {
+                    console.error('Upload failed for file:', file.name, 'response:', response);
+                    this.sendAction('MEDIA_UPLOAD_FAIL', { 
+                        error: response.message || `Ошибка загрузки файла ${file.name}` 
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Exception in uploadMediaForPost:', error);
+            this.sendAction('MEDIA_UPLOAD_FAIL', {
+                error: 'Ошибка при загрузке файлов'
+            });
+        }
+    }
+
+    private async deleteMediaForPost(mediaUrl: string, postId?: string): Promise<void> {
+        try {
+            const response = await ajax.deleteMedia(mediaUrl);
+            
+            if (response.status === STATUS.ok) {
+                this.sendAction('MEDIA_DELETE_SUCCESS', { url: mediaUrl });
+            } else {
+                console.error('Ошибка удаления медиа:', response);
+                this.sendAction('MEDIA_DELETE_FAIL', { 
+                    error: response.message || 'Ошибка удаления файла' 
+                });
+            }
+        } catch (error) {
+            console.error('❌ Exception in deleteMediaForPost:', error);
+            this.sendAction('MEDIA_DELETE_FAIL', {
+                error: 'Ошибка при удалении файла'
             });
         }
     }

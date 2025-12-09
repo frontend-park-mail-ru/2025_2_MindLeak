@@ -8,6 +8,7 @@ import { SettingsPrivacyView } from './views/viewSettingsPrivacy';
 import { PostView } from './views/viewPost';
 import { PostsView } from './views/viewPosts';
 import { StatisticsView } from './views/viewStatistic';
+import { ReplyView } from './views/viewReply';
 import { SearchView } from './views/viewSearch';
 import './index.scss'; 
 
@@ -46,6 +47,8 @@ async function initApp(): Promise<void> {
     router.addRoute('/settings/notifications', SettingsNotificationsView, 'Mindleak - Уведомления', true);
     router.addRoute('/settings/privacy', SettingsPrivacyView, 'Mindleak - Конфиденциальность', true);
     router.addRoute('/appeals/statistics', StatisticsView, 'Статистика', true);
+    
+    router.addRoute('/replies/:commentId', ReplyView, 'Ответы на комментарий', true);
 
     router.addRoute('/search', SearchView, 'Mindleak - Поиск');
 

@@ -5,6 +5,7 @@ import { postStore, Post } from '../stores/storePost';
 import { loginStore } from '../stores/storeLogin';
 import { userListStore } from '../stores/storeUserList';
 import { HashtagParser } from '../utils/hashtagParser';
+import { CommentView } from './viewComments'; // Импортируем CommentView
 
 export class PostView extends BaseView {
     private postId: string;
@@ -13,6 +14,7 @@ export class PostView extends BaseView {
     private postWrapper: HTMLElement | null = null;
     private container: HTMLElement;
     private boundUserListStoreHandler: () => void;
+    private commentView: CommentView | null = null; // Добавляем для комментариев
 
     constructor(container: HTMLElement, params: { id: string }) {
         super();
@@ -65,6 +67,17 @@ export class PostView extends BaseView {
         `;
 
         pageElement.appendChild(this.postWrapper);
+
+        // Создаем контейнер для комментариев (из основной ветки)
+        const commentsContainer = document.createElement('div');
+        commentsContainer.id = 'comments-section';
+        commentsContainer.className = 'comments-section';
+        pageElement.appendChild(commentsContainer);
+
+        // Инициализируем CommentView (из основной ветки)
+        this.commentView = new CommentView(commentsContainer, this.postId);
+        this.commentView.init();
+
         return pageElement;
     }
 
@@ -118,7 +131,7 @@ export class PostView extends BaseView {
                 name: post.authorName || 'Аноним',
                 subtitle: post.theme || 'Блог',
                 avatar: post.authorAvatar || '/img/defaultAvatar.jpg',
-                isSubscribed: false,
+                isSubscribed: true,
                 id: post.authorId
             },
             title: processedTitle,
@@ -151,6 +164,12 @@ export class PostView extends BaseView {
         
         // Отписываемся от postStore
         postStore.removeListener(this.boundPostStoreHandler);
+        
+        // Уничтожаем CommentView (новое)
+        if (this.commentView) {
+            this.commentView.destroy?.(); // Используем optional chaining на случай если destroy нет
+            this.commentView = null;
+        }
         
         super.destroy();
         

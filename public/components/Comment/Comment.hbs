@@ -1,0 +1,64 @@
+<div class="comment" data-comment-id="{{commentId}}">
+    <div class="comment__header">
+        {{> user-menu 
+            name=user.name 
+            subtitle=user.subtitle 
+            avatar=user.avatar 
+            isSubscribed=user.isSubscribed 
+            hideSubscribeButton=false
+        }}
+    </div>
+
+    {{#if text}}
+        <div class="comment__post-preview">
+            <div class="comment__post-title">{{postTitle}}</div>
+            <div class="comment__post-date">{{postDate}}</div>
+        </div>
+
+        <div class="comment__text">
+            {{text}}
+        </div>
+
+        {{#if attachment}}
+            <div class="comment__attachment">
+                {{#if attachment.image}}
+                    <img src="{{attachment.image}}" alt="Вложение" class="comment__attachment-image">
+                {{else if attachment.file}}
+                    <a href="{{attachment.file}}" class="comment__attachment-file" download>
+                        📎 {{attachment.fileName}}
+                    </a>
+                {{/if}}
+            </div>
+        {{/if}}
+
+        <div class="comment__actions">
+            <div class="comment__reply-input-container">
+                <button class="comment__add-media-button" data-key="add-media">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/>
+                        <path d="M10 5V15M5 10H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <input type="text" placeholder="Введите ответ..." class="comment__reply-input" data-key="reply-input">
+                <button class="comment__reply-button" data-key="reply-submit">Ответить</button>
+            </div>
+            <button class="comment__replies-button" data-key="show-replies">
+                Ответы
+            </button>
+        </div>
+    {{else}}
+        <!-- Заглушка: только автор + инпут -->
+        <div class="comment__actions">
+            <div class="comment__reply-input-container">
+                <button class="comment__add-media-button" data-key="add-media">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/>
+                        <path d="M10 5V15M5 10H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <input type="text" placeholder="Оставить комментарий..." class="comment__reply-input" data-key="reply-input">
+                <button class="comment__reply-button" data-key="reply-submit">Отправить</button>
+            </div>
+        </div>
+    {{/if}}
+</div>

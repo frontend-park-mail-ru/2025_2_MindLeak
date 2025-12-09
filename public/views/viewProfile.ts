@@ -153,6 +153,7 @@ export class ProfileView extends BaseView {
 
         const profileComponent = new Profile({
             profile: state.profile,
+            comments: state.comments,
             posts: postsWithHashtags, // Используем посты с обработанными хештегами
             activeTab: state.activeTab,
             isLoading: state.isLoading,
@@ -239,6 +240,12 @@ export class ProfileView extends BaseView {
                 const tab = (e.target as HTMLElement).dataset.tab;
                 if (tab === 'posts' || tab === 'comments') {
                     dispatcher.dispatch('PROFILE_CHANGE_TAB', { tab });
+                    if (tab === 'comments') {
+                        const state = profileStore.getState();
+                        if (state.comments.length === 0 && state.profile) {
+                            dispatcher.dispatch('PROFILE_LOAD_COMMENTS_REQUEST', { userId: state.profile.id });
+                        }
+                    }
                 }
             });
         });

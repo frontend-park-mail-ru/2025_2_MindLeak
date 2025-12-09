@@ -57,6 +57,7 @@ async function getProfileTemplate(): Promise<Handlebars.TemplateDelegate> {
 interface ProfileProps {
     profile: any;
     posts: any[];
+    comments: any[];
     activeTab: 'posts' | 'comments';
     isLoading: boolean;
     error: string | null;
@@ -101,7 +102,22 @@ function transformPostForProfile(apiPost: any, isMyProfile: boolean): any {
         isOwnPost: isMyProfile,
         canEdit: isMyProfile,
         dataPostId: apiPost.id || '',
-        menuItems: menuItems // ДОБАВЛЯЕМ menuItems!
+        menuItems: menuItems
+    };
+}
+
+function transformCommentForProfile(apiComment: any): any {
+    return {
+        commentId: apiComment.id,
+        text: apiComment.content,
+        postId: apiComment.article_id,
+        user: {
+            name: apiComment.author_name || 'Аноним',
+            avatar: apiComment.author_avatar || '/img/defaultAvatar.jpg',
+            id: apiComment.user_id
+        },
+        articleTitle: apiComment.article_title,
+        createdAt: apiComment.created_at
     };
 }
 
@@ -116,10 +132,13 @@ export class Profile {
         const transformedPosts = this.props.posts.map(post => 
             transformPostForProfile(post, this.props.isMyProfile || false)
         );
-        
+        const transformedComments = this.props.comments?.map(transformCommentForProfile) || [];
+
+
         const templateData = {
             ...this.props,
-            posts: transformedPosts
+            posts: transformedPosts,
+            comments: transformedComments
         };
 
         const template = await getProfileTemplate();

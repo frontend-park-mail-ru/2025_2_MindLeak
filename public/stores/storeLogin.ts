@@ -1,7 +1,7 @@
 import { BaseStore } from './store';
 
 export interface User {
-    id: number;
+    id: string;
     name: string;
     avatar: string;
     subtitle: string;

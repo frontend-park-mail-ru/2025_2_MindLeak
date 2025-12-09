@@ -97,10 +97,16 @@
                 {{else}}
                     <div class="profile__comments">
                         {{#if comments.length}}
-                            {{!показываем комментарии}}
-                            {{!#each comments}}
-                                {{!> comment-card ...}}
-                            {{!/each}}
+                            {{#each comments}}
+                                <div class="comment-card" data-comment-id="{{commentId}}">
+                                    <div class="comment-card__author">
+                                        <img src="{{user.avatar}}" alt="{{user.name}}" class="comment-card__avatar">
+                                        <span class="comment-card__name">{{user.name}}</span>
+                                    </div>
+                                    <div class="comment-card__content">{{text}}</div>
+                                    <div class="comment-card__post-title">Комментарий к: {{articleTitle}}</div>
+                                </div>
+                            {{/each}}
                         {{else}}
                             <div class="profile__empty">
                                 Здесь пока нет комментариев

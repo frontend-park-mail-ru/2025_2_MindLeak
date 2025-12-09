@@ -188,6 +188,18 @@ class ProfileStore extends BaseStore<ProfileState> {
                 error: payload.error
             });
         });
+
+        this.registerAction('PROFILE_LOAD_COMMENTS_REQUEST', () => {
+            this.setState({ isLoading: true, error: null });
+        });
+
+        this.registerAction('PROFILE_LOAD_COMMENTS_SUCCESS', (payload: { comments: any[] }) => {
+            this.setState({ comments: payload.comments, isLoading: false });
+        });
+
+        this.registerAction('PROFILE_LOAD_COMMENTS_FAIL', (payload: { error: string }) => {
+            this.setState({ isLoading: false, error: payload.error });
+        });
     }
 }
 

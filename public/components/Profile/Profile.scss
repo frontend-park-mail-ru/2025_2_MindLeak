@@ -1,7 +1,6 @@
 .profile {
   background-color: var(--bg-color);
   min-height: calc(100vh - 120px);
-  margin-top: 20px;
 
   &__header {
     position: relative;
@@ -217,7 +216,6 @@
     width: 100%;
     max-width: 500px;
     padding: 8px 12px;
-    border: 1px solid var(--border-color);
     border-radius: 6px;
     background-color: var(--bg-color);
     color: var(--text-color);

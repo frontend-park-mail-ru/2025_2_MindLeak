@@ -4,10 +4,10 @@
         <div class="header">
             {{> user-menu name=user.name subtitle=user.subtitle avatar=user.avatar isSubscribed=user.isSubscribed}}
             <button class="post-card__menu-button" aria-label="Дополнительные действия">
-                <svg width="40" height="10" viewBox="0 0 40 10" fill="none" xmlns="http://www.w3.org/2000/svg" class="post-card__menu-icon">
-                    <circle cx="5" cy="3" r="3" />
-                    <circle cx="15" cy="3" r="3" />
-                    <circle cx="25" cy="3" r="3" />
+                <svg width="30" height="10" viewBox="0 0 30 10" fill="none" xmlns="http://www.w3.org/2000/svg" class="post-card__menu-icon">
+                    <circle cx="5" cy="5" r="3" />
+                    <circle cx="15" cy="5" r="3" />
+                    <circle cx="25" cy="5" r="3" />
                 </svg>
             </button>
         </div>
@@ -31,13 +31,13 @@
                 <img src="{{image}}" alt="Изображение поста" class="post-card__image" data-key="post-image">
             </div>
         {{/if}}
-
+        <!--
         {{#each tags}}
             {{> tag key=this.key icon=this.icon count=this.count}}
         {{/each}}
-
+        
         {{> tag key="add-tag" icon="/img/icons/add.svg"}}
-
+        -->
         <div class="post-card__footer">
             <div class="left-side-footer">
                 {{> tag key="comments" icon="/img/icons/comment.svg" count=commentsCount}}

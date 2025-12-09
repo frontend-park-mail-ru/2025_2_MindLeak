@@ -76,6 +76,7 @@ header {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     z-index: 1000;
     width: 100%;
+    margin-bottom: 20px;
 }
 
 form {
@@ -102,14 +103,13 @@ button {
     gap: 10px;
     width: 310px;
     overflow-y: auto;
-    margin-top: 20px;
     position: sticky;
     top: 105px;
 }
 
 .main-content {
     max-width: 700px;
-    margin: 20px auto;
+    margin: 0 auto;
     width: 100%;
 }
 

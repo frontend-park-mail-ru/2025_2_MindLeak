@@ -46,6 +46,7 @@ class TechSupportIframe {
     private currentFile: File | null = null;
     private appeals: Appeal[] = [];
     private isSubmitting: boolean = false;
+    private hasReceivedUserData: boolean = false;
 
     constructor() {
         this.init();
@@ -53,16 +54,40 @@ class TechSupportIframe {
 
     async init(): Promise<void> {
         await this.loadTemplates();
+        
+        // Сразу показываем форму (пустую)
         this.renderForm();
         
+        // ДЕБАГ: логируем все входящие сообщения
+        window.addEventListener('message', (event) => {
+            console.log('📨 ALL MESSAGE EVENT (RAW):', event.data);
+            console.log('📨 Event origin:', event.origin);
+            console.log('📨 Current location origin:', window.location.origin);
+        });
+        
+        // Основной обработчик
         window.addEventListener('message', this.handleParentMessage.bind(this));
+        
+        console.log('📤 Sending IFRAME_READY to parent...');
         window.parent.postMessage({ 
             type: 'IFRAME_READY', 
             source: 'tech-support' 
         }, '*');
         
-        // Загружаем историю обращений при инициализации
+        // Загружаем историю обращений
         this.loadAppealsHistory();
+    }
+
+    private showLoading(): void {
+        const contentEl = document.getElementById('tech-support-content');
+        if (!contentEl) return;
+        
+        contentEl.innerHTML = `
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <p>Загрузка данных пользователя...</p>
+            </div>
+        `;
     }
 
     async loadTemplates(): Promise<void> {
@@ -80,7 +105,7 @@ class TechSupportIframe {
     }
 
     private handleParentMessage(event: MessageEvent): void {
-        // Разрешаем сообщения с того же origin или без origin (для локальной разработки)
+        // Разрешаем все сообщения с того же origin
         if (event.origin && event.origin !== window.location.origin) {
             console.log('🚫 Message from different origin:', event.origin);
             return;
@@ -88,59 +113,69 @@ class TechSupportIframe {
         
         const { type, payload, source } = event.data;
         
-        console.log('📨 Processing message:', { type, source, payload });
+        console.log('📨 Processing message in handleParentMessage:', { type, source, payload });
         
-        // Принимаем сообщения от родительского окна или без указанного source
-        if (!source || source === 'main-window' || source === 'tech-support-parent') {
+        // Принимаем ВСЕ сообщения от родительского окна (независимо от source)
+        // или сообщения без source (для обратной совместимости)
+        if (!source || source === 'main-window' || source === 'tech-support-parent' || source === 'popup-menu') {
+            console.log('✅ Accepted message from source:', source);
+            
             switch (type) {
                 case 'INIT_DATA':
+                    console.log('🎉 INIT_DATA RECEIVED! Payload:', payload);
+                    
                     this.userData = {
                         userEmail: payload.userEmail || '',
                         userName: payload.userName || '',
                         userContactEmail: payload.userContactEmail || payload.userEmail || ''
                     };
                     
-                    console.log('📧 Received user data:', this.userData);
+                    console.log('✅ User data set:', this.userData);
                     
-                    this.renderForm();
+                    // Автозаполнение формы
+                    this.autoFillForm();
                     break;
+                    
                 case 'APPEALS_LOAD_SUCCESS':
-                    // Получаем обращения из API и заменяем полностью старый список
                     const newAppeals = payload.appeals || [];
-                    console.log('📋 Loaded appeals from API:', newAppeals);
+                    console.log('📋 Appeals loaded:', newAppeals);
                     
-                    // Полностью заменяем старый список на новый (дедуплицированный)
                     this.appeals = this.deduplicateAppeals(newAppeals);
-                    console.log('📋 Final appeals after deduplication:', this.appeals);
+                    console.log('📋 Final appeals:', this.appeals);
                     
-                    // Обновляем историю на форме
                     this.renderAppealsHistory();
                     break;
+                    
                 case 'APPEALS_LOAD_FAIL':
                     console.error('Failed to load appeals:', payload.error);
                     break;
+                    
                 case 'SUPPORT_TICKET_SUBMIT_SUCCESS':
-                    console.log('✅ Ticket submitted successfully, reloading appeals...');
-                    // Обращение успешно отправлено, показываем успешное сообщение
+                    console.log('✅ Ticket submitted successfully');
                     this.showSuccessMessage();
                     break;
+                    
                 case 'SUPPORT_TICKET_SUBMIT_FAIL':
                     console.error('❌ Ticket submission failed:', payload.error);
                     this.showError(payload.error);
                     this.setLoading(false);
                     this.isSubmitting = false;
                     break;
+                    
+                default:
+                    console.log('❓ Unknown message type:', type);
             }
+        } else {
+            console.log('🚫 Rejected message from unknown source:', source);
         }
     }
 
-        private showSuccessMessage(): void {
+    private showSuccessMessage(): void {
         const contentEl = document.getElementById('tech-support-content');
         if (!contentEl) return;
 
         console.log('✅ Showing success message');
 
-        // Создаем HTML для успешного сообщения
         const successHtml = `
             <div class="tech-support-iframe">
                 <div class="tech-support-modal">
@@ -163,7 +198,6 @@ class TechSupportIframe {
         
         contentEl.innerHTML = successHtml;
         
-        // Добавляем обработчик для кнопки "Отправить новое обращение"
         const newAppealBtn = contentEl.querySelector('#newAppealAfterSuccess') as HTMLButtonElement;
         if (newAppealBtn) {
             newAppealBtn.addEventListener('click', () => {
@@ -175,14 +209,10 @@ class TechSupportIframe {
         console.log('✅ Success message displayed');
     }
 
-    /**
-     * Дедуплицирует обращения по ID
-     */
     private deduplicateAppeals(appeals: Appeal[]): Appeal[] {
         const uniqueMap = new Map();
         
         appeals.forEach(appeal => {
-            // Используем appeal_id или id как ключ для дедупликации
             const key = appeal.appeal_id || appeal.id;
             if (key) {
                 if (!uniqueMap.has(key)) {
@@ -192,7 +222,6 @@ class TechSupportIframe {
                 }
             } else {
                 console.warn('⚠️ Appeal without ID found:', appeal);
-                // Если нет ID, используем комбинацию полей как ключ
                 const fallbackKey = `${appeal.email_registered}_${appeal.problem_description}_${appeal.createdAt}`;
                 if (!uniqueMap.has(fallbackKey)) {
                     uniqueMap.set(fallbackKey, appeal);
@@ -202,32 +231,47 @@ class TechSupportIframe {
         
         const uniqueAppeals = Array.from(uniqueMap.values());
         
-        // Сортируем по дате создания (новые сверху)
         return uniqueAppeals.sort((a, b) => {
             const dateA = new Date(a.createdAt || 0).getTime();
             const dateB = new Date(b.createdAt || 0).getTime();
-            return dateB - dateA; // Новые сверху
+            return dateB - dateA;
         });
     }
 
     private autoFillForm(): void {
-        if (!this.form) return;
+        if (!this.form) {
+            console.log('⚠️ Form not found for autofill');
+            // Не пытаемся рекурсивно вызвать, form будет доступен позже
+            return;
+        }
 
-        const accountEmailInput = this.form.querySelector('[name="email_registered"]') as HTMLInputElement;
-        const contactNameInput = this.form.querySelector('[name="name"]') as HTMLInputElement;
-        const contactEmailInput = this.form.querySelector('[name="email_for_connection"]') as HTMLInputElement;
+        console.log('🔄 Auto-filling form with:', this.userData);
+        
+        // Попробуем несколько селекторов для поиска полей
+        const accountEmailInput = this.form.querySelector('[name="email_registered"], [name="email"]') as HTMLInputElement;
+        const contactNameInput = this.form.querySelector('[name="name"], [name="username"]') as HTMLInputElement;
+        const contactEmailInput = this.form.querySelector('[name="email_for_connection"], [name="contact_email"]') as HTMLInputElement;
+
+        console.log('🔍 Input elements found:', {
+            accountEmail: !!accountEmailInput,
+            contactName: !!contactNameInput,
+            contactEmail: !!contactEmailInput
+        });
 
         if (accountEmailInput) {
             accountEmailInput.value = this.userData.userEmail;
+            console.log('📧 Set account email to:', this.userData.userEmail);
         }
         
         if (contactNameInput) {
             contactNameInput.value = this.userData.userName;
+            console.log('👤 Set name to:', this.userData.userName);
         }
         
         if (contactEmailInput) {
             const emailToUse = this.userData.userContactEmail || this.userData.userEmail;
             contactEmailInput.value = emailToUse;
+            console.log('📫 Set contact email to:', emailToUse);
         }
     }
 
@@ -247,9 +291,13 @@ class TechSupportIframe {
         }
 
         try {
+            // Всегда рендерим форму
             const html = this.template({ 
-                userEmail: this.userData.userEmail 
+                userEmail: this.userData.userEmail || '',
+                userName: this.userData.userName || '',
+                userContactEmail: this.userData.userContactEmail || this.userData.userEmail || ''
             });
+            
             contentEl.innerHTML = html;
             
             this.form = document.getElementById('supportForm') as HTMLFormElement;
@@ -257,12 +305,25 @@ class TechSupportIframe {
                 console.log('✅ Form found and setup');
                 this.form.addEventListener('submit', this.handleSubmit.bind(this));
                 this.setupFileUpload();
-                this.autoFillForm();
                 
-                // Добавляем историю обращений под формой
+                // Если уже есть данные пользователя, заполняем форму
+                if (this.userData.userEmail) {
+                    console.log('🔄 Auto-filling with existing user data');
+                    this.autoFillForm()
+                }
+                
+                // Загружаем историю обращений
                 this.renderAppealsHistory();
             } else {
                 console.error('❌ Form element not found');
+                // Пробуем найти форму с другим id
+                this.form = contentEl.querySelector('form') as HTMLFormElement;
+                if (this.form) {
+                    console.log('✅ Found form by tag name');
+                    this.form.addEventListener('submit', this.handleSubmit.bind(this));
+                    this.setupFileUpload();
+                    this.autoFillForm();
+                }
             }
         } catch (error) {
             console.error('❌ Error rendering template:', error);
@@ -282,20 +343,23 @@ class TechSupportIframe {
             return;
         }
         
-        const formContainer = this.form?.closest('.tech-support-modal');
+        // Ждем пока форма будет создана
+    if (!this.form) {
+        console.log('⏳ Form not ready yet, will render later...');
+        return; // Просто выходим, будет вызвано позже
+    }
+        
+        const formContainer = this.form.closest('.tech-support__modal') || this.form.parentElement;
         if (!formContainer) {
             console.error('❌ Form container not found');
             return;
         }
 
-        // Удаляем старую историю если есть
         const existingHistory = formContainer.querySelector('.appeals-history');
         if (existingHistory) {
-            console.log('🗑️ Removing existing history');
             existingHistory.remove();
         }
 
-        // Если нет обращений, не показываем историю
         if (this.appeals.length === 0) {
             console.log('ℹ️ No appeals to display');
             return;
@@ -304,7 +368,6 @@ class TechSupportIframe {
         console.log('🔄 Rendering appeals history with:', this.appeals.length, 'appeals');
 
         const appealsWithFormattedData = this.appeals.map(appeal => {
-            // Форматируем дату с проверкой валидности
             let formattedDate = 'Недавно';
             if (appeal.createdAt) {
                 const date = new Date(appeal.createdAt);
@@ -333,12 +396,12 @@ class TechSupportIframe {
             hasAppeals: this.appeals.length > 0
         });
         
-        // Вставляем историю после формы
         const historyElement = document.createElement('div');
+        historyElement.className = 'appeals-history';
         historyElement.innerHTML = historyHtml;
         formContainer.appendChild(historyElement);
         
-        console.log('✅ Appeals history rendered, element:', historyElement);
+        console.log('✅ Appeals history rendered');
     }
 
     private setupFileUpload(): void {
@@ -519,7 +582,6 @@ class TechSupportIframe {
     }
 
     private loadAppealsHistory(): void {
-        // Запрашиваем загрузку обращений через API
         window.parent.postMessage({ 
             type: 'APPEALS_LOAD_REQUEST',
             source: 'tech-support'
@@ -533,7 +595,6 @@ class TechSupportIframe {
         console.log('🔄 Showing success message and history with appeals:', this.appeals);
 
         const appealsWithFormattedData = this.appeals.map(appeal => {
-            // Форматируем дату с проверкой валидности
             let formattedDate = 'Недавно';
             if (appeal.createdAt) {
                 const date = new Date(appeal.createdAt);
@@ -564,7 +625,6 @@ class TechSupportIframe {
         
         contentEl.innerHTML = html;
         
-        // Добавляем обработчик для кнопки "Отправить новое обращение"
         const newAppealBtn = contentEl.querySelector('#newAppealAfterSuccess');
         if (newAppealBtn) {
             newAppealBtn.addEventListener('click', () => {

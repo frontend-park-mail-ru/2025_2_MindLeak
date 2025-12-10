@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",           // В какую версию ES компилировать
+    "module": "ES2020",           // БЫЛО Common JS :Система модулей (для Node.js), стало для браузера, а не Node.js
+    "moduleResolution": "node",   // Как искать модули (как Node.js)
+    "allowJs": true,              // Разрешить .js файлы (потом когда переведем все на ts УБРАТЬ)
+    "checkJs": false,             // Не проверять типы в .js файлах (потом УБРАТЬ ?)
+    "outDir": "./dist",           // Куда складывать скомпилированные файлы
+    "rootDir": "./public/",       // Корневая директория исходников
+    "strict": false,              // Отключить строгий режим (ВО ВРЕМЯ ПЕРЕПИСИ НА TS ПОТОМ ВКЛЮЧИМ ПОПРАВИМ)
+    "esModuleInterop": true,      // Совместимость модулей ES и CommonJS
+    "skipLibCheck": true,         // Пропустить проверку типов библиотек
+    "forceConsistentCasingInFileNames": true, // Проверять регистр в путях
+    "resolveJsonModule": true,    // Разрешить импорт JSON файлов
+    "declaration": false          // Не создавать .d.ts файлы
+  },
+  "include": [
+    "public/**/*"   // Какие файлы включать в компиляцию
+  ],
+  "exclude": [      // Какие файлы ИСКЛЮЧИТЬ из компиляции
+    "node_modules", // Зависимости
+    "dist"          // Уже скомпилированные файлы
+  ]
+}

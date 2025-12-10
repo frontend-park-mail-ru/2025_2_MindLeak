@@ -7,6 +7,6 @@ RUN npm install
 
 # Копируем всё приложение
 COPY . .
-
+RUN npm run build
 EXPOSE 3000
 CMD ["npm", "start"]

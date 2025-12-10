@@ -1,0 +1,16 @@
+<aside class="user-list">
+  <h3 class="user-list__title">{{ title }}</h3>
+  <div class="user-list__list">
+    {{#each users}}
+      <div class="user-list__item">
+        {{> user-menu
+          name=this.name
+          subtitle=this.subtitle
+          avatar=this.avatar
+          isSubscribed=this.isSubscribed
+          hideSubscribeButton=this.hideSubscribeButton
+        }}
+      </div>
+    {{/each}}
+  </div>
+</aside>

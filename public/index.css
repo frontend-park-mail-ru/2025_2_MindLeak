@@ -1,29 +1,46 @@
 @import url('./components/FormButton/FormButton.css');
-@import url('components/Header/Header.css');
+@import url('./components/CreatePostForm/CreatePostForm.css');
+@import url('./components/ErrorButton/ErrorButton.css');
+@import url('./components/Header/Header.css');
 @import url('./components/Icon/Icon.css');
 @import url('./components/Input/Input.css');
 @import url('./components/LoginForm/LoginForm.css');
+@import url('./components/MenuItem/MenuItem.css');
+@import url('./components/PopUpMenu/PopUpMenu.css');
 @import url('./components/PostCard/PostCard.css');
+@import url('./components/Comment/Comment.css');
 @import url('./components/SignUpForm/SignUpForm.css');
+@import url('./components/SidebarMenu/SidebarMenu.css');
 @import url('./components/Tag/Tag.css');
+@import url('./components/UserList/UserList.css');
 @import url('./components/UserMenu/UserMenu.css');
+@import url('./components/Profile/Profile.css');
+@import url('./components/Settings/Settings.css');
+@import url('./components/SettingsAccount/SettingsAccount.css');
+@import url('./components/DeleteAccount/DeleteAccount.css');
+@import url('./components/SettingsNotifications/SettingsNotifications.css');
+@import url('./components/SettingsPrivacy/SettingsPrivacy.css');
+@import url('./components/ProfileEdit/ProfileEdit.css');
+@import url('./components/DeletePostModal/DeletePostModal.css');
+@import url('./components/TechSupport/TechSupport.css');
+@import url('./components/Statistic/Statistic.css');
 @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
 
 html {
-    --primary-color: #6C5CE7;
+    --primary-color: #0E7AF6;
     --primary-hover: #41378B;
     --primary-active: #2B255C;
-    --primary-disabled: #4A4E69;
+    --primary-disabled: #6B6B6B;
 
-    --bg-color: #0D1B2A;
-    --accent-color: #6C5CE7;
+    --bg-color: #19191B;
+    --accent-color: #0E7AF6;
     
-    --section-color: #282A39;
-    --section-hover: #4A4E69;
+    --section-color: #2F2F2F;
+    --section-hover: #6B6B6B;
 
-    --text-color: #ffffff;
-    --text-darker: #4A4E69;
-    --text-lighter: #778DA9;
+    --text-color: #E0E1DD;
+    --text-darker: #6B6B6B;
+    --text-lighter: #A1A1A1;
     --text-failure: #FF0000;
     --font-weight-regular: 300;
     --font-weight-medium: 500;
@@ -38,7 +55,7 @@ html {
     --text-2xl: 1.3333rem;    /* 24px */
     --text-3xl: 1.7778rem;    /* 32px */
 
-    --border-color: #dddddd;
+    --border-color: #E0E1DD;
     --border-failure: #FF0000;
 }
 
@@ -52,4 +69,76 @@ body {
 p {
     line-height: 150%;
     font-weight: var(--font-weight-regular);
+}
+
+header {
+    position: sticky;
+    top: 0px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    width: 100%;
+}
+
+form {
+    margin: 0;
+}
+
+button {
+    padding: 0;
+}
+
+.content-layout {
+    display: grid;
+    grid-template-columns: 310px 1fr 310px;
+    gap: 25px;
+    max-width: 1400px;
+    margin: 0 auto;
+    align-items: start;
+}
+
+.sidebar-left,
+.sidebar-right {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 310px;
+    overflow-y: auto;
+    margin-top: 20px;
+    position: sticky;
+    top: 105px;
+}
+
+.main-content {
+    max-width: 700px;
+    margin: 20px auto;
+    width: 100%;
+}
+
+.feed {
+    width: 100%;
+}
+
+.feed-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.feed-error {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text-color);
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-medium);
+    text-align: center;
+    padding: 2rem;
+    background: var(--section-color);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    max-width: 400px;
+    width: 90%;
 }

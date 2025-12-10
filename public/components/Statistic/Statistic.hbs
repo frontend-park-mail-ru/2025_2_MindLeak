@@ -1,0 +1,102 @@
+<div class="statistics-page">
+    <div class="statistics-container">
+        <div class="statistics-header">
+            <h1 class="statistics-title">Статистика обращений</h1>
+        </div>
+
+        {{#if error}}
+            <div class="global-error">{{error}}</div>
+        {{/if}}
+
+        <div class="statistics-content">
+            {{#if isLoading}}
+                <div class="loading">Загрузка статистики...</div>
+            {{else}}
+                <div class="statistics-section">
+                    <h2 class="statistics-section-title">Общее количество</h2>
+                    <div class="statistics-value">{{total}}</div>
+                </div>
+
+                <div class="statistics-section">
+                    <h2 class="statistics-section-title">По категориям</h2>
+                    <table class="statistics-table">
+                        <thead>
+                            <tr>
+                                <th>Категория</th>
+                                <th>Количество</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{#each byCategory}}
+                                <tr>
+                                    <td>{{label}}</td>
+                                    <td>{{value}}</td>
+                                </tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="statistics-section">
+                    <h2 class="statistics-section-title">По статусам</h2>
+                    <table class="statistics-table">
+                        <thead>
+                            <tr>
+                                <th>Статус</th>
+                                <th>Количество</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{#each byStatus}}
+                                <tr>
+                                    <td>{{label}}</td>
+                                    <td>{{value}}</td>
+                                </tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
+                </div>
+            {{/if}}
+
+            {{! СЕКЦИЯ СПИСКА ОБРАЩЕНИЙ }}
+            <div class="statistics-section">
+                <h2 class="statistics-section-title">Все обращения</h2>
+                
+                {{#if supportRequestsError}}
+                    <div class="global-error">{{supportRequestsError}}</div>
+                {{/if}}
+                
+                {{#if isSupportRequestsLoading}}
+                    <div class="loading">Загрузка списка обращений...</div>
+                {{else}}
+                    {{#if supportRequests}}
+                        <table class="statistics-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Категория</th>
+                                    <th>Статус</th>
+                                    <th>Тема</th>
+                                    <th>Дата</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{#each supportRequests}}
+                                <tr>
+                                    <td>{{id}}</td>
+                                    <td>{{categoryLabel}}</td>
+                                    <td>{{statusLabel}}</td>
+                                    <td>{{title}}</td>
+                                    <td>{{createdAtFormatted}}</td>
+                                </tr>
+                                {{/each}}
+                            </tbody>
+                        </table>
+                    {{else}}
+                        <div class="statistics-no-data">Нет данных об обращениях</div>
+                    {{/if}}
+                {{/if}}
+            </div>
+        </div>
+    </div>
+</div>

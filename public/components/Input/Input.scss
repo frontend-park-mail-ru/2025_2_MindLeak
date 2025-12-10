@@ -1,0 +1,21 @@
+.form__input {
+  display: block;
+  width: 100%;
+  padding: 11px 16px;
+  background: var(--bg-color);
+  border: 1px solid var(--section-color);
+  border-radius: 10px;
+  color: var(--text-color);
+  font-size: var(--text-base);
+  outline: none;
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: var(--text-lighter);
+  }
+
+  &.error {
+    border: 1px solid var(--border-failure);
+    background-color: rgba(255, 0, 0, 0.05);
+  }
+}

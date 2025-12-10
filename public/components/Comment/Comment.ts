@@ -1,0 +1,215 @@
+import { router } from '../../router/router';
+import { loginStore } from '../../stores/storeLogin';
+import { LoginFormView } from '../../views/viewLogin';
+import { dispatcher } from '../../dispatcher/dispatcher';
+
+let commentTemplate: Handlebars.TemplateDelegate | null = null;
+
+export interface CommentAuthor {
+    name: string;
+    subtitle: string;
+    avatar: string | null;
+    isSubscribed: boolean;
+    id?: string;
+}
+
+export interface CommentAttachment {
+    image?: string;
+    file?: string;
+    fileName?: string;
+}
+
+export interface CommentProps {
+    commentId: string;
+    postId: string;
+    user: CommentAuthor;
+    postTitle: string;
+    postDate: string;
+    text: string;
+    attachment?: CommentAttachment;
+    onReplyClick?: (commentId: string) => void;
+}
+
+async function getCommentTemplate(): Promise<Handlebars.TemplateDelegate> {
+    if (commentTemplate) return commentTemplate;
+
+    const partials = [
+        { name: 'user-menu', path: '/components/UserMenu/UserMenu.hbs' },
+        { name: 'icon', path: '/components/Icon/Icon.hbs' }
+    ];
+
+    await Promise.all(
+        partials.map(async (p) => {
+            if (!Handlebars.partials[p.name]) {
+                const res = await fetch(p.path);
+                const src = await res.text();
+                Handlebars.registerPartial(p.name, Handlebars.compile(src));
+            }
+        })
+    );
+
+    const res = await fetch('/components/Comment/Comment.hbs');
+    const source = await res.text();
+    commentTemplate = Handlebars.compile(source);
+    return commentTemplate;
+}
+
+export class Comment {
+    private commentId: string;
+    private postId: string;
+    private user: CommentAuthor;
+    private postTitle: string;
+    private postDate: string;
+    private text: string;
+    private attachment?: CommentAttachment;
+    private onReplyClick?: (commentId: string) => void;
+
+    constructor(props: CommentProps) {
+        this.commentId = props.commentId;
+        this.postId = props.postId;
+        this.user = props.user;
+        this.postTitle = props.postTitle;
+        this.postDate = props.postDate;
+        this.text = props.text;
+        this.attachment = props.attachment;
+        this.onReplyClick = props.onReplyClick;
+    }
+
+    async render(): Promise<HTMLElement> {
+        const template = await getCommentTemplate();
+        const html = template({
+            commentId: this.commentId,
+            user: this.user,
+            postTitle: this.postTitle,
+            postDate: this.postDate,
+            text: this.text,
+            attachment: this.attachment,
+        });
+
+        const div = document.createElement('div');
+        div.innerHTML = html.trim();
+        const commentEl = div.firstElementChild as HTMLElement;
+
+        if (!commentEl) {
+            throw new Error('Comment element not found');
+        }
+
+        this.setupAuthorClickHandlers(commentEl);
+        this.setupReplyHandler(commentEl);
+        this.setupReplyInput(commentEl);
+
+        return commentEl;
+    }
+
+    private setupAuthorClickHandlers(commentEl: HTMLElement): void {
+        const authorBlocks = [
+            commentEl.querySelector('.user-menu__avatar'),
+            commentEl.querySelector('.user-menu__name'),
+            commentEl.querySelector('.user-menu__subtitle'),
+            commentEl.querySelector('.user-menu')
+        ].filter(Boolean) as HTMLElement[];
+
+        const subscribeButton = commentEl.querySelector('.user-menu__button') as HTMLElement | null;
+
+        const navigateToProfile = (e: Event) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const authState = loginStore.getState();
+            const authorId = this.user.id;
+
+            if (!authorId) return;
+
+            const targetUrl = `/profile?id=${authorId}`;
+
+            if (!authState.isLoggedIn) {
+                const loginView = new LoginFormView(targetUrl);
+                loginView.render().then(modal => document.body.appendChild(modal));
+            } else {
+                router.navigate(targetUrl);
+            }
+        };
+
+        authorBlocks.forEach(block => {
+            if (block === subscribeButton?.parentNode || block === subscribeButton) return;
+            block.style.cursor = 'pointer';
+            block.addEventListener('click', (e) => {
+                if (subscribeButton && subscribeButton.contains(e.target as Node)) return;
+                navigateToProfile(e);
+            });
+        });
+
+        if (subscribeButton) {
+            subscribeButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
+    }
+
+    private setupReplyHandler(commentEl: HTMLElement): void {
+        const replyBtn = commentEl.querySelector('[data-key="show-replies"]') as HTMLElement | null;
+        if (!replyBtn) return;
+
+        replyBtn.style.cursor = 'pointer';
+
+        replyBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // @ts-ignore – если onReplyClick нет в типах, TS не ругается
+            if (typeof (this as any).onReplyClick === 'function') {
+                return (this as any).onReplyClick(this.commentId);
+            }
+
+            window.location.href = `/replies/${this.commentId}?postId=${this.postId}`;
+        });
+    }
+
+    private setupReplyInput(commentEl: HTMLElement): void {
+        const input = commentEl.querySelector('[data-key="reply-input"]') as HTMLInputElement | null;
+        const button = commentEl.querySelector('[data-key="reply-submit"]') as HTMLButtonElement | null;
+
+        if (!input || !button) return;
+
+        const update = () => {
+            button.disabled = input.value.trim().length === 0;
+        };
+
+        input.addEventListener('input', update);
+        update();
+
+        button.addEventListener('click', () => {
+            const text = input.value.trim();
+            if (!text) return;
+
+            const auth = loginStore.getState();
+            if (!auth.isLoggedIn) {
+                const loginView = new LoginFormView(window.location.pathname + window.location.search);
+                loginView.render().then(modal => document.body.appendChild(modal));
+                return;
+            }
+
+            // если этот Comment — заглушка (нет текста)
+            const isRootInput = !this.text;
+
+            if (isRootInput) {
+                // основная форма для создания комментария
+                dispatcher.dispatch('COMMENT_CREATE_REQUEST', {
+                    postId: this.postId,
+                    text
+                });
+            } else {
+                // это ответ на конкретный комментарий
+                dispatcher.dispatch('REPLY_CREATE_REQUEST', {
+                    commentId: this.commentId,
+                    postId: this.postId,
+                    text
+                });
+            }
+
+            input.value = '';
+            update();
+        });
+    }
+
+}

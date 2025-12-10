@@ -1,0 +1,41 @@
+.settings-notifications {
+  background-color: var(--bg-color);
+  min-height: calc(100vh - 120px);
+  width: 100%;
+
+  &__container {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  &__header {
+    margin-bottom: 30px;
+  }
+
+  &__title {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-color);
+    margin: 0 0 8px 0;
+  }
+
+  &__subtitle {
+    font-size: var(--text-base);
+    color: var(--text-lighter);
+    margin: 0;
+  }
+
+  &__content {
+    background-color: var(--section-color);
+    border-radius: 12px;
+    padding: 30px;
+    min-height: 400px;
+  }
+
+  &__message {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-lighter);
+    font-size: var(--text-lg);
+  }
+}

@@ -1,0 +1,124 @@
+<div class="profile">
+    {{#if profile}}
+        <div class="profile__header">
+            <div class="profile__cover">
+                <img src="{{profile.cover_url}}" alt="Обложка профиля" class="profile__cover-image">
+            </div>
+            
+            <div class="profile__info-section">
+                <div class="profile__avatar-container">
+                    <img src="{{profile.avatar_url}}" alt="Аватар" class="profile__avatar">
+                </div>
+                
+                <div class="profile__main-info">
+                    <h1 class="profile__name">{{profile.name}}</h1>
+                    
+                    <div class="profile__description">
+                        {{#if isEditingDescription}}
+                            {{> input 
+                                type="text" 
+                                placeholder="Введите описание профиля" 
+                                name="description"
+                                value=profile.description
+                                maxlength="200"
+                            }}
+                            <div class="profile__description-hint">
+                                Нажмите Enter или кликните вне поля для сохранения
+                            </div>
+                        {{else}}
+                            {{#if profile.description}}
+                                <p class="profile__description-text">{{profile.description}}</p>
+                                {{#if isMyProfile}}
+                                    <button class="profile__edit-btn">Изменить</button>
+                                {{/if}}
+                            {{else}}
+                                {{#if isMyProfile}}
+                                    <p class="profile__description-placeholder">Вы можете добавить описание профиля</p>
+                                {{else}}
+                                    <p class="profile__description-text--empty"> </p>
+                                {{/if}}
+                            {{/if}}
+                        {{/if}}
+                    </div>
+                    
+                    <div class="profile__stats">
+                        <div class="profile__stat">
+                            <span class="profile__stat-number">{{profile.subscribers}}</span>
+                            <span class="profile__stat-label">Подписчики</span>
+                        </div>
+                        <div class="profile__stat">
+                            <span class="profile__stat-number">{{profile.subscriptions}}</span>
+                            <span class="profile__stat-label">Подписки</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="profile__content">
+            <div class="profile__tabs">
+                <button class="profile__tab {{#if (eq activeTab 'posts')}}profile__tab--active{{/if}}" 
+                        data-tab="posts">
+                    Посты
+                </button>
+                <button class="profile__tab {{#if (eq activeTab 'comments')}}profile__tab--active{{/if}}" 
+                        data-tab="comments">
+                    Комментарии
+                </button>
+            </div>
+            
+            <div class="profile__tab-content">
+                {{#if (eq activeTab 'posts')}}
+                    <div class="profile__posts">
+                        {{#if posts.length}}
+                            {{#each posts}}
+                                {{> post-card 
+                                    postId=this.postId
+                                    user=this.user
+                                    title=this.title
+                                    text=this.text
+                                    image=this.image
+                                    tags=this.tags
+                                    commentsCount=this.commentsCount
+                                    repostsCount=this.repostsCount
+                                    viewsCount=this.viewsCount
+                                    isOwnPost=this.isOwnPost
+                                    canEdit=this.canEdit
+                                    menuId=(concat "post-card-menu-" this.postId)
+                                    dataPostId=this.postId
+                                }}
+                            {{/each}}
+                        {{else}}
+                            <div class="profile__empty">
+                                Здесь пока нет постов
+                            </div>
+                        {{/if}}
+                    </div>
+                {{else}}
+                    <div class="profile__comments">
+                        {{#if comments.length}}
+                            {{#each comments}}
+                                <div class="comment-card" data-comment-id="{{commentId}}">
+                                    <div class="comment-card__author">
+                                        <img src="{{user.avatar}}" alt="{{user.name}}" class="comment-card__avatar">
+                                        <span class="comment-card__name">{{user.name}}</span>
+                                    </div>
+                                    <div class="comment-card__content">{{text}}</div>
+                                    <div class="comment-card__post-title">Комментарий к: {{articleTitle}}</div>
+                                </div>
+                            {{/each}}
+                        {{else}}
+                            <div class="profile__empty">
+                                Здесь пока нет комментариев
+                            </div>
+                        {{/if}}
+                    </div>
+                {{/if}}
+            </div>
+        </div>
+    {{else if isLoading}}
+        <div class="profile__loading">Загрузка профиля...</div>
+    {{else if error}}
+        <div class="profile__error">{{error}}</div>
+    {{/if}}
+</div>

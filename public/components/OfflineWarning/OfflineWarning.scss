@@ -1,0 +1,81 @@
+.offline-warning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 20px;
+
+  &__content {
+    background: var(--section-color);
+    border-radius: 15px;
+    padding: 40px;
+    text-align: center;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  }
+
+  &__logo {
+    height: 45px;
+    margin: 40px auto 24px auto;
+  }
+
+  &__title {
+    font-size: var(--text-2xl);
+    color: var(--text-color);
+    margin-bottom: 15px;
+  }
+
+  &__message {
+    font-size: var(--text-lg);
+    color: var(--text-lighter);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  &__details {
+    font-size: var(--text-base);
+    color: var(--accent-color);
+    margin-bottom: 30px;
+    padding: 10px;
+    background: rgba(var(--accent-rgb), 0.1);
+    border-radius: 8px;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 25px;
+  }
+
+  &__btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: var(--text-base);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+
+    &--primary {
+      background: var(--accent-color);
+      color: white;
+
+      &:hover {
+        background: var(--accent-hover);
+        transform: translateY(-2px);
+      }
+    }
+
+    &--secondary {
+      background: var(--section-hover);
+      color: var(--text-color);
+
+      &:hover {
+        background: var(--section-hover);
+        opacity: 0.9;
+      }
+    }
+  }
+}

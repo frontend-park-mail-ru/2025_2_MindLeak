@@ -1,0 +1,59 @@
+<div class="tech-support__iframe">
+    <div class="tech-support__modal">
+        <div class="tech-support__modal-header">
+            <img src="/img/LogoMain.svg" alt="Логотип" class="tech-support__modal-logo" />
+            <h1 class="tech-support__modal-title">Техническая поддержка</h1>
+        </div>
+        
+        <form class="support-form__body" id="supportForm">
+            <div class="support-form__group">
+                <label class="support-form__label">Почта аккаунта</label>
+                <input 
+                    type="email" 
+                    class="form__input" 
+                    name="email_registered" 
+                    value="{{userEmail}}"
+                />
+            </div>
+
+            <div class="support-form__group">
+                <label class="support-form__label">Тема обращения *</label>
+                <select class="support-form__select" name="category_id" required>
+                    <option value="">Выберите тему</option>
+                    <option value="1">Баг или техническая проблема</option>
+                    <option value="2">Проблема с аккаунтом/авторизацией</option>
+                    <option value="3">Предложение по функционалу</option>
+                    <option value="4">Вопрос по использованию сервиса</option>
+                    <option value="5">Жалоба или обратная связь</option>
+                    <option value="6" selected>Другое</option>
+                </select>
+            </div>
+
+            <div class="support-form__group">
+                <label class="support-form__label">Описание проблемы *</label>
+                <textarea 
+                    class="support-form__textarea" 
+                    name="problem_description" 
+                    placeholder="Опишите проблему как можно подробнее..."
+                    required
+                ></textarea>
+            </div>
+
+            <div class="contact-info">
+                <h3>Оставьте свои контакты</h3>
+                <div class="support-form__group">
+                    <label class="support-form__label">Ваше имя *</label>
+                    <input type="text" class="form__input" name="name" placeholder="Введите ваше имя" required>
+                </div>
+                <div class="support-form__group">
+                    <label class="support-form__label">Email для ответа *</label>
+                    <input type="email" class="form__input" name="email_for_connection" placeholder="example@mail.xyz" required>
+                </div>
+            </div>
+
+            <div class="button-container">
+                <button type="submit" class="form__button">Отправить обращение</button>
+            </div>
+        </form>
+    </div>
+</div>

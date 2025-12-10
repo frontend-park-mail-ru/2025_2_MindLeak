@@ -1,0 +1,103 @@
+.search-results {
+  background: var(--section-color, #2F2F2F);
+  border: 1px solid var(--section-hover, #6B6B6B);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  max-height: 300px;
+  overflow-y: auto;
+  position: absolute;
+  z-index: 99999;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  color: var(--text-color, #E0E1DD);
+
+  &--positioned {
+    position: absolute;
+    z-index: 99999;
+  }
+
+  &__list {
+    padding: 0;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  &__empty {
+    padding: 20px 12px;
+    text-align: center;
+    color: var(--text-lighter, #A1A1A1);
+    font-size: var(--text-base, 16px);
+    border-bottom: 1px solid var(--section-hover, #6B6B6B);
+    background: var(--section-color, #2F2F2F);
+  }
+
+  &__footer {
+    padding: 12px;
+    border-top: 1px solid var(--section-hover, #6B6B6B);
+    text-align: center;
+    background: var(--section-color, #2F2F2F);
+    flex-shrink: 0;
+  }
+
+  &__show-all {
+    color: var(--accent-color, #0E7AF6);
+    text-decoration: none;
+    font-weight: var(--font-weight-medium, 500);
+    font-size: var(--text-base, 16px);
+    display: block;
+    width: 100%;
+    padding: 8px;
+    background: var(--section-color, #2F2F2F);
+    border-radius: 4px;
+    transition: background-color 0.2s, color 0.2s;
+
+    &:hover {
+      color: var(--text-color, #E0E1DD);
+      background-color: var(--section-hover, #6B6B6B);
+    }
+  }
+}
+
+.search-result-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--section-hover, #6B6B6B);
+  transition: background-color 0.2s;
+  background: var(--section-color, #2F2F2F);
+
+  &:hover {
+    background-color: var(--section-hover, #6B6B6B);
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 12px;
+    border: 1px solid var(--section-hover, #6B6B6B);
+  }
+
+  &__info {
+    flex: 1;
+  }
+
+  &__name {
+    font-weight: var(--font-weight-medium, 500);
+    margin-bottom: 4px;
+    color: var(--text-color, #E0E1DD);
+  }
+
+  &__subtitle {
+    font-size: var(--text-xs, 12px);
+    color: var(--text-lighter, #A1A1A1);
+  }
+}

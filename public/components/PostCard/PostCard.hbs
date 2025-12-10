@@ -1,44 +1,54 @@
-<div class="post-card">
-    {{> user-menu name=user.name subtitle=user.subtitle avatar=user.avatar isSubscribed=user.isSubscribed}}
+{{! components/PostCard/PostCard.hbs }}
+<div class="post-card" data-post-id="{{dataPostId}}">
+    <div class="post-card">
+        <div class="header">
+            {{> user-menu name=user.name subtitle=user.subtitle avatar=user.avatar isSubscribed=user.isSubscribed}}
+            <button class="post-card__menu-button" aria-label="Дополнительные действия">
+                <svg width="30" height="10" viewBox="0 0 30 10" fill="none" xmlns="http://www.w3.org/2000/svg" class="post-card__menu-icon">
+                    <circle cx="5" cy="5" r="3" />
+                    <circle cx="15" cy="5" r="3" />
+                    <circle cx="25" cy="5" r="3" />
+                </svg>
+            </button>
+        </div>
+        
+        {{! Заголовок с поддержкой HTML для хештегов }}
+        <h2 class="post-card__title">{{{title}}}</h2>
 
-    <h2 class="post-card__title">
-        {{#if titleTruncated}}
-            {{titleTruncated}}...
-        {{else}}
-            {{title}}
+        {{! Текст с поддержкой HTML для хештегов }}
+        <div class="post-card__text">
+            {{#if textTruncated}}
+                <span class="post-card__text-preview">{{{textTruncated}}}...</span>
+                <span class="post-card__text-full" hidden>{{{text}}} {{#if link}}<a href="{{link}}" class="post-card__link">{{linkText}}</a>{{/if}}</span>
+                <span class="post-card__toggle-text" data-key="toggle-text">Показать полностью</span>
+            {{else}}
+                {{{text}}} {{#if link}}<a href="{{link}}" class="post-card__link">{{linkText}}</a>{{/if}}
+            {{/if}}
+        </div>
+
+        {{#if image}}
+            <div class="post-card__image-container">
+                <img src="{{image}}" alt="Изображение поста" class="post-card__image" data-key="post-image">
+            </div>
         {{/if}}
-    </h2>
-
-    <p class="post-card__text">
-        {{#if textTruncated}}
-            <span class="post-card__text-preview">{{textTruncated}}...</span>
-            <span class="post-card__text-full" hidden>{{text}} {{#if link}}<a href="{{link}}" class="post-card__link">{{linkText}}</a>{{/if}}</span>
-            <span class="post-card__toggle-text" data-key="toggle-text">Показать полностью</span>
-        {{else}}
-            {{text}} {{#if link}}<a href="{{link}}" class="post-card__link">{{linkText}}</a>{{/if}}
-        {{/if}}
-    </p>
-
-    {{#if image}}
-        <div class="post-card__image-container">
-            <img src="{{image}}" alt="Изображение поста" class="post-card__image">
+        <!--
+        {{#each tags}}
+            {{> tag key=this.key icon=this.icon count=this.count}}
+        {{/each}}
+        
+        {{> tag key="add-tag" icon="/img/icons/add.svg"}}
+        -->
+        <div class="post-card__footer">
+            <div class="left-side-footer">
+                {{> tag key="comments" icon="/img/icons/comment.svg" count=commentsCount}}
+                {{> tag key="reposts" icon="/img/icons/repost.svg" count=repostsCount}}
+                {{> tag key="bookmark" icon="/img/icons/bookmark.svg"}}
+            </div>
+            <div class="right-side-footer">
+                {{> tag key="views" icon="/img/icons/views.svg" count=viewsCount}}
+            </div>
         </div>
-    {{/if}}
 
-    {{#each tags}}
-        {{> tag key=this.key icon=this.icon count=this.count}}
-    {{/each}}
-
-    {{> tag key="add-tag" icon="/img/icons/add.svg"}}
-
-    <div class="post-card__footer">
-        <div class="left-side-footer">
-            {{> tag key="comments" icon="/img/icons/comment.svg" count=commentsCount}}
-            {{> tag key="reposts" icon="/img/icons/repost.svg" count=repostsCount}}
-            {{> tag key="bookmark" icon="/img/icons/bookmark.svg"}}
-        </div>
-        <div class="right-side-footer">
-            {{> tag key="views" icon="/img/icons/views.svg" count=viewsCount}}
-        </div>
+        {{> post-card-menu menuId=menuId menuItems=menuItems}}
     </div>
 </div>

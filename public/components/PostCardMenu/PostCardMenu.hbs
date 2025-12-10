@@ -1,0 +1,12 @@
+<div class="post-card-menu" data-menu-id="{{menuId}}">
+    <div class="post-card-menu__items">
+        {{#each menuItems}}
+            <div class="post-card-menu__item" data-key="{{this.key}}">
+                {{#if this.icon}}
+                    <img src="{{this.icon}}" alt="" class="post-card-menu__icon">
+                {{/if}}
+                <span class="post-card-menu__text">{{this.text}}</span>
+            </div>
+        {{/each}}
+    </div>
+</div>

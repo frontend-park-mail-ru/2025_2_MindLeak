@@ -11,7 +11,7 @@
             <div class="form-group">
                 <label for="password">Пароль</label>
                 <div class="input-wrapper">
-                    {{> input type="password" placeholder="password" name="password"}}
+                    {{> input type="password" placeholder="пароль" name="password"}}
                     <span class="password-toggle" aria-hidden="true">🙉</span>
                 </div>
             </div>
@@ -21,7 +21,7 @@
             </div>
 
             <p class="login-form__footer">
-                Нет аккаунта? <a href="/registration" class="link">Регистрация</a>
+                Нет аккаунта? <a href="/registration" class="link" data-router-ignore>Регистрация</a>
             </p>
         </form>
     </div>

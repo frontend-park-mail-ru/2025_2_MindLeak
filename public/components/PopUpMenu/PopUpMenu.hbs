@@ -1,0 +1,15 @@
+<div class="popUp-menu">
+    {{> user-menu 
+        name=user.name 
+        subtitle=user.subtitle 
+        avatar=user.avatar 
+        isSubscribed=user.isSubscribed
+        hideSubscribeButton=true
+    }}
+
+    <div class="popUp-menu__items">
+        {{#each menuItems}}
+            {{> menu-item key=this.key icon=this.icon text=this.text}}
+        {{/each}}
+    </div>
+</div>

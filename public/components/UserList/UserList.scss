@@ -1,0 +1,29 @@
+.user-list {
+  background-color: var(--section-color);
+  border-radius: 10px;
+  padding: 20px;
+  width: 310px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  box-sizing: border-box;
+
+  &__title {
+    font-size: var(--text-xl);
+    color: var(--text-color);
+    margin-bottom: 20px;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  &__item {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+  }
+
+}

@@ -1,1 +1,9 @@
-<input type="{{type}}" placeholder="{{placeholder}}" name="{{name}}" class="form__input"/>
+<input 
+    type="{{type}}" 
+    placeholder="{{placeholder}}" 
+    name="{{name}}" 
+    {{#if value}}value="{{value}}"{{/if}}
+    {{#if maxlength}}maxlength="{{maxlength}}"{{/if}}
+    class="form__input {{#if extraClass}}{{extraClass}}{{/if}}"
+    {{#if data-key}}data-key="{{data-key}}"{{/if}}
+/>

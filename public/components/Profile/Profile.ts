@@ -152,8 +152,8 @@ export class Profile {
             throw new Error('Profile element not found');
         }
 
-        // ИНИЦИАЛИЗИРУЕМ PostCardMenu ДЛЯ КАЖДОГО ПОСТА
         this.initializePostCardMenus(profileElement);
+        this.setupCommentIconClickHandlers(profileElement);
 
         return profileElement;
     }
@@ -178,6 +178,32 @@ export class Profile {
                     }
                 }
             }
+        });
+    }
+
+    private setupCommentIconClickHandlers(container: HTMLElement): void {
+        const commentIcons = container.querySelectorAll('.tag[data-key="comments"]');
+        
+        commentIcons.forEach(icon => {
+            icon.addEventListener('click', (e: Event) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const postCardWithId = icon.closest('[data-post-id]');
+                
+                if (postCardWithId) {
+                    const postId = postCardWithId.getAttribute('data-post-id');
+                    if (postId) {
+                        import('../../router/router').then(module => {
+                            module.router.navigate(`/post/${postId}`);
+                        });
+                    }
+                } else {
+                    console.error('No element with data-post-id found');
+                    console.log('Icon element:', icon);
+                    console.log('Closest .post-card:', icon.closest('.post-card'));
+                }
+            });
         });
     }
 

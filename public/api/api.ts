@@ -747,6 +747,15 @@ private normalizeAppealData(appeal: any): any {
             case STATUS.ok:
                 if (response.data) {
                     this.sendAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS');
+                    const userData = response.data;
+                    
+                    this.sendAction('USER_UPDATE_PROFILE', {
+                        user: {
+                            name: userData.name || settings.name,
+                            avatar: userData.avatar_url,
+                            email: userData.email || settings.email
+                        }
+                    });
                     this.loadSettingsAccount();
                 } else {
                     this.sendAction('SETTINGS_ACCOUNT_UPDATE_FAIL', { error: 'No updated data' });

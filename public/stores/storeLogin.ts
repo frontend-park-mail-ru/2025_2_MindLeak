@@ -66,6 +66,24 @@ class LoginStore extends BaseStore<LoginState> {
             this.clearAuthState();
         });
 
+        this.registerAction('USER_UPDATE_PROFILE', (payload: { user: Partial<User> }) => {
+            const currentState = this.getState();
+            if (currentState.user) {
+                const updatedUser = {
+                    ...currentState.user,
+                    ...payload.user
+                };
+                
+                const newState = {
+                    ...currentState,
+                    user: updatedUser
+                };
+                
+                this.setState(newState);
+                this.saveAuthState(newState);
+            }
+        });
+
         this.registerAction('USER_LOGOUT', () => {
             const newState = {
                 user: null,

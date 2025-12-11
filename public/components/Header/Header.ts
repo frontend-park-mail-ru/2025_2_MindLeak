@@ -114,7 +114,13 @@ export class Header {
 
             const html = template({
                 isLoggedIn: authState.isLoggedIn,
-                user: authState.user
+                user: authState.user ? {
+                    // Явно передаем все поля
+                    name: authState.user.name,
+                    avatar: authState.user.avatar,
+                    subtitle: authState.user.subtitle || '',
+                    email: authState.user.email || ''
+                } : null
             });
 
             const div = document.createElement('div');
@@ -177,7 +183,12 @@ export class Header {
                 }
 
                 const popUpMenu = new PopUpMenu({
-                    user: authState.user!,
+                    user: {
+                        name: loginStore.getState().user?.name || 'Пользователь',
+                        avatar: loginStore.getState().user?.avatar || '/img/defaultAvatar.jpg',
+                        subtitle: loginStore.getState().user?.subtitle || '',
+                        email: loginStore.getState().user?.email || ''
+                    },
                     menuItems: [
                         { key: 'bookmarks', icon: '/img/icons/note_icon.svg', text: 'Черновики' },
                         { key: 'saved', icon: '/img/icons/bookmark.svg', text: 'Закладки' },

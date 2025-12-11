@@ -806,10 +806,29 @@ private normalizeAppealData(appeal: any): any {
                     
                     this.sendAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS');
                     
-                    // Синхронизируем профиль после обновления настроек
-                    await this.syncProfileAfterUpdate();
-                    
-                    // Нужно перезагрузить настройки для получения актуальных данных
+                    // Если в ответе есть аватар - обновляем его тоже
+                    if (response.data.avatar_url) {
+                        const authState = loginStore.getState();
+                        if (authState.user) {
+                            const cacheBustedUrl = `${response.data.avatar_url}${response.data.avatar_url.includes('?') ? '&' : '?'}_=${Date.now()}`;
+                            
+                            this.sendAction('USER_UPDATE_PROFILE', {
+                                user: {
+                                    id: authState.user.id,
+                                    name: response.data.name || authState.user.name,
+                                    avatar: cacheBustedUrl,
+                                    subtitle: authState.user.subtitle,
+                                    email: response.data.email || authState.user.email
+                                }
+                            });
+                            
+                            // ВАЖНО: ПЕРЕЗАГРУЖАЕМ ПРОФИЛЬ
+                            console.log('🔄 Forcing PROFILE_LOAD_REQUEST after settings update');
+                            this.sendAction('PROFILE_LOAD_REQUEST', { 
+                                userId: authState.user.id 
+                            });
+                        }
+                    }
                     this.loadSettingsAccount();
                 } else {
                     this.sendAction('SETTINGS_ACCOUNT_UPDATE_FAIL', { error: 'No updated data' });
@@ -910,7 +929,7 @@ private normalizeAppealData(appeal: any): any {
                 console.log('✅ Avatar uploaded, URL:', avatarUrl);
                 
                 if (avatarUrl) {
-                    // ДОБАВЛЯЕМ RANDOM ПАРАМЕТР ДЛЯ КЭШИРОВАНИЯ
+                    // Добавляем RANDOM ПАРАМЕТР ДЛЯ КЭШИРОВАНИЯ
                     const cacheBustedUrl = `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}_=${Date.now()}`;
                     
                     console.log('✅ Cache busted avatar URL:', cacheBustedUrl);
@@ -932,17 +951,23 @@ private normalizeAppealData(appeal: any): any {
                         
                         console.log('🔄 Sending USER_UPDATE_PROFILE with cache busted URL:', updatedUser);
                         this.sendAction('USER_UPDATE_PROFILE', { user: updatedUser });
-                        this.sendAction('PROFILE_UPDATE_AVATAR', { 
-                            avatar_url: cacheBustedUrl 
-                        });
                         
-                        // ВАЖНО: ПЕРЕЗАГРУЖАЕМ ПРОФИЛЬ
-                        console.log('🔄 Forcing profile reload for userId:', authState.user.id);
-                        this.loadProfile(authState.user.id);
+                        // ВАЖНО: ПРИНУДИТЕЛЬНО ПЕРЕЗАГРУЖАЕМ ПРОФИЛЬ КАК ПРИ УДАЛЕНИИ!
+                        console.log('🔄 Forcing PROFILE_LOAD_REQUEST after avatar upload');
+                        this.sendAction('PROFILE_LOAD_REQUEST', { 
+                            userId: authState.user.id 
+                        });
                     }
                 } else {
                     console.warn('⚠️ No avatar URL in response, loading settings...');
                     this.sendAction('AVATAR_UPLOAD_SUCCESS');
+                    // Даже если нет URL, все равно перезагружаем профиль
+                    const authState = loginStore.getState();
+                    if (authState.user) {
+                        this.sendAction('PROFILE_LOAD_REQUEST', { 
+                            userId: authState.user.id 
+                        });
+                    }
                 }
 
                 this.loadSettingsAccount();
@@ -963,6 +988,43 @@ private normalizeAppealData(appeal: any): any {
         }
     }
 
+    private async uploadCover(file: File): Promise<void> {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await ajax.uploadCover(formData);
+
+        switch (response.status) {
+            case STATUS.ok:
+                this.sendAction('COVER_UPLOAD_SUCCESS');
+                
+                // ВАЖНО: ПРИНУДИТЕЛЬНО ПЕРЕЗАГРУЖАЕМ ПРОФИЛЬ КАК ПРИ УДАЛЕНИИ!
+                const authState = loginStore.getState();
+                if (authState.user) {
+                    console.log('🔄 Forcing PROFILE_LOAD_REQUEST after cover upload');
+                    this.sendAction('PROFILE_LOAD_REQUEST', { 
+                        userId: authState.user.id 
+                    });
+                }
+                
+                this.loadSettingsAccount();
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('COVER_UPLOAD_FAIL', { error: 'Not authenticated' });
+                break;
+            case STATUS.badRequest:
+                this.sendAction('COVER_UPLOAD_FAIL', { 
+                    error: response.data?.error || 'Неверный формат файла' 
+                });
+                break;
+            default:
+                this.sendAction('COVER_UPLOAD_FAIL', { 
+                    error: response.message || 'Ошибка загрузки обложки' 
+                });
+        }
+    }
+
     private async deleteAvatar(): Promise<void> {
         const response = await ajax.deleteAvatar();
 
@@ -978,33 +1040,6 @@ private normalizeAppealData(appeal: any): any {
             default:
                 this.sendAction('AVATAR_DELETE_FAIL', { 
                     error: response.message || 'Ошибка удаления аватара' 
-                });
-        }
-    }
-
-    private async uploadCover(file: File): Promise<void> {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const response = await ajax.uploadCover(formData);
-
-        switch (response.status) {
-            case STATUS.ok:
-                this.sendAction('COVER_UPLOAD_SUCCESS');
-                this.loadSettingsAccount();
-                break;
-            case STATUS.unauthorized:
-                this.sendAction('USER_UNAUTHORIZED');
-                this.sendAction('COVER_UPLOAD_FAIL', { error: 'Not authenticated' });
-                break;
-            case STATUS.badRequest:
-                this.sendAction('COVER_UPLOAD_FAIL', { 
-                    error: response.data?.error || 'Неверный формат файла' 
-                });
-                break;
-            default:
-                this.sendAction('COVER_UPLOAD_FAIL', { 
-                    error: response.message || 'Ошибка загрузки обложки' 
                 });
         }
     }

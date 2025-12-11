@@ -354,11 +354,17 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private normalizePostData(post: any): any {
+        // ✅ ДОБАВЛЯЕМ TIMESTAMP к авторскому аватару
+        const authorAvatar = post.author_avatar || post.AuthorAvatar || '/img/defaultAvatar.jpg';
+        const avatarWithTimestamp = authorAvatar ? 
+            `${authorAvatar.split('?')[0]}?_=${Date.now()}` : 
+            authorAvatar;
+        
         return {
             id: post.id || post.ID || post.postId,
             authorId: post.author_id || post.AuthorID,
             authorName: post.author_name || post.AuthorName || 'Неизвестный автор',
-            authorAvatar: post.author_avatar || post.AuthorAvatar || '/img/defaultAvatar.jpg',
+            authorAvatar: avatarWithTimestamp, // ✅ С TIMESTAMP!
             title: post.title || post.Title,
             content: post.content || post.Content,
             image: post.media_url || post.MediaURL || post.image || '',
@@ -502,6 +508,14 @@ private normalizeAppealData(appeal: any): any {
             response = await ajax.get(`/feed?offset=${offset}`);
         }
 
+        if (response.status === 408) {
+            this.sendAction('POSTS_LOAD_FAIL', { 
+                error: 'Посты не доступны в оффлайн режиме 😴',
+                isOffline: true
+            });
+            return;
+        }
+
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
@@ -567,7 +581,7 @@ private normalizeAppealData(appeal: any): any {
             console.log('📊 [API] Raw posts data:', postsArray);
             
             const normalizedPosts = postsArray.map((post: any) => {
-                const normalized = this.normalizePostData(post);
+                const normalized = this.normalizePostData(post); // ✅ уже использует normalizePostData с timestamp
                 return normalized;
             });
             
@@ -589,7 +603,6 @@ private normalizeAppealData(appeal: any): any {
         try {
             const response = await ajax.get(url);
             
-            // todo Проверяем статус 408 (Оффлайн режим)
             if (response.status === 408) {
                 this.sendAction('PROFILE_LOAD_FAIL', { 
                     error: 'Профиль не доступен в оффлайн режиме 😴',
@@ -601,12 +614,21 @@ private normalizeAppealData(appeal: any): any {
             switch (response.status) {
                 case STATUS.ok:
                     if (response.data) {
+                        // ✅ ДОБАВЛЯЕМ TIMESTAMP к URL чтобы избежать кэширования
+                        const avatarWithTimestamp = response.data.avatar_url ? 
+                            `${response.data.avatar_url}${response.data.avatar_url.includes('?') ? '&' : '?'}_=${Date.now()}` : 
+                            response.data.avatar_url;
+                        
+                        const coverWithTimestamp = response.data.cover_url ? 
+                            `${response.data.cover_url}${response.data.cover_url.includes('?') ? '&' : '?'}_=${Date.now()}` : 
+                            response.data.cover_url;
+                        
                         const profileData = {
                             id: response.data.id,
                             name: response.data.name,
                             email: response.data.email,
-                            avatar_url: response.data.avatar_url,
-                            cover_url: response.data.cover_url,
+                            avatar_url: avatarWithTimestamp, // ✅ С TIMESTAMP!
+                            cover_url: coverWithTimestamp,   // ✅ С TIMESTAMP!
                             description: response.data.description,
                             subscribers: response.data.subscribers || 0,
                             subscriptions: response.data.subscriptions || 0,
@@ -713,15 +735,24 @@ private normalizeAppealData(appeal: any): any {
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
+                    // ✅ ДОБАВЛЯЕМ TIMESTAMP к URL в настройках тоже
+                    const avatarWithTimestamp = response.data.avatar_url ? 
+                        `${response.data.avatar_url}${response.data.avatar_url.includes('?') ? '&' : '?'}_=${Date.now()}` : 
+                        response.data.avatar_url;
+                    
+                    const coverWithTimestamp = response.data.cover_url ? 
+                        `${response.data.cover_url}${response.data.cover_url.includes('?') ? '&' : '?'}_=${Date.now()}` : 
+                        response.data.cover_url;
+                    
                     const settingsData = {
                         phone: response.data.phone || '',
                         country: response.data.country || 'Россия',
                         language: response.data.language || 'Русский',
                         sex: response.data.sex || 'other',
                         date_of_birth: response.data.date_of_birth || '',
-                        cover_url: response.data.cover_url,
+                        cover_url: coverWithTimestamp,     // ✅ С TIMESTAMP!
                         name: response.data.name || '',
-                        avatar_url: response.data.avatar_url,
+                        avatar_url: avatarWithTimestamp,   // ✅ С TIMESTAMP!
                         email: response.data.email || '',
                         created_at: response.data.created_at || ''
                     };
@@ -933,30 +964,21 @@ private normalizeAppealData(appeal: any): any {
                 console.log('✅ Avatar uploaded, URL:', avatarUrl);
                 
                 if (avatarUrl) {
-                    // ✅ ВОССТАНАВЛИВАЕМ рабочую логику - используем AVATAR_UPLOADED
-                    const timestampedUrl = `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}_=${Date.now()}`;
+                    // ✅ TIMESTAMP будет добавлен при загрузке профиля!
+                    this.sendAction('AVATAR_UPLOADED', { avatar: avatarUrl });
                     
-                    // ✅ Используем правильный action для loginStore
-                    this.sendAction('AVATAR_UPLOADED', { avatar: timestampedUrl });
+                    // ✅ ОБЯЗАТЕЛЬНО перезагружаем профиль
+                    const authState = loginStore.getState();
+                    if (authState.user) {
+                        console.log('🔄 Forcing PROFILE_LOAD_REQUEST after avatar upload');
+                        this.sendAction('PROFILE_LOAD_REQUEST', { 
+                            userId: authState.user.id 
+                        });
+                    }
                     
-                    // ✅ Триггерим обновление Header
-                    dispatcher.dispatch('HEADER_FORCE_REFRESH');
+                    // ✅ Перезагружаем настройки
+                    this.loadSettingsAccount();
                 }
-                
-                // Отправляем success в settings store
-                this.sendAction('AVATAR_UPLOAD_SUCCESS');
-                
-                // Перезагружаем профиль
-                const authState = loginStore.getState();
-                if (authState.user) {
-                    console.log('🔄 Forcing PROFILE_LOAD_REQUEST after avatar upload');
-                    this.sendAction('PROFILE_LOAD_REQUEST', { 
-                        userId: authState.user.id 
-                    });
-                }
-                
-                // Перезагружаем настройки
-                this.loadSettingsAccount();
                 break;
             case STATUS.unauthorized:
                 this.sendAction('USER_UNAUTHORIZED');
@@ -984,7 +1006,7 @@ private normalizeAppealData(appeal: any): any {
             case STATUS.ok:
                 this.sendAction('COVER_UPLOAD_SUCCESS');
                 
-                // ВАЖНО: ПРИНУДИТЕЛЬНО ПЕРЕЗАГРУЖАЕМ ПРОФИЛЬ КАК ПРИ УДАЛЕНИИ!
+                // ✅ ОБЯЗАТЕЛЬНО перезагружаем профиль
                 const authState = loginStore.getState();
                 if (authState.user) {
                     console.log('🔄 Forcing PROFILE_LOAD_REQUEST after cover upload');
@@ -993,6 +1015,7 @@ private normalizeAppealData(appeal: any): any {
                     });
                 }
                 
+                // ✅ Перезагружаем настройки
                 this.loadSettingsAccount();
                 break;
             case STATUS.unauthorized:
@@ -1010,7 +1033,6 @@ private normalizeAppealData(appeal: any): any {
                 });
         }
     }
-
     private async deleteAvatar(): Promise<void> {
         const response = await ajax.deleteAvatar();
 
@@ -1053,28 +1075,36 @@ private normalizeAppealData(appeal: any): any {
         const response = await ajax.get('/topblogs');
         switch (response.status) {
             case STATUS.ok:
-            if (response.data && Array.isArray(response.data.Blogs)) {
-                const users = response.data.Blogs.map((item: any) => ({
-                id: item.id,
-                name: item.name,
-                subtitle: `Подписчики: ${item.subscribers}`,
-                avatar: item.avatar || '/img/defaultAvatar.jpg',
-                isSubscribed: false,
-                hideSubscribeButton: true
-                }));
-                this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
-            } else {
-                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No top blogs data or invalid format' });
-            }
-            break;
+                if (response.data && Array.isArray(response.data.Blogs)) {
+                    const users = response.data.Blogs.map((item: any) => {
+                        // ✅ ДОБАВЛЯЕМ TIMESTAMP к аватару
+                        const avatar = item.avatar || '/img/defaultAvatar.jpg';
+                        const avatarWithTimestamp = avatar ? 
+                            `${avatar.split('?')[0]}?_=${Date.now()}` : 
+                            avatar;
+                        
+                        return {
+                            id: item.id,
+                            name: item.name,
+                            subtitle: `Подписчики: ${item.subscribers}`,
+                            avatar: avatarWithTimestamp, // ✅ С TIMESTAMP!
+                            isSubscribed: false,
+                            hideSubscribeButton: true
+                        };
+                    });
+                    this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
+                } else {
+                    this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No top blogs data or invalid format' });
+                }
+                break;
             case STATUS.unauthorized:
-            this.sendAction('USER_UNAUTHORIZED');
-            this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
-            break;
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
+                break;
             default:
-            this.sendAction('USER_LIST_LOAD_FAIL', {
-                error: response.message || 'Ошибка загрузки топ блогеров'
-            });
+                this.sendAction('USER_LIST_LOAD_FAIL', {
+                    error: response.message || 'Ошибка загрузки топ блогеров'
+                });
         }
     }
 
@@ -1082,28 +1112,36 @@ private normalizeAppealData(appeal: any): any {
         const response = await ajax.get('/subscriptions');
         switch (response.status) {
             case STATUS.ok:
-            if (response.data) {
-                const users = response.data.map((item: any) => ({
-                id: item.id,
-                name: item.name,
-                subtitle: `Подписчики: ${item.subscribers}`,
-                avatar: item.avatar || '/img/defaultAvatar.jpg',
-                isSubscribed: true,
-                hideSubscribeButton: false
-                }));
-                this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
-            } else {
-                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No subscriptions data' });
-            }
-            break;
+                if (response.data) {
+                    const users = response.data.map((item: any) => {
+                        // ✅ ДОБАВЛЯЕМ TIMESTAMP
+                        const avatar = item.avatar || '/img/defaultAvatar.jpg';
+                        const avatarWithTimestamp = avatar ? 
+                            `${avatar.split('?')[0]}?_=${Date.now()}` : 
+                            avatar;
+                        
+                        return {
+                            id: item.id,
+                            name: item.name,
+                            subtitle: `Подписчики: ${item.subscribers}`,
+                            avatar: avatarWithTimestamp, // ✅ С TIMESTAMP!
+                            isSubscribed: true,
+                            hideSubscribeButton: false
+                        };
+                    });
+                    this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
+                } else {
+                    this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No subscriptions data' });
+                }
+                break;
             case STATUS.unauthorized:
-            this.sendAction('USER_UNAUTHORIZED');
-            this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
-            break;
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
+                break;
             default:
-            this.sendAction('USER_LIST_LOAD_FAIL', {
-                error: response.message || 'Ошибка загрузки подписок'
-            });
+                this.sendAction('USER_LIST_LOAD_FAIL', {
+                    error: response.message || 'Ошибка загрузки подписок'
+                });
         }
     }
 
@@ -1111,28 +1149,36 @@ private normalizeAppealData(appeal: any): any {
         const response = await ajax.get('/subscribers');
         switch (response.status) {
             case STATUS.ok:
-            if (response.data) {
-                const users = response.data.map((item: any) => ({
-                id: item.id,
-                name: item.name,
-                subtitle: `Подписчики: ${item.subscribers}`,
-                avatar: item.avatar || '/img/defaultAvatar.jpg',
-                isSubscribed: false,
-                hideSubscribeButton: false
-                }));
-                this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
-            } else {
-                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No subscribers data' });
-            }
-            break;
+                if (response.data) {
+                    const users = response.data.map((item: any) => {
+                        // ✅ ДОБАВЛЯЕМ TIMESTAMP
+                        const avatar = item.avatar || '/img/defaultAvatar.jpg';
+                        const avatarWithTimestamp = avatar ? 
+                            `${avatar.split('?')[0]}?_=${Date.now()}` : 
+                            avatar;
+                        
+                        return {
+                            id: item.id,
+                            name: item.name,
+                            subtitle: `Подписчики: ${item.subscribers}`,
+                            avatar: avatarWithTimestamp, // ✅ С TIMESTAMP!
+                            isSubscribed: false,
+                            hideSubscribeButton: false
+                        };
+                    });
+                    this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
+                } else {
+                    this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No subscribers data' });
+                }
+                break;
             case STATUS.unauthorized:
-            this.sendAction('USER_UNAUTHORIZED');
-            this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
-            break;
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
+                break;
             default:
-            this.sendAction('USER_LIST_LOAD_FAIL', {
-                error: response.message || 'Ошибка загрузки подписчиков'
-            });
+                this.sendAction('USER_LIST_LOAD_FAIL', {
+                    error: response.message || 'Ошибка загрузки подписчиков'
+                });
         }
     }
 
@@ -1279,6 +1325,7 @@ private normalizeAppealData(appeal: any): any {
             });
         }
     }
+
     private async searchBlogs(query: string): Promise<void> {
         console.log('🔍 API: Searching blogs with query:', query);
         
@@ -1291,40 +1338,37 @@ private normalizeAppealData(appeal: any): any {
                     if (response.data) {
                         let users = [];
                         
-                        // Обрабатываем разные форматы ответа
                         if (Array.isArray(response.data.users)) {
-                            // Формат: { users: [...] }
                             users = response.data.users;
                         } else if (Array.isArray(response.data)) {
-                            // Формат: [...]
                             users = response.data;
                         } else if (response.data.Blogs && Array.isArray(response.data.Blogs)) {
-                            // Формат: { Blogs: [...] }
                             users = response.data.Blogs;
                         }
                         
-                        console.log('👥 Normalized users:', users);
+                        const normalizedUsers = users.map((item: any) => {
+                            // ✅ ДОБАВЛЯЕМ TIMESTAMP
+                            const avatar = item.avatar || item.avatar_url || '/img/defaultAvatar.jpg';
+                            const avatarWithTimestamp = avatar ? 
+                                `${avatar.split('?')[0]}?_=${Date.now()}` : 
+                                avatar;
+                            
+                            return {
+                                id: item.id || item.userId,
+                                name: item.name || item.username || 'Неизвестный пользователь',
+                                subtitle: `Подписчики: ${item.subscribers || item.subscribersCount || 0}`,
+                                avatar: avatarWithTimestamp, // ✅ С TIMESTAMP!
+                                isSubscribed: false,
+                                hideSubscribeButton: true
+                            };
+                        });
                         
-                        const normalizedUsers = users.map((item: any) => ({
-                            id: item.id || item.userId,
-                            name: item.name || item.username || 'Неизвестный пользователь',
-                            subtitle: `Подписчики: ${item.subscribers || item.subscribersCount || 0}`,
-                            avatar: item.avatar || item.avatar_url || '/img/defaultAvatar.jpg',
-                            isSubscribed: false,
-                            hideSubscribeButton: true
-                        }));
-                        
-                        console.log('✅ Sending normalized users:', normalizedUsers);
                         this.sendAction('SEARCH_BLOGS_SUCCESS', { users: normalizedUsers, query });
                     } else {
-                        // ЕСЛИ НЕТ РЕЗУЛЬТАТОВ - отправляем пустой массив
-                        console.log('📭 No data in response, sending empty array');
                         this.sendAction('SEARCH_BLOGS_SUCCESS', { users: [], query });
                     }
                     break;
                 case STATUS.notFound:
-                    // ЕСЛИ 404 - отправляем пустой массив
-                    console.log('🔍 404 - No results found');
                     this.sendAction('SEARCH_BLOGS_SUCCESS', { users: [], query });
                     break;
                 case STATUS.unauthorized:

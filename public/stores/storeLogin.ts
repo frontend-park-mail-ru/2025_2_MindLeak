@@ -1,5 +1,6 @@
+// storeLogin.ts - ИСПРАВЛЕННАЯ ВЕРСИЯ (полностью)
 import { BaseStore } from './store';
-import { dispatcher } from '../dispatcher/dispatcher'; // Добавляем импорт dispatcher
+import { dispatcher } from '../dispatcher/dispatcher';
 
 export interface User {
     id: string;
@@ -18,36 +19,21 @@ export interface LoginState {
 
 class LoginStore extends BaseStore<LoginState> {
     constructor() {
-        // Сначала вызываем super с начальным состоянием
         super({
             user: null,
             isLoggedIn: false,
             isLoading: false,
             error: null
         });
-        
-        // Затем восстанавливаем состояние из localStorage
         this.restoreAuthState();
     }
 
     protected registerActions(): void {
-
-        //первое изменение ФФФФФФФФФФФФФФФ ФФФФФФФФФФФФФ
         this.registerAction('USER_LOGIN_CHECKED', (payload: { user: User }) => {
-                console.log('🔄 USER_LOGIN_CHECKED payload:', payload);
-            console.log('📝 Payload name:', payload.user?.name);
-            console.log('📝 Payload email:', payload.user?.email);
-            // Добавляем timestamp к URL аватара для избежания кэширования
-            const userWithCacheBust = {
-                ...payload.user,
-                avatar: payload.user.avatar ? 
-                    `${payload.user.avatar}${payload.user.avatar.includes('?') ? '&' : '?'}nocache=${Date.now()}` :
-                    payload.user.avatar
-            };
-            console.log('✅ User with cache bust:', userWithCacheBust);
+            console.log('🔄 USER_LOGIN_CHECKED payload:', payload);
             
             const newState = {
-                user: userWithCacheBust,
+                user: payload.user,
                 isLoggedIn: true,
                 isLoading: false,
                 error: null
@@ -57,16 +43,8 @@ class LoginStore extends BaseStore<LoginState> {
         });
 
         this.registerAction('USER_LOGIN_SUCCESS', (payload: { user: User }) => {
-            // Добавляем timestamp к URL аватара
-            const userWithCacheBust = {
-                ...payload.user,
-                avatar: payload.user.avatar ? 
-                    `${payload.user.avatar}${payload.user.avatar.includes('?') ? '&' : '?'}nocache=${Date.now()}` :
-                    payload.user.avatar
-            };
-            
             const newState = {
-                user: userWithCacheBust,
+                user: payload.user,
                 isLoggedIn: true,
                 isLoading: false,
                 error: null
@@ -90,18 +68,15 @@ class LoginStore extends BaseStore<LoginState> {
             console.log('🔄 Updating user in loginStore:', payload.user);
             const currentState = this.getState();
             
-            // ✅ ПРОСТО обновляем все поля
             let updatedUser = {
                 ...currentState.user,
                 ...payload.user
             };
             
-            // ✅ ВАЖНО: Если есть новый аватар, добавляем timestamp
-            if (payload.user?.avatar) {
+            if (payload.user?.avatar && currentState.user?.avatar !== payload.user.avatar) {
                 const baseUrl = payload.user.avatar.split('?')[0];
-                const newTimestamp = `?_=${Date.now()}`;
-                updatedUser.avatar = `${baseUrl}${newTimestamp}`;
-                console.log('✅ Updated avatar with new timestamp:', updatedUser.avatar);
+                updatedUser.avatar = `${baseUrl}?_=${Date.now()}`;
+                console.log('✅ Avatar updated with timestamp:', updatedUser.avatar);
             }
             
             const newState = {
@@ -119,8 +94,8 @@ class LoginStore extends BaseStore<LoginState> {
             
             const currentState = this.getState();
             if (currentState.user) {
-                // ✅ Добавляем timestamp ТОЛЬКО ЗДЕСЬ
-                const timestampedAvatar = `${payload.avatar}${payload.avatar.includes('?') ? '&' : '?'}_=${Date.now()}`;
+                const baseUrl = payload.avatar.split('?')[0];
+                const timestampedAvatar = `${baseUrl}?_=${Date.now()}`;
                 
                 const newState = {
                     ...currentState,
@@ -134,7 +109,7 @@ class LoginStore extends BaseStore<LoginState> {
                 this.setState(newState);
                 this.saveAuthState(newState);
                 
-                // ✅ Триггерим обновление Header
+                dispatcher.dispatch('PROFILE_DATA_CHANGED');
                 dispatcher.dispatch('HEADER_FORCE_REFRESH');
             }
         });
@@ -148,7 +123,7 @@ class LoginStore extends BaseStore<LoginState> {
                     ...currentState,
                     user: {
                         ...currentState.user,
-                        avatar: payload.avatar // Используем как есть (уже с timestamp)
+                        avatar: payload.avatar
                     }
                 };
                 
@@ -188,18 +163,15 @@ class LoginStore extends BaseStore<LoginState> {
             const saved = localStorage.getItem('authState');
             if (saved) {
                 const parsed = JSON.parse(saved);
-                // Проверяем, не устарели ли данные (например, больше суток)
                 const savedTime = localStorage.getItem('authStateTime');
                 if (savedTime) {
                     const timeDiff = Date.now() - parseInt(savedTime);
-                    // Если прошло больше 24 часов, считаем данные устаревшими
                     if (timeDiff > 24 * 60 * 60 * 1000) {
                         this.clearAuthState();
                         return;
                     }
                 }
                 
-                // Восстанавливаем состояние
                 this.setState({
                     user: parsed.user,
                     isLoggedIn: parsed.isLoggedIn
@@ -212,7 +184,6 @@ class LoginStore extends BaseStore<LoginState> {
 
     private saveAuthState(state: LoginState): void {
         try {
-            // ✅ ПРОВЕРЯЕМ что есть все необходимые поля
             if (!state.user?.id || !state.user?.name) {
                 console.warn('⚠️ Not saving incomplete user to localStorage:', state.user);
                 return;

@@ -45,14 +45,31 @@ export class SettingsAccount {
         this.props = props;
     }
 
+    //первое изменение ФФФФФФФФФФФФФФФ
     async render(): Promise<HTMLElement> {
         const template = await getSettingsAccountTemplate();
         
         const formattedData = this.formatUserData(this.props.userData);
         
+        // Создаем объект userData с timestamp'ами
+        const userDataWithCacheBust = this.props.userData ? {
+            ...this.props.userData,
+            // Добавляем timestamp к URL аватара и обложки
+            avatar_url: this.props.userData.avatar_url ? 
+                `${this.props.userData.avatar_url}${this.props.userData.avatar_url.includes('?') ? '&' : '?'}nocache=${Date.now()}` :
+                '',
+            cover_url: this.props.userData.cover_url ?
+                `${this.props.userData.cover_url}${this.props.userData.cover_url.includes('?') ? '&' : '?'}nocache=${Date.now()}` :
+                ''
+        } : null;
+        
         const templateData = {
             ...formattedData,
-            userData: this.props.userData,
+            // Передаем avatar_url и cover_url на верхнем уровне для совместимости
+            avatar_url: userDataWithCacheBust?.avatar_url || '',
+            cover_url: userDataWithCacheBust?.cover_url || '',
+            // Передаем полный объект userData с обновленными URL
+            userData: userDataWithCacheBust,
             isLoading: this.props.isLoading || false,
             error: this.props.error || null,
             isUploadingAvatar: this.props.isUploadingAvatar || false,
@@ -83,7 +100,9 @@ export class SettingsAccount {
                 language: 'Русский',
                 sex: 'other',
                 date_of_birth: '',
-                age: 'Не указано'
+                age: 'Не указано',
+                avatar_url: '',
+                cover_url: ''
             };
         }
 
@@ -130,7 +149,9 @@ export class SettingsAccount {
             language: userData.language || 'Русский',
             sex: formattedSex,
             date_of_birth: formattedBirthDate,
-            age: age
+            age: age,
+            avatar_url: userData.avatar_url || '',
+            cover_url: userData.cover_url || '' 
         };
     }
 }

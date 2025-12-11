@@ -210,10 +210,38 @@ export class ProfileView extends BaseView {
         }
     }
 
+    //todo нужен ли ФФФФФФФФФФФФФФФФффф (имею в виду изменения )
     private handleLoginStoreChange(): void {
         if (this.isDestroyed) return;
 
         const loginState = loginStore.getState();
+        const profileState = profileStore.getState();
+        
+        // Функция для извлечения ЧИСТОГО URL
+        const getCleanUrl = (url: string | undefined): string => {
+            if (!url) return '';
+            return url.split('?')[0];
+        };
+        
+        const loginAvatarClean = getCleanUrl(loginState.user?.avatar);
+        const profileAvatarClean = getCleanUrl(profileState.profile?.avatar_url);
+        
+        console.log('🔄 ProfileView: Avatar comparison:', {
+            loginAvatarClean,
+            profileAvatarClean
+        });
+        
+        // Если аватар изменился И это профиль текущего пользователя
+        if (loginAvatarClean && profileAvatarClean && loginAvatarClean !== profileAvatarClean) {
+            const isMyProfile = !this.userId || loginState.user?.id.toString() === this.userId.toString();
+            
+            if (isMyProfile) {
+                console.log('🖼️ Avatar changed! Reloading profile...');
+                dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
+                    userId: this.userId || loginState.user?.id
+                });
+            }
+        }
         
         if (!loginState.isLoggedIn) {
             router.navigate('/');

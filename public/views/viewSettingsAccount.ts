@@ -400,6 +400,8 @@ export class SettingsAccountView extends BaseView {
         const loginState = loginStore.getState();
         
         if (!loginState.isLoggedIn) {
+            // ✅ Перед навигацией триггерим обновление Header
+            dispatcher.dispatch('HEADER_FORCE_UPDATE', { reason: 'user_logged_out' });
             loginStore.removeListener(this.boundLoginStoreHandler);
             router.navigate('/');
         }
@@ -449,6 +451,18 @@ export class SettingsAccountView extends BaseView {
         if (this.isDestroyed) return;
         
         const state = settingsAccountStore.getState();
+        
+        // ТОЛЬКО если нужно перезагрузить данные
+        if (state.settings && !state.isUpdating && !state.isUploadingAvatar && !state.isUploadingCover) {
+            const authState = loginStore.getState();
+            if (authState.user) {
+                // Обновляем профиль через API
+                dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
+                    userId: authState.user.id 
+                });
+            }
+        }
+        
         this.updateAccountContent();
     }
 

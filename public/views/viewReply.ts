@@ -16,76 +16,86 @@ export class ReplyView {
     private boundCommentsStoreHandler: () => void;
     private rightMenu: HTMLElement | null = null;
     private boundUserListStoreHandler: () => void;
+    private rootElement: HTMLElement | null = null;
 
-  constructor(container: HTMLElement, params: { commentId: string }) {
-    this.container = container;
-    this.commentId = params.commentId;
+    constructor(container: HTMLElement, params: { commentId: string }) {
+        this.container = container;
+        this.commentId = params.commentId;
 
-    const urlParams = new URLSearchParams(window.location.search);
-    this.postId = urlParams.get('postId') || '';
+        const urlParams = new URLSearchParams(window.location.search);
+        this.postId = urlParams.get('postId') || '';
 
-    if (!this.postId) {
-        console.error('❌ postId отсутствует в URL — невозможно загрузить ответы');
+        if (!this.postId) {
+            console.error('❌ postId отсутствует в URL — невозможно загрузить ответы');
+        }
+
+        this.boundCommentsStoreHandler = this.handleCommentsStoreChange.bind(this);
+        this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
     }
 
-    this.boundCommentsStoreHandler = this.handleCommentsStoreChange.bind(this);
-    this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
-  }
+    async render(): Promise<HTMLElement> {
+        this.rootElement = document.createElement('div');
+        
+        // Header - ИСПРАВЛЕНО!
+        const headerContainer = document.createElement('header');
+        const header = Header.getInstance();
+        
+        // ✅ ИНИЦИАЛИЗИРУЕМ Header (важно!)
+        await header.init(headerContainer);
+        
+        const headerEl = header.getElement();
+        if (headerEl) {
+            headerContainer.appendChild(headerEl);
+            this.rootElement.appendChild(headerContainer);
+        }
 
-  async render(): Promise<HTMLElement> {
-    const rootElem = document.createElement('div');
+        // Основной контент
+        const contentContainer = document.createElement('div');
+        contentContainer.className = 'content-layout';
+        this.rootElement.appendChild(contentContainer);
 
-    // Header
-    const headerContainer = document.createElement('header');
-    const headerInstance = new Header();
-    const headerEl = await headerInstance.render(headerContainer);
-    headerContainer.appendChild(headerEl);
-    rootElem.appendChild(headerContainer);
+        const leftMenu = document.createElement('aside');
+        leftMenu.className = 'sidebar-left';
+        const sidebar1 = new SidebarMenu(MAIN_MENU_ITEMS, '', () => {});
+        const sidebar2 = new SidebarMenu(SECONDARY_MENU_ITEMS, '', () => {});
+        leftMenu.appendChild(await sidebar1.render());
+        leftMenu.appendChild(await sidebar2.render());
+        contentContainer.appendChild(leftMenu);
 
-    // Основной контент
-    const contentContainer = document.createElement('div');
-    contentContainer.className = 'content-layout';
-    rootElem.appendChild(contentContainer);
+        // Центр — контейнер для комментария и ответов
+        const main = document.createElement('main');
+        main.className = 'main-content';
 
-    const leftMenu = document.createElement('aside');
-    leftMenu.className = 'sidebar-left';
-    const sidebar1 = new SidebarMenu(MAIN_MENU_ITEMS, '', () => {});
-    const sidebar2 = new SidebarMenu(SECONDARY_MENU_ITEMS, '', () => {});
-    leftMenu.appendChild(await sidebar1.render());
-    leftMenu.appendChild(await sidebar2.render());
-    contentContainer.appendChild(leftMenu);
+        const repliesContainer = document.createElement('div');
+        repliesContainer.id = 'replies-container';
 
-    // Центр — контейнер для комментария и ответов
-    const main = document.createElement('main');
-    main.className = 'main-content';
+        // Создаём структуру: parent + форма + список ответов
+        const parentSection = document.createElement('div');
+        parentSection.className = 'replies-parent-section';
+        repliesContainer.appendChild(parentSection);
 
-    const repliesContainer = document.createElement('div');
-    repliesContainer.id = 'replies-container';
+        const repliesList = document.createElement('div');
+        repliesList.className = 'replies-list';
+        repliesContainer.appendChild(repliesList);
 
-    // Создаём структуру: parent + форма + список ответов
-    const parentSection = document.createElement('div');
-    parentSection.className = 'replies-parent-section';
-    repliesContainer.appendChild(parentSection);
+        main.appendChild(repliesContainer);
+        contentContainer.appendChild(main);
 
-    const repliesList = document.createElement('div');
-    repliesList.className = 'replies-list';
-    repliesContainer.appendChild(repliesList);
+        // Правое меню 
+        this.rightMenu = document.createElement('aside');
+        this.rightMenu.className = 'sidebar-right';
 
-    main.appendChild(repliesContainer);
-    contentContainer.appendChild(main);
+        contentContainer.appendChild(this.rightMenu);
+        await this.updateUserListContent();
 
-    // Правое меню 
-    this.rightMenu = document.createElement('aside');
-    this.rightMenu.className = 'sidebar-right';
+        // Загружаем данные
+        await this.init(repliesContainer, parentSection);
 
-    contentContainer.appendChild(this.rightMenu);
-    this.updateUserListContent();
-
-    // Загружаем данные
-    await this.init(repliesContainer, parentSection);
-
-    return rootElem;
-  }
+        // Добавляем в контейнер
+        this.container.appendChild(this.rootElement);
+        
+        return this.rootElement;
+    }
 
     private async init(repliesContainer: HTMLElement, parentSection: HTMLElement): Promise<void> {
         if (!this.postId) {
@@ -95,6 +105,7 @@ export class ReplyView {
 
         commentsStore.addListener(this.boundCommentsStoreHandler);
         userListStore.addListener(this.boundUserListStoreHandler);
+        
         // 1. Загружаем родительский комментарий отдельно
         const allCommentsRes = await ajax.get(`/comments?articleId=${this.postId}`);
         if (!allCommentsRes.data?.comments) {
@@ -108,7 +119,7 @@ export class ReplyView {
             return;
         }
 
-        this.renderParentComment(parent, parentSection);
+        await this.renderParentComment(parent, parentSection);
 
         // 2. Загружаем ответы через store
         dispatcher.dispatch('REPLIES_LOAD_REQUEST', {
@@ -133,6 +144,12 @@ export class ReplyView {
             return;
         }
 
+        // Загружаем топ блогов если еще не загружены
+        if (!state.users || state.users.length === 0) {
+            dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
+            return;
+        }
+
         const userList = new UserList({
             title: 'Топ блогов',
             users: state.users || []
@@ -141,82 +158,96 @@ export class ReplyView {
         this.rightMenu.appendChild(userListElement);
     }
   
-  private renderParentComment(parent: any, container: HTMLElement): void {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'comment-wrapper comment--parent';
+    private async renderParentComment(parent: any, container: HTMLElement): Promise<void> {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'comment-wrapper comment--parent';
 
-    const commentInstance = new Comment({
-      commentId: parent.id,
-      postId: this.postId,
-      user: {
-        name: parent.author_name,
-        subtitle: '',
-        avatar: parent.author_avatar || '/img/defaultAvatar.jpg',
-        isSubscribed: false,
-        id: parent.user_id
-      },
-      postTitle: parent.article_title || '',
-      postDate: parent.created_at,
-      text: parent.content,
-      attachment: undefined,
-    });
-
-    commentInstance.render().then(el => {
-      wrapper.appendChild(el);
-      container.appendChild(wrapper);
-    });
-  }
-
-  private handleCommentsStoreChange(): void {
-    const repliesList = document.querySelector('#replies-container .replies-list');
-    if (!repliesList) return;
-    console.log('handleCommentsStoreChange called');
-    const state = commentsStore.getState();
-    console.log('Replies to render:', state.comments);
-
-    if (state.isLoading) {
-      repliesList.innerHTML = '<div class="replies-loader">Загрузка ответов...</div>';
-      return;
-    }
-
-    if (state.error) {
-      repliesList.innerHTML = `<div class="replies-error">${state.error}</div>`;
-      return;
-    }
-
-    repliesList.innerHTML = '';
-    for (const reply of state.comments) {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'comment-wrapper';
-      const replyInstance = new Comment({
-        commentId: reply.id,
-        postId: this.postId,
-        user: {
-          name: reply.authorName,
-          subtitle: '',
-          avatar: reply.authorAvatar || '/img/defaultAvatar.jpg',
-          isSubscribed: false,
-          id: reply.authorId
-        },
-        postTitle: '',
-        postDate: reply.postDate,
-        text: reply.text,
-        attachment: reply.attachment,
-        onReplyClick: () => {
-            window.location.href = `/replies/${reply.id}?postId=${this.postId}`;
-        }
-      });
-      replyInstance.render().then(el => {
-        wrapper.appendChild(el);
-        }).catch(err => {
-        console.error('Render error:', err);
+        const commentInstance = new Comment({
+            commentId: parent.id,
+            postId: this.postId,
+            user: {
+                name: parent.author_name,
+                subtitle: '',
+                avatar: parent.author_avatar || '/img/defaultAvatar.jpg',
+                isSubscribed: false,
+                id: parent.user_id
+            },
+            postTitle: parent.article_title || '',
+            postDate: parent.created_at,
+            text: parent.content,
+            attachment: undefined,
         });
-      repliesList.appendChild(wrapper);
-    }
-  }
 
-  destroy(): void {
-    commentsStore.removeListener(this.boundCommentsStoreHandler);
-    userListStore.removeListener(this.boundUserListStoreHandler);
-  }
+        try {
+            const el = await commentInstance.render();
+            wrapper.appendChild(el);
+            container.appendChild(wrapper);
+        } catch (error) {
+            console.error('Error rendering parent comment:', error);
+        }
+    }
+
+    private handleCommentsStoreChange(): void {
+        const repliesList = document.querySelector('#replies-container .replies-list');
+        if (!repliesList) return;
+        
+        console.log('handleCommentsStoreChange called');
+        const state = commentsStore.getState();
+        console.log('Replies to render:', state.comments);
+
+        if (state.isLoading) {
+            repliesList.innerHTML = '<div class="replies-loader">Загрузка ответов...</div>';
+            return;
+        }
+
+        if (state.error) {
+            repliesList.innerHTML = `<div class="replies-error">${state.error}</div>`;
+            return;
+        }
+
+        repliesList.innerHTML = '';
+        
+        for (const reply of state.comments) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'comment-wrapper';
+            
+            const replyInstance = new Comment({
+                commentId: reply.id,
+                postId: this.postId,
+                user: {
+                    name: reply.authorName,
+                    subtitle: '',
+                    avatar: reply.authorAvatar || '/img/defaultAvatar.jpg',
+                    isSubscribed: false,
+                    id: reply.authorId
+                },
+                postTitle: '',
+                postDate: reply.postDate,
+                text: reply.text,
+                attachment: reply.attachment,
+                onReplyClick: () => {
+                    window.location.href = `/replies/${reply.id}?postId=${this.postId}`;
+                }
+            });
+            
+            replyInstance.render().then(el => {
+                wrapper.appendChild(el);
+                repliesList.appendChild(wrapper);
+            }).catch(err => {
+                console.error('Render error:', err);
+            });
+        }
+    }
+
+    destroy(): void {
+        commentsStore.removeListener(this.boundCommentsStoreHandler);
+        userListStore.removeListener(this.boundUserListStoreHandler);
+        
+        if (this.rootElement && this.rootElement.parentNode === this.container) {
+            this.container.removeChild(this.rootElement);
+        }
+        
+        this.rootElement = null;
+        this.rightMenu = null;
+    }
 }

@@ -374,11 +374,20 @@ export class Header {
     private async handleStoreChange(): Promise<void> {
         const currentLoginState = loginStore.getState();
         
-        // ДОБАВЬТЕ ЭТУ ПРОВЕРКУ ДЛЯ АВАТАРА
-        if (this.lastLoginState && this.lastLoginState.user?.avatar !== currentLoginState.user?.avatar) {
+        // ИЗМЕНЕНИЕ: Сравниваем базовые URL без параметров кэширования
+        const getBaseUrl = (url: string | undefined) => {
+            if (!url) return '';
+            // Убираем все параметры после ? (включая timestamp и nocache)
+            return url.split('?')[0];
+        };
+        
+        const oldAvatarBase = getBaseUrl(this.lastLoginState?.user?.avatar);
+        const newAvatarBase = getBaseUrl(currentLoginState.user?.avatar);
+        
+        if (this.lastLoginState && oldAvatarBase !== newAvatarBase) {
             console.log('🖼️ Avatar changed, updating header!');
-            console.log('Old avatar:', this.lastLoginState.user?.avatar);
-            console.log('New avatar:', currentLoginState.user?.avatar);
+            console.log('Old avatar base:', oldAvatarBase);
+            console.log('New avatar base:', newAvatarBase);
             
             // Принудительно обновляем header
             this.lastLoginState = { ...currentLoginState };

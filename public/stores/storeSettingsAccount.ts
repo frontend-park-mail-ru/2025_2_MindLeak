@@ -96,46 +96,42 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
         });
 
         //первое изменение ФФФФФФФФФФФФФФФ ФФФФФФФФФФФФФ
-    this.registerAction('AVATAR_UPLOAD_SUCCESS', (payload: { avatar_url: string }) => {
-        console.log('✅ AVATAR_UPLOAD_SUCCESS in store:', payload);
+        this.registerAction('AVATAR_UPLOAD_SUCCESS', (payload: { avatar_url: string }) => {
+            console.log('✅ AVATAR_UPLOAD_SUCCESS in store:', payload);
 
-        const currentSettings = this.state.settings;
-        if (currentSettings) {
-            const cacheBustedUrl = `${payload.avatar_url}${payload.avatar_url.includes('?') ? '&' : '?'}nocache=${Date.now()}`;
-            
-            this.setState({
-                isUploadingAvatar: false,
-                error: null,
-                settings: {
-                    ...currentSettings,
-                    avatar_url: cacheBustedUrl
-                }
-            });
-            
-            // Сразу отправляем обновление во все stores
-            const loginState = loginStore.getState();
-            if (loginState.user) {
-                // Отправляем в loginStore
-                dispatcher.dispatch('USER_UPDATE_PROFILE', {
-                    user: {
-                        ...loginState.user,
-                        avatar: cacheBustedUrl
+            const currentSettings = this.state.settings;
+            if (currentSettings) {
+                // ИЗМЕНЕНИЕ: Используем URL с timestamp для обновления кэша
+                const cacheBustedUrl = `${payload.avatar_url}${payload.avatar_url.includes('?') ? '&' : '?'}_=${Date.now()}`;
+                
+                this.setState({
+                    isUploadingAvatar: false,
+                    error: null,
+                    settings: {
+                        ...currentSettings,
+                        avatar_url: cacheBustedUrl
                     }
                 });
                 
-                // Отправляем в profileStore
-                dispatcher.dispatch('PROFILE_UPDATE_AVATAR', {
-                    avatar_url: cacheBustedUrl
-                });
-                
-                // ДОБАВЛЯЕМ: Перезагружаем профиль
-                console.log('🔄 Dispatching profile reload after avatar update');
-                dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
-                    userId: loginState.user.id 
-                });
+                // Сразу отправляем обновление во все stores
+                const loginState = loginStore.getState();
+                if (loginState.user) {
+                    // Отправляем в loginStore
+                    dispatcher.dispatch('USER_UPDATE_PROFILE', {
+                        user: {
+                            ...loginState.user,
+                            avatar: cacheBustedUrl
+                        }
+                    });
+                    
+                    // ДОБАВЛЯЕМ: Перезагружаем профиль
+                    console.log('🔄 Dispatching profile reload after avatar update');
+                    dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
+                        userId: loginState.user.id 
+                    });
+                }
             }
-        }
-    });
+        });
 
         this.registerAction('AVATAR_UPLOAD_FAIL', (payload: { error: string }) => {
             this.setState({

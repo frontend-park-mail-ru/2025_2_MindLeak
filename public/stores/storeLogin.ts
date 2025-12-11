@@ -93,13 +93,10 @@ class LoginStore extends BaseStore<LoginState> {
                 ...payload.user
             };
             
-            // Всегда добавляем timestamp если есть новый аватар
+            // ВСЕГДА добавляем timestamp для обновления кэша
             if (payload.user?.avatar) {
-                // Проверяем, нет ли уже timestamp'а
-                if (!payload.user.avatar.includes('_=')) {
-                    updatedUser.avatar = `${payload.user.avatar}${payload.user.avatar.includes('?') ? '&' : '?'}_=${Date.now()}`;
-                    console.log('✅ Added timestamp to avatar URL:', updatedUser.avatar);
-                }
+                updatedUser.avatar = `${payload.user.avatar}${payload.user.avatar.includes('?') ? '&' : '?'}_=${Date.now()}`;
+                console.log('✅ Added timestamp to avatar URL:', updatedUser.avatar);
             }
             
             const newState = {

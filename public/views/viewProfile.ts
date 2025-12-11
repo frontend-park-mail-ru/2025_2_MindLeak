@@ -216,27 +216,29 @@ export class ProfileView extends BaseView {
         const loginState = loginStore.getState();
         const profileState = profileStore.getState();
         
-        console.log('🔄 ProfileView: Login store changed:', {
-            userAvatar: loginState.user?.avatar,
-            profileAvatar: profileState.profile?.avatar_url
+        // ИЗМЕНЕНИЕ: Сравниваем базовые URL
+        const getBaseUrl = (url: string | undefined) => {
+            if (!url) return '';
+            return url.split('?')[0];
+        };
+        
+        const loginAvatarBase = getBaseUrl(loginState.user?.avatar);
+        const profileAvatarBase = getBaseUrl(profileState.profile?.avatar_url);
+        
+        console.log('🔄 ProfileView: Avatar comparison:', {
+            loginAvatarBase,
+            profileAvatarBase
         });
         
-        // Проверяем, изменился ли аватар текущего пользователя
-        if (loginState.user && profileState.profile) {
-            // Сравниваем аватары (без timestamp'ов для чистого сравнения)
-            const loginAvatar = loginState.user.avatar?.split('?')[0];
-            const profileAvatar = profileState.profile.avatar_url?.split('?')[0];
+        if (loginAvatarBase && profileAvatarBase && loginAvatarBase !== profileAvatarBase) {
+            console.log('🖼️ Avatar changed! Updating profile view...');
             
-            if (loginAvatar && profileAvatar && loginAvatar !== profileAvatar) {
-                console.log('🖼️ Avatar changed! Updating profile view...');
-                
-                // Если это профиль текущего пользователя, перезагружаем данные
-                if (!this.userId || loginState.user.id.toString() === this.userId.toString()) {
-                    console.log('🔄 This is my profile, reloading...');
-                    dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
-                        userId: this.userId 
-                    });
-                }
+            // Если это профиль текущего пользователя, перезагружаем данные
+            if (!this.userId || loginState.user?.id.toString() === this.userId.toString()) {
+                console.log('🔄 This is my profile, reloading...');
+                dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
+                    userId: this.userId 
+                });
             }
         }
         

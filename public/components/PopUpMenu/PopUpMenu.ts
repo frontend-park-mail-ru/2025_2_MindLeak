@@ -268,11 +268,20 @@ export class PopUpMenu {
 
     private handleLoginStoreChange(): void {
         const authState = loginStore.getState();
-        // Проверяем изменилось ли имя или аватар, а не ID
+        
+        // ИЗМЕНЕНИЕ: Сравниваем базовые URL
+        const getBaseUrl = (url: string | undefined) => {
+            if (!url) return '';
+            return url.split('?')[0];
+        };
+        
+        const oldAvatarBase = getBaseUrl(this.user?.avatar);
+        const newAvatarBase = getBaseUrl(authState.user?.avatar);
+        
         if (authState.user && this.user) {
-            // Сравниваем только имя и аватар (не ID, т.к. его нет в интерфейсе User)
+            // Сравниваем только имя и базовый URL аватара
             if (this.user.name !== authState.user.name || 
-                this.user.avatar !== authState.user.avatar ||
+                oldAvatarBase !== newAvatarBase ||
                 this.user.subtitle !== authState.user.subtitle) {
                 
                 this.user = authState.user;

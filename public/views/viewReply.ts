@@ -37,8 +37,8 @@ export class ReplyView {
 
     // Header
     const headerContainer = document.createElement('header');
-    const headerInstance = new Header();
-    const headerEl = await headerInstance.render(headerContainer);
+    const headerInstance = Header.getInstance();
+    const headerEl = await headerInstance.render();
     headerContainer.appendChild(headerEl);
     rootElem.appendChild(headerContainer);
 

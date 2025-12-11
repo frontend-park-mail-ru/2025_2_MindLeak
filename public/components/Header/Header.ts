@@ -62,98 +62,231 @@ async function getHeaderTemplate(): Promise<Handlebars.TemplateDelegate> {
 }
 
 export class Header {
+    private static instance: Header | null = null;
     private headerElement: HTMLElement | null = null;
     private boundStoreHandler: () => void;
+    private boundForceRefreshHandler: () => Promise<void>;
     private container: HTMLElement | null = null;
     private searchResults: SearchResults | null = null;
     private searchInput: HTMLInputElement | null = null;
     private searchTimeout: number | null = null;
     private lastShownQuery: string = '';
-    private isRendering: boolean = false; // ДОБАВИТЬ: флаг для предотвращения ререндера
-    private lastLoginState: any = null; // ДОБАВИТЬ: кэш состояния логина
+    private lastAvatarUrl: string = '';
+    private lastIsLoggedIn: boolean = false;
+    private isInitialized: boolean = false;
 
-    constructor() {
-        this.boundStoreHandler = this.handleStoreChange.bind(this);
-        this.init();
-    }
+    // Обработчики событий как стрелочные функции
+    private handleUserMenuClick = async (e: Event): Promise<void> => {
+        e.stopPropagation();
 
-    private init(): void {
-        loginStore.addListener(this.boundStoreHandler);
-        searchStore.addListener(this.boundStoreHandler);
-        this.lastLoginState = loginStore.getState(); // ИНИЦИАЛИЗИРУЕМ
-        dispatcher.dispatch('LOGIN_CHECK_REQUEST');
-    }
-
-    async render(container?: HTMLElement): Promise<HTMLElement> {
-        // ЗАЩИТА ОТ РЕКУРСИВНОГО РЕНДЕРА
-        if (this.isRendering) {
-            return this.headerElement!;
+        const target = e.currentTarget as HTMLElement;
+        if (!target || !document.body.contains(target)) {
+            console.error('❌ Target is null or not in DOM');
+            return;
         }
-        
-        this.isRendering = true;
-        
+
         try {
-            if (container) {
-                this.container = container;
+            // ✅ ВАЖНО: Получаем СВЕЖИЕ данные при каждом клике
+            const currentAuthState = loginStore.getState();
+            if (!currentAuthState.isLoggedIn) {
+                const currentPath = window.location.pathname + window.location.search;
+                await this.showLoginForm(currentPath);
+                return;
             }
 
-            const template = await getHeaderTemplate();
-            const authState = loginStore.getState();
-
-            // ПРОВЕРЯЕМ, ДЕЙСТВИТЕЛЬНО ЛИ ИЗМЕНИЛОСЬ СОСТОЯНИЕ
-            const getCleanUrl = (url: string | undefined): string => {
-                if (!url) return '';
-                return url.split('?')[0];
-            };
-            
-            const oldAvatarClean = getCleanUrl(this.lastLoginState?.user?.avatar);
-            const newAvatarClean = getCleanUrl(authState.user?.avatar);
-            
-            if (this.headerElement && 
-                this.lastLoginState && 
-                this.lastLoginState.isLoggedIn === authState.isLoggedIn &&
-                this.lastLoginState.user?.id === authState.user?.id &&
-                this.lastLoginState.user?.name === authState.user?.name &&
-                oldAvatarClean === newAvatarClean) {
-                // Состояние не изменилось - возвращаем существующий элемент
-                return this.headerElement;
+            const existingMenu = document.querySelector('.popUp-menu');
+            if (existingMenu && existingMenu.parentNode) {
+                existingMenu.remove();
+                return; 
             }
 
-            // ОБНОВЛЯЕМ КЭШ
-            this.lastLoginState = { ...authState };
-
-            const html = template({
-                isLoggedIn: authState.isLoggedIn,
-                user: authState.user ? {
-                    // Явно передаем все поля
-                    name: authState.user.name,
-                    avatar: authState.user.avatar ? 
-                        `${authState.user.avatar.split('?')[0]}?t=${Date.now()}` :
-                        authState.user.avatar,
-                    subtitle: authState.user.subtitle || '',
-                    email: authState.user.email || ''
-                } : null
+            const popUpMenu = new PopUpMenu({
+                user: {
+                    name: currentAuthState.user?.name || 'Пользователь',
+                    avatar: currentAuthState.user?.avatar || '/img/defaultAvatar.jpg',
+                    subtitle: currentAuthState.user?.subtitle || '',
+                    email: currentAuthState.user?.email || ''
+                },
+                menuItems: [
+                    { key: 'bookmarks', icon: '/img/icons/note_icon.svg', text: 'Черновики' },
+                    { key: 'saved', icon: '/img/icons/bookmark.svg', text: 'Закладки' },
+                    { key: 'settings', icon: '/img/icons/settings_icon.svg', text: 'Настройки' },
+                    { key: 'subscription', icon: '/img/icons/premium_icon.svg', text: 'Подписка' },
+                    { key: 'TechSupport', icon: '/img/icons/chat_icon.svg', text: 'Техподдержка' },
+                    { key: 'Statistics', icon: '/img/icons/statistics_icon.svg', text: 'Статистика' },
+                    { key: 'logout', icon: '/img/icons/exit_icon.svg', text: 'Выйти' }
+                ]
             });
 
-            const div = document.createElement('div');
-            div.innerHTML = html.trim();
+            const menuEl = await popUpMenu.render();
+            const rect = target.getBoundingClientRect();
             
-            // УДАЛЯЕМ СТАРЫЙ HEADER ТОЛЬКО ЕСЛИ ОН СУЩЕСТВУЕТ
-            if (this.headerElement && this.headerElement.parentNode) {
-                this.headerElement.remove();
+            // Проверяем что элемент еще в DOM
+            if (!document.body.contains(target)) {
+                console.error('❌ Target removed from DOM during async operation');
+                return;
             }
             
-            this.headerElement = div.firstElementChild as HTMLElement;
-            
-            if (!this.headerElement) {
-                throw new Error('Header element not found');
-            }
+            menuEl.style.position = 'fixed';
+            menuEl.style.top = `${rect.bottom + 10}px`;
+            menuEl.style.right = `${window.innerWidth - rect.right}px`;
+            menuEl.style.zIndex = '1000';
 
-            this.setupEventHandlers();
-            return this.headerElement;
-        } finally {
-            this.isRendering = false;
+            document.body.appendChild(menuEl);
+
+            const closeMenu = (event: Event) => {
+                const clickTarget = event.target as Node;
+                if (!menuEl.contains(clickTarget) && clickTarget !== target) {
+                    menuEl.remove();
+                    document.removeEventListener('click', closeMenu);
+                }
+            };
+
+            document.addEventListener('click', closeMenu);
+            
+        } catch (error) {
+            console.error('❌ Error in handleUserMenuClick:', error);
         }
+    };
+
+    private handleSearchInput = (e: Event): void => {
+        const target = e.target as HTMLInputElement;
+        const query = target.value.trim();
+        
+        console.log('🔍 Search input:', query);
+
+        this.lastShownQuery = '';
+        
+        if (query.length === 0) {
+            this.clearSearchResults();
+            dispatcher.dispatch('SEARCH_CLEAR');
+            return;
+        }
+
+        console.log('🚀 Immediate SEARCH_BLOGS_REQUEST for:', query);
+        
+        this.clearSearchResults();
+        dispatcher.dispatch('SEARCH_BLOGS_REQUEST', { query });
+    };
+
+    private handleSearchFocus = (): void => {
+        const query = this.searchInput?.value.trim();
+        if (query && query.length >= 1) {
+            const state = searchStore.getState();
+            if (state.query === query && state.blogs.length > 0 && this.lastShownQuery !== query) {
+                this.showSearchResults(state.blogs, state.query);
+            }
+        }
+    };
+
+    private handleClickOutside = (e: Event): void => {
+        const target = e.target as Node;
+        
+        if (this.searchInput && !this.searchInput.contains(target)) {
+            if (this.searchResults && this.searchResults.contains(target)) {
+                return;
+            }
+            this.clearSearchResults();
+        }
+    };
+
+    // ✅ Singleton pattern
+    static getInstance(): Header {
+        if (!Header.instance) {
+            Header.instance = new Header();
+        }
+        return Header.instance;
+    }
+
+    static cleanup(): void {
+        if (Header.instance) {
+            Header.instance.destroy();
+            Header.instance = null;
+        }
+    }
+
+    private constructor() {
+        this.boundStoreHandler = this.handleStoreChange.bind(this);
+        this.boundForceRefreshHandler = this.forceRefresh.bind(this);
+    }
+
+    async init(container?: HTMLElement): Promise<void> {
+        if (this.isInitialized) {
+            console.log('🔄 Header already initialized, skipping');
+            return;
+        }
+
+        console.log('🔄 Initializing Header...');
+        
+        if (container) {
+            this.container = container;
+        } else {
+            // Если контейнер не передан, ищем или создаем header в body
+            this.container = document.querySelector('header') as HTMLElement;
+            if (!this.container) {
+                this.container = document.createElement('header');
+                document.body.insertBefore(this.container, document.body.firstChild);
+            }
+        }
+
+        loginStore.addListener(this.boundStoreHandler);
+        searchStore.addListener(this.boundStoreHandler);
+        
+        const authState = loginStore.getState();
+        this.lastAvatarUrl = authState.user?.avatar || '';
+        this.lastIsLoggedIn = authState.isLoggedIn;
+        
+        dispatcher.register('HEADER_FORCE_REFRESH', this.boundForceRefreshHandler);
+        
+        // Рендерим header при инициализации
+        await this.render();
+        
+        this.isInitialized = true;
+        console.log('✅ Header initialized successfully');
+    }
+
+    async render(): Promise<HTMLElement> {
+        if (!this.container) {
+            throw new Error('Header container not set. Call init() first.');
+        }
+
+        const template = await getHeaderTemplate();
+        const authState = loginStore.getState();
+
+        const html = template({
+            isLoggedIn: authState.isLoggedIn,
+            user: authState.user ? {
+                name: authState.user.name,
+                avatar: authState.user.avatar ? 
+                    `${authState.user.avatar.split('?')[0]}?t=${Date.now()}` :
+                    authState.user.avatar,
+                subtitle: authState.user.subtitle || '',
+                email: authState.user.email || ''
+            } : null
+        });
+
+        const div = document.createElement('div');
+        div.innerHTML = html.trim();
+        
+        // Удаляем старый header если он есть
+        if (this.headerElement && this.headerElement.parentNode === this.container) {
+            this.headerElement.remove();
+        }
+        
+        this.headerElement = div.firstElementChild as HTMLElement;
+        
+        if (!this.headerElement) {
+            throw new Error('Header element not found');
+        }
+
+        this.container.appendChild(this.headerElement);
+        this.setupEventHandlers();
+        
+        return this.headerElement;
+    }
+
+    getElement(): HTMLElement | null {
+        return this.headerElement;
     }
 
     private async showLoginForm(targetUrl?: string): Promise<void> {
@@ -167,7 +300,6 @@ export class Header {
 
         console.log('🔄 Setting up header event handlers');
 
-        // ✅ ВСЕГДА получаем свежее состояние при настройке обработчиков
         const authState = loginStore.getState();
 
         const logo = this.headerElement.querySelector('[data-key="logo"]') as HTMLElement;
@@ -180,60 +312,10 @@ export class Header {
 
         const userMenu = this.headerElement.querySelector('.user_info_header') as HTMLElement;
         if (userMenu) {
-            userMenu.addEventListener('click', async (e: Event) => {
-                e.stopPropagation();
-
-                // ✅ ВСЕГДА проверяем актуальное состояние
-                const currentAuthState = loginStore.getState();
-                if (!currentAuthState.isLoggedIn) {
-                    const currentPath = window.location.pathname + window.location.search;
-                    await this.showLoginForm(currentPath);
-                    return;
-                }
-
-                const existingMenu = document.querySelector('.popUp-menu');
-                if (existingMenu) {
-                    existingMenu.remove();
-                    return; 
-                }
-
-                const popUpMenu = new PopUpMenu({
-                    user: {
-                        name: currentAuthState.user?.name || 'Пользователь',
-                        avatar: currentAuthState.user?.avatar || '/img/defaultAvatar.jpg',
-                        subtitle: currentAuthState.user?.subtitle || '',
-                        email: currentAuthState.user?.email || ''
-                    },
-                    menuItems: [
-                        { key: 'bookmarks', icon: '/img/icons/note_icon.svg', text: 'Черновики' },
-                        { key: 'saved', icon: '/img/icons/bookmark.svg', text: 'Закладки' },
-                        { key: 'settings', icon: '/img/icons/settings_icon.svg', text: 'Настройки' },
-                        { key: 'subscription', icon: '/img/icons/premium_icon.svg', text: 'Подписка' },
-                        { key: 'TechSupport', icon: '/img/icons/chat_icon.svg', text: 'Техподдержка' },
-                        { key: 'Statistics', icon: '/img/icons/statistics_icon.svg', text: 'Статистика' },
-                        { key: 'logout', icon: '/img/icons/exit_icon.svg', text: 'Выйти' }
-                    ]
-                });
-
-                const menuEl = await popUpMenu.render();
-                const rect = userMenu.getBoundingClientRect();
-                menuEl.style.position = 'fixed';
-                menuEl.style.top = `${rect.bottom + 10}px`;
-                menuEl.style.right = `${window.innerWidth - rect.right}px`;
-                menuEl.style.zIndex = '1000';
-
-                document.body.appendChild(menuEl);
-
-                const closeMenu = (event: Event) => {
-                    const target = event.target as Node;
-                    if (!menuEl.contains(target) && target !== userMenu) {
-                        menuEl.remove();
-                        document.removeEventListener('click', closeMenu);
-                    }
-                };
-
-                document.addEventListener('click', closeMenu);
-            });
+            // Удаляем старый обработчик если есть
+            userMenu.removeEventListener('click', this.handleUserMenuClick);
+            // Добавляем новый обработчик
+            userMenu.addEventListener('click', this.handleUserMenuClick);
         }
 
         const createPostButton = this.headerElement.querySelector('button[data-key="createPost"]') as HTMLButtonElement;
@@ -261,7 +343,6 @@ export class Header {
             });
         }
 
-        // Обработка поиска
         this.searchInput = this.headerElement.querySelector('.header__search') as HTMLInputElement;
         if (this.searchInput) {
             console.log('✅ Search input found, adding event listeners');
@@ -270,57 +351,18 @@ export class Header {
             console.error('❌ Search input not found!');
         }
 
-        document.addEventListener('click', this.handleClickOutside.bind(this));
+        document.addEventListener('click', this.handleClickOutside);
     }
 
     private navigateToHome(): void {
         router.navigate('/');
     }
 
-    private handleSearchInput(e: Event): void {
-        const target = e.target as HTMLInputElement;
-        const query = target.value.trim();
-        
-        console.log('🔍 Search input:', query);
-
-        // Сбрасываем последний показанный запрос
-        this.lastShownQuery = '';
-        
-        // Очищаем результаты при пустом запросе
-        if (query.length === 0) {
-            this.clearSearchResults();
-            dispatcher.dispatch('SEARCH_CLEAR');
-            return;
-        }
-
-        // НЕМЕДЛЕННО отправляем запрос (без таймаута)
-        console.log('🚀 Immediate SEARCH_BLOGS_REQUEST for:', query);
-        
-        // Очищаем предыдущие результаты
-        this.clearSearchResults();
-        
-        // Отправляем запрос
-        dispatcher.dispatch('SEARCH_BLOGS_REQUEST', { query });
-    }
-
-    private handleSearchFocus(): void {
-        const query = this.searchInput?.value.trim();
-        if (query && query.length >= 1) {
-            const state = searchStore.getState();
-            // ПОКАЗЫВАЕМ РЕЗУЛЬТАТЫ ТОЛЬКО ЕСЛИ ЗАПРОС СОВПАДАЕТ И ЕСТЬ РЕЗУЛЬТАТЫ
-            if (state.query === query && state.blogs.length > 0 && this.lastShownQuery !== query) {
-                this.showSearchResults(state.blogs, state.query);
-            }
-        }
-    }
-
     private async showSearchResults(users: any[], query: string): Promise<void> {
-        // ВСЕГДА ОЧИЩАЕМ ПРЕДЫДУЩИЕ РЕЗУЛЬТАТЫ
         this.clearSearchResults();
 
         console.log('🔍 Showing search results with users:', users, 'query:', query);
 
-        // СОЗДАЕМ РЕЗУЛЬТАТЫ ТОЛЬКО ЕСЛИ ЕСТЬ ПОЛЬЗОВАТЕЛИ ИЛИ ЗАПРОС НЕ ПУСТОЙ
         if (users.length > 0 || query.length > 0) {
             this.searchResults = new SearchResults({
                 users: users,
@@ -336,10 +378,7 @@ export class Header {
             if (this.searchInput) {
                 const rect = this.searchInput.getBoundingClientRect();
                 
-                // Добавляем позиционирующий класс
                 resultsElement.classList.add('search-results--positioned');
-                
-                // Устанавливаем стили позиционирования
                 resultsElement.style.top = `${rect.bottom + window.scrollY}px`;
                 resultsElement.style.left = `${rect.left + window.scrollX}px`;
                 resultsElement.style.width = `${rect.width}px`;
@@ -351,13 +390,11 @@ export class Header {
     }
 
     private clearSearchResults(): void {
-        // УДАЛЯЕМ ВСЕ СУЩЕСТВУЮЩИЕ РЕЗУЛЬТАТЫ ИЗ DOM
         const existingResults = document.querySelectorAll('.search-results');
         existingResults.forEach(result => {
             result.remove();
         });
         
-        // ОЧИЩАЕМ ССЫЛКУ
         if (this.searchResults) {
             this.searchResults.destroy();
             this.searchResults = null;
@@ -368,171 +405,78 @@ export class Header {
         this.lastShownQuery = '';
         if (this.searchTimeout) {
             clearTimeout(this.searchTimeout);
-            this.searchTimeout = null;
         }
         this.clearSearchResults();
     }
 
-    private handleClickOutside(e: Event): void {
-        const target = e.target as Node;
-        
-        if (this.searchInput && !this.searchInput.contains(target)) {
-            if (this.searchResults && this.searchResults.contains(target)) {
-                return;
-            }
-            this.clearSearchResults();
-        }
-    }
-
     private async handleStoreChange(): Promise<void> {
-        const currentLoginState = loginStore.getState();
+        const authState = loginStore.getState();
+        const searchState = searchStore.getState();
         
-        // ✅ ПРОСТАЯ ПРОВЕРКА: если аватар изменился в loginStore
-        if (this.lastLoginState && 
-            this.lastLoginState.user?.avatar !== currentLoginState.user?.avatar) {
-            
-            console.log('🖼️ Avatar changed in loginStore! Updating header...', {
-                old: this.lastLoginState.user?.avatar,
-                new: currentLoginState.user?.avatar
+        // ПРОСТАЯ проверка обновления Header
+        const shouldUpdate = 
+            this.lastIsLoggedIn !== authState.isLoggedIn ||
+            this.lastAvatarUrl !== authState.user?.avatar;
+        
+        if (shouldUpdate) {
+            console.log('🔄 Header needs update:', {
+                loginChanged: this.lastIsLoggedIn !== authState.isLoggedIn,
+                avatarChanged: this.lastAvatarUrl !== authState.user?.avatar
             });
             
-            // Обновляем кэш
-            this.lastLoginState = { ...currentLoginState };
+            this.lastAvatarUrl = authState.user?.avatar || '';
+            this.lastIsLoggedIn = authState.isLoggedIn;
             
-            // Перерендериваем header
             await this.refreshHeader();
-            return;
         }
         
-        const searchState = searchStore.getState();
+        // Обработка поиска
         const currentInputValue = this.searchInput?.value.trim() || '';
         
-        console.log('🔍 Header: Store changed -', {
-            storeQuery: searchState.query,
-            inputQuery: currentInputValue,
-            lastShown: this.lastShownQuery,
-            usersCount: searchState.blogs.length,
-            isLoading: searchState.isLoading,
-            avatarChanged: this.lastLoginState?.user?.avatar !== currentLoginState.user?.avatar
-        });
-        
-        // Проверяем что результаты в store соответствуют ТЕКУЩЕМУ значению инпута
-        // Если запросы не совпадают - игнорируем эти результаты
-        // Это защита от "устаревших" (stale) результатов
         if (searchState.query !== currentInputValue) {
-            console.log('🔄 Ignoring stale results - query mismatch:', {
-                storeQuery: searchState.query,
-                currentInput: currentInputValue
-            });
-            
-            // Если в store пустой запрос, но у нас есть ввод - тоже игнорируем
-            if (searchState.query === '' && currentInputValue.length > 0) {
-                console.log('🔄 Store is empty but input has value - waiting for proper response');
-                return;
-            }
-            
-            // Если store ещё загружается для другого запроса - ждём
-            if (searchState.isLoading && searchState.query !== currentInputValue) {
-                console.log('🔄 Store is loading different query - waiting');
-                return;
-            }
-            
             return;
         }
         
-        // Теперь мы знаем, что запросы совпадают
-        // Показываем результаты ТОЛЬКО если:
-        // 1. Запросы совпадают (уже проверили)
-        // 2. Запрос не пустой
-        // 3. Это не тот же запрос, что уже показан
-        // 4. Store не в состоянии загрузки (или мы хотим показать loading state)
-        
         if (currentInputValue.length === 0) {
-            // Пустой запрос - очищаем результаты
             this.clearSearchResults();
             this.lastShownQuery = '';
             return;
         }
         
-        // Проверяем, не показывали ли мы уже результаты для этого запроса
         if (this.lastShownQuery === currentInputValue) {
-            console.log('🔄 Already shown results for this query:', currentInputValue);
             return;
         }
         
-        // Если всё ок, показываем результаты
-        console.log('✅ Showing results for current query:', currentInputValue);
-        
         if (searchState.isLoading) {
-            // Можно показать индикатор загрузки
-            console.log('⏳ Results are still loading...');
-            // Здесь можно добавить показ loading state если нужно
+            // Загрузка...
         } else if (searchState.error) {
-            // Показываем ошибку если есть
-            console.error('❌ Search error:', searchState.error);
             this.clearSearchResults();
         } else {
-            // Показываем результаты
             await this.showSearchResults(searchState.blogs, searchState.query);
-        }
-        
-        // ОБНОВЛЯЕМ HEADER ТОЛЬКО ЕСЛИ ДЕЙСТВИТЕЛЬНО ИЗМЕНИЛОСЬ СОСТОЯНИЕ ЛОГИНА (кроме аватара)
-        const loginState = loginStore.getState();
-        const shouldUpdateHeader = this.container && 
-                                this.lastLoginState && 
-                                (this.lastLoginState.isLoggedIn !== loginState.isLoggedIn ||
-                                this.lastLoginState.user?.id !== loginState.user?.id ||
-                                this.lastLoginState.user?.name !== loginState.user?.name);
-        
-        if (shouldUpdateHeader) {
-            console.log('🔄 Header: Login state changed, updating header');
-            
-            const currentSearchValue = this.searchInput?.value || '';
-            const hadFocus = document.activeElement === this.searchInput;
-            
-            const newHeader = await this.render();
-            if (this.container && newHeader.parentNode !== this.container) {
-                this.container.appendChild(newHeader);
-            }
-            
-            // ВОССТАНАВЛИВАЕМ СОСТОЯНИЕ ПОИСКА
-            const newSearchInput = newHeader.querySelector('.header__search') as HTMLInputElement;
-            if (newSearchInput && currentSearchValue) {
-                newSearchInput.value = currentSearchValue;
-                this.searchInput = newSearchInput;
-                this.setupSearchHandlers();
-                
-                if (hadFocus) {
-                    this.searchInput.focus();
-                    this.searchInput.setSelectionRange(
-                        currentSearchValue.length, 
-                        currentSearchValue.length
-                    );
-                }
-            }
         }
     }
 
     private async refreshHeader(): Promise<void> {
+        if (!this.container) {
+            console.error('❌ Cannot refresh header: container not set');
+            return;
+        }
+        
+        console.log('🔄 Refreshing header...');
+        
         const currentSearchValue = this.searchInput?.value || '';
         const hadFocus = document.activeElement === this.searchInput;
         
-        // Сохраняем позицию прокрутки перед обновлением
-        const scrollY = window.scrollY;
-        
-        // Рендерим новый header
         const newHeader = await this.render();
         
-        // Заменяем старый header
-        if (this.headerElement && this.headerElement.parentNode) {
+        if (this.headerElement && this.headerElement.parentNode === this.container) {
             this.headerElement.parentNode.replaceChild(newHeader, this.headerElement);
-        } else if (this.container) {
+        } else {
             this.container.appendChild(newHeader);
         }
         
         this.headerElement = newHeader;
         
-        // Восстанавливаем состояние поиска
         this.searchInput = this.headerElement.querySelector('.header__search') as HTMLInputElement;
         if (this.searchInput && currentSearchValue) {
             this.searchInput.value = currentSearchValue;
@@ -540,52 +484,52 @@ export class Header {
             
             if (hadFocus) {
                 this.searchInput.focus();
-                this.searchInput.setSelectionRange(
-                    currentSearchValue.length, 
-                    currentSearchValue.length
-                );
             }
         }
         
-        // Восстанавливаем позицию прокрутки
-        window.scrollTo(0, scrollY);
-        
-        console.log('✅ Header refreshed successfully');
+        console.log('✅ Header refreshed');
     }
 
     private setupSearchHandlers(): void {
         if (this.searchInput) {
-            this.searchInput.addEventListener('input', this.handleSearchInput.bind(this));
-            this.searchInput.addEventListener('focus', this.handleSearchFocus.bind(this));
+            this.searchInput.removeEventListener('input', this.handleSearchInput);
+            this.searchInput.removeEventListener('focus', this.handleSearchFocus);
+            
+            this.searchInput.addEventListener('input', this.handleSearchInput);
+            this.searchInput.addEventListener('focus', this.handleSearchFocus);
         }
     }
 
+    private async forceRefresh(): Promise<void> {
+        console.log('🔧 Force refreshing header...');
+        await this.refreshHeader();
+    }
+
     destroy(): void {
+        console.log('🧹 Destroying Header...');
+        
         loginStore.removeListener(this.boundStoreHandler);
         searchStore.removeListener(this.boundStoreHandler);
+        
+        if (this.boundForceRefreshHandler) {
+            dispatcher.unregister('HEADER_FORCE_REFRESH', this.boundForceRefreshHandler);
+        }
         
         if (this.searchTimeout) {
             clearTimeout(this.searchTimeout);
         }
         
         this.clearSearchResults();
-
         document.removeEventListener('click', this.handleClickOutside);
 
-        // УДАЛЯЕМ HEADER ИЗ DOM
-        if (this.headerElement && this.headerElement.parentNode) {
-            this.headerElement.parentNode.removeChild(this.headerElement);
+        if (this.headerElement && this.headerElement.parentNode === this.container) {
+            this.headerElement.remove();
             this.headerElement = null;
         }
         
-        // ОЧИЩАЕМ КОНТЕЙНЕР
-        if (this.container) {
-            this.container.innerHTML = '';
-            this.container = null;
-        }
+        this.container = null;
+        this.isInitialized = false;
         
-        // СБРАСЫВАЕМ СОСТОЯНИЕ
-        this.lastLoginState = null;
-        this.isRendering = false;
+        console.log('✅ Header destroyed');
     }
 }

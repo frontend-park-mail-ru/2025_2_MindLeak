@@ -30,8 +30,12 @@ export const loginActions = {
     updateUser(user: Partial<User>): void {
         dispatcher.dispatch('USER_UPDATE_PROFILE', { user });
     },
-    
+
     avatarUpdated(avatar: string): void {
         dispatcher.dispatch('UPDATE_AVATAR_ONLY', { avatar });
+    },
+    
+    forceHeaderUpdate(): void {
+        dispatcher.dispatch('HEADER_FORCE_UPDATE', { reason: 'manual_update' });
     }
 };

@@ -99,12 +99,21 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
             console.log('✅ AVATAR_UPLOAD_SUCCESS in store');
             
             const currentSettings = this.state.settings;
-            // ✅ ПРОСТО обновляем флаги, НЕ меняем URL
+            // ✅ ОБНОВЛЯЕМ аватар в настройках тоже!
+            const authState = loginStore.getState();
+            const updatedSettings = currentSettings ? {
+                ...currentSettings,
+                avatar_url: authState.user?.avatar || currentSettings.avatar_url
+            } : currentSettings;
+            
             this.setState({
                 isUploadingAvatar: false,
                 error: null,
-                settings: currentSettings
+                settings: updatedSettings
             });
+            
+            // ✅ Триггерим обновление Header
+            dispatcher.dispatch('HEADER_FORCE_REFRESH');
         });
 
         this.registerAction('AVATAR_UPLOAD_FAIL', (payload: { error: string }) => {

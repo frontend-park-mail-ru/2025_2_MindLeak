@@ -554,6 +554,7 @@ private normalizeAppealData(appeal: any): any {
         }
     }
 
+    //todo стоит ли менять???
     private async loadUserPosts(userId: number): Promise<any[]> {
         console.log('🔄 [API] Loading user posts for userId:', userId);
         let url = `/posts?author_id=${userId}`;
@@ -806,24 +807,30 @@ private normalizeAppealData(appeal: any): any {
                     
                     this.sendAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS');
                     
-                    // Если в ответе есть аватар - обновляем его тоже
-                    if (response.data.avatar_url) {
-                        const authState = loginStore.getState();
-                        if (authState.user) {
-                            // ИЗМЕНЕНИЕ: Простой timestamp
-                            const cacheBustedUrl = `${response.data.avatar_url}${response.data.avatar_url.includes('?') ? '&' : '?'}_=${Date.now()}`;
-                            
-                            this.sendAction('USER_UPDATE_PROFILE', {
-                                user: {
-                                    id: authState.user.id,
-                                    name: response.data.name || authState.user.name,
-                                    avatar: cacheBustedUrl,
-                                    subtitle: authState.user.subtitle,
-                                    email: response.data.email || authState.user.email
-                                }
-                            });
-                        }
+                    // ✅ ВАЖНО: ПРИНУДИТЕЛЬНО ПЕРЕЗАГРУЖАЕМ ПРОФИЛЬ И ПОСТЫ!
+                    const authState = loginStore.getState();
+                    if (authState.user) {
+                        const cacheBustedUrl = `${response.data.avatar_url}${response.data.avatar_url.includes('?') ? '&' : '?'}_=${Date.now()}`;
+                        
+                        this.sendAction('USER_UPDATE_PROFILE', {
+                            user: {
+                                id: authState.user.id,
+                                name: response.data.name || authState.user.name,
+                                avatar: cacheBustedUrl,
+                                subtitle: authState.user.subtitle,
+                                email: response.data.email || authState.user.email
+                            }
+                        });
+                        
+                        // ✅ ПРИНУДИТЕЛЬНО ПЕРЕЗАГРУЖАЕМ ПРОФИЛЬ
+                        this.sendAction('PROFILE_LOAD_REQUEST', { 
+                            userId: authState.user.id 
+                        });
+                        
+                        // ✅ ПРИНУДИТЕЛЬНО ПЕРЕЗАГРУЖАЕМ ПОСТЫ
+                        this.sendAction('POSTS_RELOAD_AFTER_EDIT');
                     }
+                    
                     this.loadSettingsAccount();
                 } else {
                     this.sendAction('SETTINGS_ACCOUNT_UPDATE_FAIL', { error: 'No updated data' });
@@ -915,7 +922,6 @@ private normalizeAppealData(appeal: any): any {
 
         switch (response.status) {
             case STATUS.ok:
-                // Проверяем URL аватара
                 let avatarUrl = '';
                 
                 if (response.data?.Avatar) {
@@ -927,17 +933,20 @@ private normalizeAppealData(appeal: any): any {
                 console.log('✅ Avatar uploaded, URL:', avatarUrl);
                 
                 if (avatarUrl) {
-                    // ✅ Добавляем timestamp
+                    // ✅ ВОССТАНАВЛИВАЕМ рабочую логику - используем AVATAR_UPLOADED
                     const timestampedUrl = `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}_=${Date.now()}`;
                     
-                    // ✅ Используем новый action ТОЛЬКО для аватара
-                    this.sendAction('UPDATE_AVATAR_ONLY', { avatar: timestampedUrl });
+                    // ✅ Используем правильный action для loginStore
+                    this.sendAction('AVATAR_UPLOADED', { avatar: timestampedUrl });
+                    
+                    // ✅ Триггерим обновление Header
+                    dispatcher.dispatch('HEADER_FORCE_REFRESH');
                 }
                 
-                // ✅ 2. Отправляем success в settings store
+                // Отправляем success в settings store
                 this.sendAction('AVATAR_UPLOAD_SUCCESS');
                 
-                // ✅ 3. СРАЗУ перезагружаем профиль
+                // Перезагружаем профиль
                 const authState = loginStore.getState();
                 if (authState.user) {
                     console.log('🔄 Forcing PROFILE_LOAD_REQUEST after avatar upload');

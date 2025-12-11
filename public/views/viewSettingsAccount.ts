@@ -400,6 +400,8 @@ export class SettingsAccountView extends BaseView {
         const loginState = loginStore.getState();
         
         if (!loginState.isLoggedIn) {
+            // ✅ Перед навигацией триггерим обновление Header
+            dispatcher.dispatch('HEADER_FORCE_UPDATE', { reason: 'user_logged_out' });
             loginStore.removeListener(this.boundLoginStoreHandler);
             router.navigate('/');
         }

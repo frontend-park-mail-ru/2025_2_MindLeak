@@ -34,14 +34,17 @@ class LoginStore extends BaseStore<LoginState> {
 
         //первое изменение ФФФФФФФФФФФФФФФ ФФФФФФФФФФФФФ
         this.registerAction('USER_LOGIN_CHECKED', (payload: { user: User }) => {
+                console.log('🔄 USER_LOGIN_CHECKED payload:', payload);
+            console.log('📝 Payload name:', payload.user?.name);
+            console.log('📝 Payload email:', payload.user?.email);
             // Добавляем timestamp к URL аватара для избежания кэширования
             const userWithCacheBust = {
                 ...payload.user,
                 avatar: payload.user.avatar ? 
                     `${payload.user.avatar}${payload.user.avatar.includes('?') ? '&' : '?'}nocache=${Date.now()}` :
-                    payload.user.avatar,
-                email: payload.user.email || ''
+                    payload.user.avatar
             };
+            console.log('✅ User with cache bust:', userWithCacheBust);
             
             const newState = {
                 user: userWithCacheBust,
@@ -87,28 +90,18 @@ class LoginStore extends BaseStore<LoginState> {
             console.log('🔄 Updating user in loginStore:', payload.user);
             const currentState = this.getState();
             
-            // Обновляем ВСЕ поля пользователя
+            // ✅ ПРОСТО обновляем все поля
             let updatedUser = {
                 ...currentState.user,
                 ...payload.user
             };
             
-            // ✅ ВАЖНО: Если обновляется аватар, сохраняем timestamp
-            if (payload.user?.avatar && currentState.user?.avatar) {
-                // Проверяем, есть ли уже timestamp в старом аватаре
-                const oldAvatar = currentState.user.avatar;
-                const hasTimestamp = oldAvatar.includes('?_=') || oldAvatar.includes('&_=');
-                
-                if (hasTimestamp) {
-                    // Сохраняем timestamp из старого URL
-                    const timestampMatch = oldAvatar.match(/[?&]_=(\d+)/);
-                    if (timestampMatch) {
-                        const timestamp = timestampMatch[1];
-                        const baseUrl = payload.user.avatar.split('?')[0];
-                        updatedUser.avatar = `${baseUrl}?_=${timestamp}`;
-                        console.log('✅ Preserved timestamp from old avatar:', updatedUser.avatar);
-                    }
-                }
+            // ✅ ВАЖНО: Если есть новый аватар, добавляем timestamp
+            if (payload.user?.avatar) {
+                const baseUrl = payload.user.avatar.split('?')[0];
+                const newTimestamp = `?_=${Date.now()}`;
+                updatedUser.avatar = `${baseUrl}${newTimestamp}`;
+                console.log('✅ Updated avatar with new timestamp:', updatedUser.avatar);
             }
             
             const newState = {
@@ -140,6 +133,9 @@ class LoginStore extends BaseStore<LoginState> {
                 console.log('✅ Updated avatar with timestamp:', timestampedAvatar);
                 this.setState(newState);
                 this.saveAuthState(newState);
+                
+                // ✅ Триггерим обновление Header
+                dispatcher.dispatch('HEADER_FORCE_REFRESH');
             }
         });
 
@@ -171,6 +167,8 @@ class LoginStore extends BaseStore<LoginState> {
             };
             this.setState(newState);
             this.clearAuthState();
+
+            dispatcher.dispatch('HEADER_FORCE_REFRESH');
         });
 
         this.registerAction('USER_UNAUTHORIZED', () => {
@@ -214,11 +212,27 @@ class LoginStore extends BaseStore<LoginState> {
 
     private saveAuthState(state: LoginState): void {
         try {
+            // ✅ ПРОВЕРЯЕМ что есть все необходимые поля
+            if (!state.user?.id || !state.user?.name) {
+                console.warn('⚠️ Not saving incomplete user to localStorage:', state.user);
+                return;
+            }
+            
+            const userToSave = {
+                id: state.user.id,
+                name: state.user.name,
+                avatar: state.user.avatar,
+                subtitle: state.user.subtitle,
+                email: state.user.email
+            };
+            
             localStorage.setItem('authState', JSON.stringify({
-                user: state.user,
+                user: userToSave,
                 isLoggedIn: state.isLoggedIn
             }));
             localStorage.setItem('authStateTime', Date.now().toString());
+            
+            console.log('✅ Saved auth state to localStorage:', userToSave);
         } catch (error) {
             console.error('Error saving auth state to localStorage:', error);
         }

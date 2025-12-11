@@ -101,10 +101,20 @@ export class Header {
             const authState = loginStore.getState();
 
             // ПРОВЕРЯЕМ, ДЕЙСТВИТЕЛЬНО ЛИ ИЗМЕНИЛОСЬ СОСТОЯНИЕ
+            const getCleanUrl = (url: string | undefined): string => {
+                if (!url) return '';
+                return url.split('?')[0];
+            };
+            
+            const oldAvatarClean = getCleanUrl(this.lastLoginState?.user?.avatar);
+            const newAvatarClean = getCleanUrl(authState.user?.avatar);
+            
             if (this.headerElement && 
                 this.lastLoginState && 
                 this.lastLoginState.isLoggedIn === authState.isLoggedIn &&
-                this.lastLoginState.user?.id === authState.user?.id) {
+                this.lastLoginState.user?.id === authState.user?.id &&
+                this.lastLoginState.user?.name === authState.user?.name &&
+                oldAvatarClean === newAvatarClean) {
                 // Состояние не изменилось - возвращаем существующий элемент
                 return this.headerElement;
             }
@@ -118,7 +128,7 @@ export class Header {
                     // Явно передаем все поля
                     name: authState.user.name,
                     avatar: authState.user.avatar ? 
-                        `${authState.user.avatar}?t=${Date.now()}` :
+                        `${authState.user.avatar.split('?')[0]}?t=${Date.now()}` :
                         authState.user.avatar,
                     subtitle: authState.user.subtitle || '',
                     email: authState.user.email || ''
@@ -157,6 +167,7 @@ export class Header {
 
         console.log('🔄 Setting up header event handlers');
 
+        // ✅ ВСЕГДА получаем свежее состояние при настройке обработчиков
         const authState = loginStore.getState();
 
         const logo = this.headerElement.querySelector('[data-key="logo"]') as HTMLElement;
@@ -168,11 +179,13 @@ export class Header {
         }
 
         const userMenu = this.headerElement.querySelector('.user_info_header') as HTMLElement;
-            if (userMenu) {
-                userMenu.addEventListener('click', async (e: Event) => {
+        if (userMenu) {
+            userMenu.addEventListener('click', async (e: Event) => {
                 e.stopPropagation();
 
-                if (!authState.isLoggedIn) {
+                // ✅ ВСЕГДА проверяем актуальное состояние
+                const currentAuthState = loginStore.getState();
+                if (!currentAuthState.isLoggedIn) {
                     const currentPath = window.location.pathname + window.location.search;
                     await this.showLoginForm(currentPath);
                     return;
@@ -186,10 +199,10 @@ export class Header {
 
                 const popUpMenu = new PopUpMenu({
                     user: {
-                        name: loginStore.getState().user?.name || 'Пользователь',
-                        avatar: loginStore.getState().user?.avatar || '/img/defaultAvatar.jpg',
-                        subtitle: loginStore.getState().user?.subtitle || '',
-                        email: loginStore.getState().user?.email || ''
+                        name: currentAuthState.user?.name || 'Пользователь',
+                        avatar: currentAuthState.user?.avatar || '/img/defaultAvatar.jpg',
+                        subtitle: currentAuthState.user?.subtitle || '',
+                        email: currentAuthState.user?.email || ''
                     },
                     menuItems: [
                         { key: 'bookmarks', icon: '/img/icons/note_icon.svg', text: 'Черновики' },
@@ -374,51 +387,23 @@ export class Header {
     private async handleStoreChange(): Promise<void> {
         const currentLoginState = loginStore.getState();
         
-        // ИЗМЕНЕНИЕ: Сравниваем базовые URL без параметров кэширования
-        const getBaseUrl = (url: string | undefined) => {
-            if (!url) return '';
-            // Убираем все параметры после ? (включая timestamp и nocache)
-            return url.split('?')[0];
-        };
-        
-        const oldAvatarBase = getBaseUrl(this.lastLoginState?.user?.avatar);
-        const newAvatarBase = getBaseUrl(currentLoginState.user?.avatar);
-        
-        if (this.lastLoginState && oldAvatarBase !== newAvatarBase) {
-            console.log('🖼️ Avatar changed, updating header!');
-            console.log('Old avatar base:', oldAvatarBase);
-            console.log('New avatar base:', newAvatarBase);
+        // ✅ ПРОСТАЯ ПРОВЕРКА: если аватар изменился в loginStore
+        if (this.lastLoginState && 
+            this.lastLoginState.user?.avatar !== currentLoginState.user?.avatar) {
             
-            // Принудительно обновляем header
+            console.log('🖼️ Avatar changed in loginStore! Updating header...', {
+                old: this.lastLoginState.user?.avatar,
+                new: currentLoginState.user?.avatar
+            });
+            
+            // Обновляем кэш
             this.lastLoginState = { ...currentLoginState };
             
-            const currentSearchValue = this.searchInput?.value || '';
-            const hadFocus = document.activeElement === this.searchInput;
-            
-            const newHeader = await this.render();
-            if (this.container && newHeader.parentNode !== this.container) {
-                this.container.appendChild(newHeader);
-            }
-            
-            // Восстанавливаем состояние поиска
-            const newSearchInput = newHeader.querySelector('.header__search') as HTMLInputElement;
-            if (newSearchInput && currentSearchValue) {
-                newSearchInput.value = currentSearchValue;
-                this.searchInput = newSearchInput;
-                this.setupSearchHandlers();
-                
-                if (hadFocus) {
-                    this.searchInput.focus();
-                    this.searchInput.setSelectionRange(
-                        currentSearchValue.length, 
-                        currentSearchValue.length
-                    );
-                }
-            }
-            
+            // Перерендериваем header
+            await this.refreshHeader();
             return;
         }
-
+        
         const searchState = searchStore.getState();
         const currentInputValue = this.searchInput?.value.trim() || '';
         
@@ -427,11 +412,11 @@ export class Header {
             inputQuery: currentInputValue,
             lastShown: this.lastShownQuery,
             usersCount: searchState.blogs.length,
-            isLoading: searchState.isLoading
+            isLoading: searchState.isLoading,
+            avatarChanged: this.lastLoginState?.user?.avatar !== currentLoginState.user?.avatar
         });
         
         // Проверяем что результаты в store соответствуют ТЕКУЩЕМУ значению инпута
-        
         // Если запросы не совпадают - игнорируем эти результаты
         // Это защита от "устаревших" (stale) результатов
         if (searchState.query !== currentInputValue) {
@@ -491,15 +476,17 @@ export class Header {
             await this.showSearchResults(searchState.blogs, searchState.query);
         }
         
-        // ОБНОВЛЯЕМ HEADER ТОЛЬКО ЕСЛИ ДЕЙСТВИТЕЛЬНО ИЗМЕНИЛОСЬ СОСТОЯНИЕ ЛОГИНА
+        // ОБНОВЛЯЕМ HEADER ТОЛЬКО ЕСЛИ ДЕЙСТВИТЕЛЬНО ИЗМЕНИЛОСЬ СОСТОЯНИЕ ЛОГИНА (кроме аватара)
         const loginState = loginStore.getState();
         const shouldUpdateHeader = this.container && 
                                 this.lastLoginState && 
                                 (this.lastLoginState.isLoggedIn !== loginState.isLoggedIn ||
-                                this.lastLoginState.user?.id !== loginState.user?.id);
+                                this.lastLoginState.user?.id !== loginState.user?.id ||
+                                this.lastLoginState.user?.name !== loginState.user?.name);
         
         if (shouldUpdateHeader) {
             console.log('🔄 Header: Login state changed, updating header');
+            
             const currentSearchValue = this.searchInput?.value || '';
             const hadFocus = document.activeElement === this.searchInput;
             
@@ -524,6 +511,46 @@ export class Header {
                 }
             }
         }
+    }
+
+    private async refreshHeader(): Promise<void> {
+        const currentSearchValue = this.searchInput?.value || '';
+        const hadFocus = document.activeElement === this.searchInput;
+        
+        // Сохраняем позицию прокрутки перед обновлением
+        const scrollY = window.scrollY;
+        
+        // Рендерим новый header
+        const newHeader = await this.render();
+        
+        // Заменяем старый header
+        if (this.headerElement && this.headerElement.parentNode) {
+            this.headerElement.parentNode.replaceChild(newHeader, this.headerElement);
+        } else if (this.container) {
+            this.container.appendChild(newHeader);
+        }
+        
+        this.headerElement = newHeader;
+        
+        // Восстанавливаем состояние поиска
+        this.searchInput = this.headerElement.querySelector('.header__search') as HTMLInputElement;
+        if (this.searchInput && currentSearchValue) {
+            this.searchInput.value = currentSearchValue;
+            this.setupSearchHandlers();
+            
+            if (hadFocus) {
+                this.searchInput.focus();
+                this.searchInput.setSelectionRange(
+                    currentSearchValue.length, 
+                    currentSearchValue.length
+                );
+            }
+        }
+        
+        // Восстанавливаем позицию прокрутки
+        window.scrollTo(0, scrollY);
+        
+        console.log('✅ Header refreshed successfully');
     }
 
     private setupSearchHandlers(): void {

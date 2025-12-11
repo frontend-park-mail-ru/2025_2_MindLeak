@@ -210,34 +210,35 @@ export class ProfileView extends BaseView {
         }
     }
 
+    //todo нужен ли ФФФФФФФФФФФФФФФФффф (имею в виду изменения )
     private handleLoginStoreChange(): void {
         if (this.isDestroyed) return;
 
         const loginState = loginStore.getState();
         const profileState = profileStore.getState();
         
-        // ИЗМЕНЕНИЕ: Сравниваем базовые URL
-        const getBaseUrl = (url: string | undefined) => {
+        // Функция для извлечения ЧИСТОГО URL
+        const getCleanUrl = (url: string | undefined): string => {
             if (!url) return '';
             return url.split('?')[0];
         };
         
-        const loginAvatarBase = getBaseUrl(loginState.user?.avatar);
-        const profileAvatarBase = getBaseUrl(profileState.profile?.avatar_url);
+        const loginAvatarClean = getCleanUrl(loginState.user?.avatar);
+        const profileAvatarClean = getCleanUrl(profileState.profile?.avatar_url);
         
         console.log('🔄 ProfileView: Avatar comparison:', {
-            loginAvatarBase,
-            profileAvatarBase
+            loginAvatarClean,
+            profileAvatarClean
         });
         
-        if (loginAvatarBase && profileAvatarBase && loginAvatarBase !== profileAvatarBase) {
-            console.log('🖼️ Avatar changed! Updating profile view...');
+        // Если аватар изменился И это профиль текущего пользователя
+        if (loginAvatarClean && profileAvatarClean && loginAvatarClean !== profileAvatarClean) {
+            const isMyProfile = !this.userId || loginState.user?.id.toString() === this.userId.toString();
             
-            // Если это профиль текущего пользователя, перезагружаем данные
-            if (!this.userId || loginState.user?.id.toString() === this.userId.toString()) {
-                console.log('🔄 This is my profile, reloading...');
+            if (isMyProfile) {
+                console.log('🖼️ Avatar changed! Reloading profile...');
                 dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
-                    userId: this.userId 
+                    userId: this.userId || loginState.user?.id
                 });
             }
         }

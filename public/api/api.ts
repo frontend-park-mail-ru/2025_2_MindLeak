@@ -915,43 +915,38 @@ private normalizeAppealData(appeal: any): any {
 
         switch (response.status) {
             case STATUS.ok:
-                // Проверяем разные возможные поля с URL аватара
+                // Проверяем URL аватара
                 let avatarUrl = '';
                 
                 if (response.data?.Avatar) {
                     avatarUrl = response.data.Avatar;
-                } 
+                } else if (response.data?.avatar_url) {
+                    avatarUrl = response.data.avatar_url;
+                }
+                
                 console.log('✅ Avatar uploaded, URL:', avatarUrl);
                 
                 if (avatarUrl) {
-                    // ИЗМЕНЕНИЕ: Используем простой timestamp без лишних параметров
-                    const cacheBustedUrl = `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}_=${Date.now()}`;
+                    // ✅ Добавляем timestamp
+                    const timestampedUrl = `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}_=${Date.now()}`;
                     
-                    console.log('✅ Cache busted avatar URL:', cacheBustedUrl);
-                    
-                    // Отправляем в settings store
-                    this.sendAction('AVATAR_UPLOAD_SUCCESS', { avatar_url: cacheBustedUrl });
-                    
-                    // Обновляем данные пользователя с новым URL
-                    const authState = loginStore.getState();
-                    if (authState.user) {
-                        // Формируем ПОЛНЫЙ объект пользователя
-                        const updatedUser = {
-                            id: authState.user.id,
-                            name: authState.user.name,
-                            avatar: cacheBustedUrl,
-                            subtitle: authState.user.subtitle,
-                            email: authState.user.email
-                        };
-                        
-                        console.log('🔄 Sending USER_UPDATE_PROFILE with cache busted URL:', updatedUser);
-                        this.sendAction('USER_UPDATE_PROFILE', { user: updatedUser });
-                    }
-                } else {
-                    console.warn('⚠️ No avatar URL in response, loading settings...');
-                    this.sendAction('AVATAR_UPLOAD_SUCCESS');
+                    // ✅ Используем новый action ТОЛЬКО для аватара
+                    this.sendAction('UPDATE_AVATAR_ONLY', { avatar: timestampedUrl });
                 }
-
+                
+                // ✅ 2. Отправляем success в settings store
+                this.sendAction('AVATAR_UPLOAD_SUCCESS');
+                
+                // ✅ 3. СРАЗУ перезагружаем профиль
+                const authState = loginStore.getState();
+                if (authState.user) {
+                    console.log('🔄 Forcing PROFILE_LOAD_REQUEST after avatar upload');
+                    this.sendAction('PROFILE_LOAD_REQUEST', { 
+                        userId: authState.user.id 
+                    });
+                }
+                
+                // Перезагружаем настройки
                 this.loadSettingsAccount();
                 break;
             case STATUS.unauthorized:

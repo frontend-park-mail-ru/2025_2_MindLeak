@@ -88,15 +88,27 @@ class LoginStore extends BaseStore<LoginState> {
             const currentState = this.getState();
             
             // Обновляем ВСЕ поля пользователя
-            const updatedUser = {
+            let updatedUser = {
                 ...currentState.user,
                 ...payload.user
             };
             
-            // ВСЕГДА добавляем timestamp для обновления кэша
-            if (payload.user?.avatar) {
-                updatedUser.avatar = `${payload.user.avatar}${payload.user.avatar.includes('?') ? '&' : '?'}_=${Date.now()}`;
-                console.log('✅ Added timestamp to avatar URL:', updatedUser.avatar);
+            // ✅ ВАЖНО: Если обновляется аватар, сохраняем timestamp
+            if (payload.user?.avatar && currentState.user?.avatar) {
+                // Проверяем, есть ли уже timestamp в старом аватаре
+                const oldAvatar = currentState.user.avatar;
+                const hasTimestamp = oldAvatar.includes('?_=') || oldAvatar.includes('&_=');
+                
+                if (hasTimestamp) {
+                    // Сохраняем timestamp из старого URL
+                    const timestampMatch = oldAvatar.match(/[?&]_=(\d+)/);
+                    if (timestampMatch) {
+                        const timestamp = timestampMatch[1];
+                        const baseUrl = payload.user.avatar.split('?')[0];
+                        updatedUser.avatar = `${baseUrl}?_=${timestamp}`;
+                        console.log('✅ Preserved timestamp from old avatar:', updatedUser.avatar);
+                    }
+                }
             }
             
             const newState = {
@@ -106,9 +118,48 @@ class LoginStore extends BaseStore<LoginState> {
             
             console.log('🔄 New loginStore state:', newState);
             this.setState(newState);
-            
-            // Сохраняем в localStorage тоже
             this.saveAuthState(newState);
+        });
+
+        this.registerAction('AVATAR_UPLOADED', (payload: { avatar: string }) => {
+            console.log('🖼️ AVATAR_UPLOADED action in loginStore');
+            
+            const currentState = this.getState();
+            if (currentState.user) {
+                // ✅ Добавляем timestamp ТОЛЬКО ЗДЕСЬ
+                const timestampedAvatar = `${payload.avatar}${payload.avatar.includes('?') ? '&' : '?'}_=${Date.now()}`;
+                
+                const newState = {
+                    ...currentState,
+                    user: {
+                        ...currentState.user,
+                        avatar: timestampedAvatar
+                    }
+                };
+                
+                console.log('✅ Updated avatar with timestamp:', timestampedAvatar);
+                this.setState(newState);
+                this.saveAuthState(newState);
+            }
+        });
+
+        this.registerAction('UPDATE_AVATAR_ONLY', (payload: { avatar: string }) => {
+            console.log('🖼️ UPDATE_AVATAR_ONLY action in loginStore');
+            
+            const currentState = this.getState();
+            if (currentState.user) {
+                const newState = {
+                    ...currentState,
+                    user: {
+                        ...currentState.user,
+                        avatar: payload.avatar // Используем как есть (уже с timestamp)
+                    }
+                };
+                
+                console.log('✅ Updated avatar only:', payload.avatar);
+                this.setState(newState);
+                this.saveAuthState(newState);
+            }
         });
 
         this.registerAction('USER_LOGOUT', () => {

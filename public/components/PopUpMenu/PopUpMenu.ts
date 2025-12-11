@@ -269,23 +269,11 @@ export class PopUpMenu {
     private handleLoginStoreChange(): void {
         const authState = loginStore.getState();
         
-        // ИЗМЕНЕНИЕ: Сравниваем базовые URL
-        const getBaseUrl = (url: string | undefined) => {
-            if (!url) return '';
-            return url.split('?')[0];
-        };
-        
-        const oldAvatarBase = getBaseUrl(this.user?.avatar);
-        const newAvatarBase = getBaseUrl(authState.user?.avatar);
-        
         if (authState.user && this.user) {
-            // Сравниваем только имя и базовый URL аватара
-            if (this.user.name !== authState.user.name || 
-                oldAvatarBase !== newAvatarBase ||
-                this.user.subtitle !== authState.user.subtitle) {
-                
+            // ✅ Сравниваем только аватар (с timestamp'ами)
+            if (this.user.avatar !== authState.user.avatar) {
                 this.user = authState.user;
-                console.log('🔄 PopUpMenu user data synced with store');
+                console.log('🔄 PopUpMenu: Avatar changed!', authState.user.avatar);
                 
                 // ОБНОВЛЯЕМ DOM если меню отображается
                 this.forceUpdateDOM();

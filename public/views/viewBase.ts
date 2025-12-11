@@ -52,7 +52,9 @@ export abstract class BaseView {
         
         // Header
         const headerContainer = document.createElement('header');
+
         const headerEl = await this.headerInstance.render(headerContainer);
+
         headerContainer.appendChild(headerEl);
         this.rootElement.appendChild(headerContainer);
 

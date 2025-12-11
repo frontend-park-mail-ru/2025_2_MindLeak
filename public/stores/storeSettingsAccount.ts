@@ -95,42 +95,16 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
             });
         });
 
-        //первое изменение ФФФФФФФФФФФФФФФ ФФФФФФФФФФФФФ
-        this.registerAction('AVATAR_UPLOAD_SUCCESS', (payload: { avatar_url: string }) => {
-            console.log('✅ AVATAR_UPLOAD_SUCCESS in store:', payload);
-
+        this.registerAction('AVATAR_UPLOAD_SUCCESS', () => {  // БЕЗ payload!
+            console.log('✅ AVATAR_UPLOAD_SUCCESS in store');
+            
             const currentSettings = this.state.settings;
-            if (currentSettings) {
-                // ИЗМЕНЕНИЕ: Используем URL с timestamp для обновления кэша
-                const cacheBustedUrl = `${payload.avatar_url}${payload.avatar_url.includes('?') ? '&' : '?'}_=${Date.now()}`;
-                
-                this.setState({
-                    isUploadingAvatar: false,
-                    error: null,
-                    settings: {
-                        ...currentSettings,
-                        avatar_url: cacheBustedUrl
-                    }
-                });
-                
-                // Сразу отправляем обновление во все stores
-                const loginState = loginStore.getState();
-                if (loginState.user) {
-                    // Отправляем в loginStore
-                    dispatcher.dispatch('USER_UPDATE_PROFILE', {
-                        user: {
-                            ...loginState.user,
-                            avatar: cacheBustedUrl
-                        }
-                    });
-                    
-                    // ДОБАВЛЯЕМ: Перезагружаем профиль
-                    console.log('🔄 Dispatching profile reload after avatar update');
-                    dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
-                        userId: loginState.user.id 
-                    });
-                }
-            }
+            // ✅ ПРОСТО обновляем флаги, НЕ меняем URL
+            this.setState({
+                isUploadingAvatar: false,
+                error: null,
+                settings: currentSettings
+            });
         });
 
         this.registerAction('AVATAR_UPLOAD_FAIL', (payload: { error: string }) => {
@@ -170,12 +144,16 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
             });
         });
 
-        this.registerAction('COVER_UPLOAD_SUCCESS', (payload: { cover_url: string }) => {
+        //нужно ли это изменение todo ПРОВЕРИТЬ ФФФФФФФФФФФФФФ
+        this.registerAction('COVER_UPLOAD_SUCCESS', () => {  // БЕЗ payload!
+            console.log('✅ COVER_UPLOAD_SUCCESS in store');
+            
             const currentSettings = this.state.settings;
+            // Просто обновляем флаги
             this.setState({
                 isUploadingCover: false,
                 error: null,
-                settings: currentSettings ? { ...currentSettings, cover_url: payload.cover_url } : null
+                settings: currentSettings
             });
         });
 

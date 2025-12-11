@@ -230,6 +230,8 @@ export class PopUpMenu {
     private isAppealsLoading: boolean = false;
     private appealsLoadQueue: number = 0;
     private boundLoginStoreHandler: () => void;
+    private messageHandlerBound: ((e: MessageEvent) => void) | null = null;
+    private popUpMenuElement: HTMLElement | null = null; // Новое поле для хранения ссылки на DOM элемент
 
     constructor({ user, menuItems }: PopUpMenuProps) {
         console.log('🎯 PopUpMenu constructor called');
@@ -275,13 +277,23 @@ export class PopUpMenu {
                 
                 this.user = authState.user;
                 console.log('🔄 PopUpMenu user data synced with store');
+                
+                // ОБНОВЛЯЕМ DOM если меню отображается
+                this.forceUpdateDOM();
             }
         }
     }
 
-    //основное изменение todo ФФФФФФФФФФФФФФФФФФФФФ
-    private messageHandlerBound: ((e: MessageEvent) => void) | null = null;
+    // Метод для принудительного обновления DOM
+    public forceUpdateDOM(): void {
+        if (!this.popUpMenuElement) return;
+        
+        const popUpMenu = this.popUpMenuElement;
+        this.updateDOMUserData(popUpMenu);
+        console.log('🔄 PopUpMenu DOM updated with new user data');
+    }
 
+    //основное изменение todo ФФФФФФФФФФФФФФФФФФФФФ
     private setupMessageHandler(): void {
         console.log('📡 Setting up message handler in PopUpMenu');
         if (this.messageHandlerBound) {
@@ -382,6 +394,8 @@ export class PopUpMenu {
         if (authState.user) {
             this.user = authState.user;
             console.log('✅ PopUpMenu user data updated:', this.user);
+            // Также обновляем DOM если меню отображается
+            this.forceUpdateDOM();
         }
     }
 
@@ -405,6 +419,9 @@ export class PopUpMenu {
         if (!popUpMenu) {
             throw new Error('Popup menu element not found');
         }
+
+        // Сохраняем ссылку на DOM элемент
+        this.popUpMenuElement = popUpMenu;
 
         this.updateDOMUserData(popUpMenu);
 
@@ -481,7 +498,10 @@ export class PopUpMenu {
         }
         
         if (userAvatarEl && this.user.avatar) {
-            userAvatarEl.setAttribute('src', this.user.avatar);
+            // Важно: добавляем timestamp к URL чтобы избежать кэширования
+            const avatarUrl = `${this.user.avatar}${this.user.avatar.includes('?') ? '&' : '?'}nocache=${Date.now()}`;
+            userAvatarEl.setAttribute('src', avatarUrl);
+            console.log('🖼️ Updated avatar in PopUpMenu:', avatarUrl);
         }
         
         if (userSubtitleEl && this.user.subtitle) {
@@ -506,6 +526,9 @@ export class PopUpMenu {
         if (index > -1) {
             activePopUpMenus.splice(index, 1);
         }
+        
+        // Очищаем ссылку на DOM элемент
+        this.popUpMenuElement = null;
     }
 }
 

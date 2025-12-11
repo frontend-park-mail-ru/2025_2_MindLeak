@@ -117,7 +117,9 @@ export class Header {
                 user: authState.user ? {
                     // Явно передаем все поля
                     name: authState.user.name,
-                    avatar: authState.user.avatar,
+                    avatar: authState.user.avatar ? 
+                        `${authState.user.avatar}?t=${Date.now()}` :
+                        authState.user.avatar,
                     subtitle: authState.user.subtitle || '',
                     email: authState.user.email || ''
                 } : null
@@ -370,6 +372,44 @@ export class Header {
     }
 
     private async handleStoreChange(): Promise<void> {
+        const currentLoginState = loginStore.getState();
+        
+        // ДОБАВЬТЕ ЭТУ ПРОВЕРКУ ДЛЯ АВАТАРА
+        if (this.lastLoginState && this.lastLoginState.user?.avatar !== currentLoginState.user?.avatar) {
+            console.log('🖼️ Avatar changed, updating header!');
+            console.log('Old avatar:', this.lastLoginState.user?.avatar);
+            console.log('New avatar:', currentLoginState.user?.avatar);
+            
+            // Принудительно обновляем header
+            this.lastLoginState = { ...currentLoginState };
+            
+            const currentSearchValue = this.searchInput?.value || '';
+            const hadFocus = document.activeElement === this.searchInput;
+            
+            const newHeader = await this.render();
+            if (this.container && newHeader.parentNode !== this.container) {
+                this.container.appendChild(newHeader);
+            }
+            
+            // Восстанавливаем состояние поиска
+            const newSearchInput = newHeader.querySelector('.header__search') as HTMLInputElement;
+            if (newSearchInput && currentSearchValue) {
+                newSearchInput.value = currentSearchValue;
+                this.searchInput = newSearchInput;
+                this.setupSearchHandlers();
+                
+                if (hadFocus) {
+                    this.searchInput.focus();
+                    this.searchInput.setSelectionRange(
+                        currentSearchValue.length, 
+                        currentSearchValue.length
+                    );
+                }
+            }
+            
+            return;
+        }
+
         const searchState = searchStore.getState();
         const currentInputValue = this.searchInput?.value.trim() || '';
         

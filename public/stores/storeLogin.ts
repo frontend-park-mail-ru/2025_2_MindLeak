@@ -1,4 +1,5 @@
 import { BaseStore } from './store';
+import { dispatcher } from '../dispatcher/dispatcher'; // Добавляем импорт dispatcher
 
 export interface User {
     id: string;
@@ -30,12 +31,20 @@ class LoginStore extends BaseStore<LoginState> {
     }
 
     protected registerActions(): void {
+
+        //первое изменение ФФФФФФФФФФФФФФФ ФФФФФФФФФФФФФ
         this.registerAction('USER_LOGIN_CHECKED', (payload: { user: User }) => {
+            // Добавляем timestamp к URL аватара для избежания кэширования
+            const userWithCacheBust = {
+                ...payload.user,
+                avatar: payload.user.avatar ? 
+                    `${payload.user.avatar}${payload.user.avatar.includes('?') ? '&' : '?'}nocache=${Date.now()}` :
+                    payload.user.avatar,
+                email: payload.user.email || ''
+            };
+            
             const newState = {
-                user: {
-                    ...payload.user,
-                    email: payload.user.email || '' // ← Убедимся, что email есть
-                },
+                user: userWithCacheBust,
                 isLoggedIn: true,
                 isLoading: false,
                 error: null
@@ -45,8 +54,16 @@ class LoginStore extends BaseStore<LoginState> {
         });
 
         this.registerAction('USER_LOGIN_SUCCESS', (payload: { user: User }) => {
+            // Добавляем timestamp к URL аватара
+            const userWithCacheBust = {
+                ...payload.user,
+                avatar: payload.user.avatar ? 
+                    `${payload.user.avatar}${payload.user.avatar.includes('?') ? '&' : '?'}nocache=${Date.now()}` :
+                    payload.user.avatar
+            };
+            
             const newState = {
-                user: payload.user,
+                user: userWithCacheBust,
                 isLoggedIn: true,
                 isLoading: false,
                 error: null
@@ -66,22 +83,35 @@ class LoginStore extends BaseStore<LoginState> {
             this.clearAuthState();
         });
 
-        this.registerAction('USER_UPDATE_PROFILE', (payload: { user: Partial<User> }) => {
+        this.registerAction('USER_UPDATE_PROFILE', (payload: { user: any }) => {
+            console.log('🔄 Updating user in loginStore:', payload.user);
             const currentState = this.getState();
-            if (currentState.user) {
-                const updatedUser = {
-                    ...currentState.user,
-                    ...payload.user
-                };
-                
-                const newState = {
-                    ...currentState,
-                    user: updatedUser
-                };
-                
-                this.setState(newState);
-                this.saveAuthState(newState);
+            
+            // Обновляем ВСЕ поля пользователя
+            const updatedUser = {
+                ...currentState.user,
+                ...payload.user
+            };
+            
+            // Всегда добавляем timestamp если есть новый аватар
+            if (payload.user?.avatar) {
+                // Проверяем, нет ли уже timestamp'а
+                if (!payload.user.avatar.includes('_=')) {
+                    updatedUser.avatar = `${payload.user.avatar}${payload.user.avatar.includes('?') ? '&' : '?'}_=${Date.now()}`;
+                    console.log('✅ Added timestamp to avatar URL:', updatedUser.avatar);
+                }
             }
+            
+            const newState = {
+                ...currentState,
+                user: updatedUser
+            };
+            
+            console.log('🔄 New loginStore state:', newState);
+            this.setState(newState);
+            
+            // Сохраняем в localStorage тоже
+            this.saveAuthState(newState);
         });
 
         this.registerAction('USER_LOGOUT', () => {

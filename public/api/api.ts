@@ -381,7 +381,7 @@ private normalizeAppealData(appeal: any): any {
                     const userData = {
                         id: response.data.id,
                         name: response.data.name,
-                        avatar: response.data.avatar || '/img/defaultAvatar.jpg',
+                        avatar: response.data.avatar || response.data.Avatar || '/img/defaultAvatar.jpg',
                         subtitle: response.data.subtitle || 'Блог',
                         email: response.data.email || ''
                     };
@@ -408,7 +408,7 @@ private normalizeAppealData(appeal: any): any {
                     const userData = {
                         id: response.data.id,
                         name: response.data.name,
-                        avatar: response.data.avatar || '/img/defaultAvatar.jpg',
+                        avatar: response.data.avatar || response.data.Avatar || '/img/defaultAvatar.jpg',
                         subtitle: response.data.subtitle || 'Блог',
                         email: response.data.email || ''
                     };
@@ -578,7 +578,7 @@ private normalizeAppealData(appeal: any): any {
         return [];
     }
 
-    private async loadProfile(userId?: number): Promise<void> {
+    private async loadProfile(userId?: string): Promise<void> {
         let url = '/profile';
         
         if (userId) {
@@ -740,22 +740,76 @@ private normalizeAppealData(appeal: any): any {
         }
     }
 
+    private async syncProfileAfterUpdate(): Promise<void> {
+        console.log('🔄 Synchronizing profile data after update...');
+        
+        const authState = loginStore.getState();
+        if (authState.user && authState.isLoggedIn) {
+            try {
+                // Загружаем свежие данные профиля с сервера
+                const profileResponse = await ajax.get('/profile');
+                
+                if (profileResponse.status === STATUS.ok && profileResponse.data) {
+                    const profileData = {
+                        id: profileResponse.data.id,
+                        name: profileResponse.data.name,
+                        email: profileResponse.data.email,
+                        avatar_url: profileResponse.data.avatar_url,
+                        cover_url: profileResponse.data.cover_url,
+                        description: profileResponse.data.description,
+                        subscribers: profileResponse.data.subscribers || 0,
+                        subscriptions: profileResponse.data.subscriptions || 0,
+                        postsCount: profileResponse.data.posts_count || 0,
+                        isSubscribed: profileResponse.data.is_subscribed || false
+                    };
+
+                    // Обновляем loginStore
+                    const cacheBustedAvatar = profileData.avatar_url ? 
+                        `${profileData.avatar_url}${profileData.avatar_url.includes('?') ? '&' : '?'}_=${Date.now()}` :
+                        profileData.avatar_url;
+                    
+                    this.sendAction('USER_UPDATE_PROFILE', {
+                        user: {
+                            id: authState.user.id,
+                            name: profileData.name,
+                            avatar: cacheBustedAvatar,
+                            subtitle: authState.user.subtitle,
+                            email: profileData.email
+                        }
+                    });
+
+                    // Обновляем profileStore
+                    const userPosts = await this.loadUserPosts(profileData.id);
+                    this.sendAction('PROFILE_LOAD_SUCCESS', {
+                        profile: profileData,
+                        posts: userPosts
+                    });
+
+                    // Обновляем settingsAccountStore
+                    this.loadSettingsAccount();
+                    
+                    console.log('✅ Profile synchronized successfully');
+                }
+            } catch (error) {
+                console.error('❌ Error synchronizing profile:', error);
+            }
+        }
+    }
+
     private async updateSettingsAccount(settings: any): Promise<void> {
         const response = await ajax.put('/profile', settings);
         
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
-                    this.sendAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS');
-                    const userData = response.data;
+                    console.log('✅ Settings updated, response data:', response.data);
                     
-                    this.sendAction('USER_UPDATE_PROFILE', {
-                        user: {
-                            name: userData.name || settings.name,
-                            avatar: userData.avatar_url,
-                            email: userData.email || settings.email
-                        }
-                    });
+                    this.sendAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS');
+                    
+                    // Синхронизируем профиль после обновления настроек
+                    await this.syncProfileAfterUpdate();
+                    
+                    // Нужно перезагрузить настройки для получения актуальных данных
                     this.loadSettingsAccount();
                 } else {
                     this.sendAction('SETTINGS_ACCOUNT_UPDATE_FAIL', { error: 'No updated data' });
@@ -837,14 +891,60 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private async uploadAvatar(file: File): Promise<void> {
+        console.log('🖼️ Uploading avatar file:', file.name, file.type, file.size);
         const formData = new FormData();
         formData.append('file', file);
 
         const response = await ajax.uploadAvatar(formData);
 
+        console.log('📡 Avatar upload response:', response); 
+
         switch (response.status) {
             case STATUS.ok:
-                this.sendAction('AVATAR_UPLOAD_SUCCESS');
+                // Проверяем разные возможные поля с URL аватара
+                let avatarUrl = '';
+                
+                if (response.data?.Avatar) {
+                    avatarUrl = response.data.Avatar;
+                } 
+                console.log('✅ Avatar uploaded, URL:', avatarUrl);
+                
+                if (avatarUrl) {
+                    // ДОБАВЛЯЕМ RANDOM ПАРАМЕТР ДЛЯ КЭШИРОВАНИЯ
+                    const cacheBustedUrl = `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}_=${Date.now()}`;
+                    
+                    console.log('✅ Cache busted avatar URL:', cacheBustedUrl);
+                    
+                    // Отправляем в settings store
+                    this.sendAction('AVATAR_UPLOAD_SUCCESS', { avatar_url: cacheBustedUrl });
+                    
+                    // Обновляем данные пользователя с новым URL
+                    const authState = loginStore.getState();
+                    if (authState.user) {
+                        // Формируем ПОЛНЫЙ объект пользователя
+                        const updatedUser = {
+                            id: authState.user.id,
+                            name: authState.user.name,
+                            avatar: cacheBustedUrl, // Используем URL с timestamp'ом
+                            subtitle: authState.user.subtitle,
+                            email: authState.user.email
+                        };
+                        
+                        console.log('🔄 Sending USER_UPDATE_PROFILE with cache busted URL:', updatedUser);
+                        this.sendAction('USER_UPDATE_PROFILE', { user: updatedUser });
+                        this.sendAction('PROFILE_UPDATE_AVATAR', { 
+                            avatar_url: cacheBustedUrl 
+                        });
+                        
+                        // ВАЖНО: ПЕРЕЗАГРУЖАЕМ ПРОФИЛЬ
+                        console.log('🔄 Forcing profile reload for userId:', authState.user.id);
+                        this.loadProfile(authState.user.id);
+                    }
+                } else {
+                    console.warn('⚠️ No avatar URL in response, loading settings...');
+                    this.sendAction('AVATAR_UPLOAD_SUCCESS');
+                }
+
                 this.loadSettingsAccount();
                 break;
             case STATUS.unauthorized:

@@ -449,6 +449,36 @@ export class SettingsAccountView extends BaseView {
         if (this.isDestroyed) return;
         
         const state = settingsAccountStore.getState();
+        
+        // Если аватар или обложка обновились, обновляем профиль тоже
+        if (state.settings) {
+            const authState = loginStore.getState();
+            if (authState.user) {
+                // Обновляем loginStore
+                dispatcher.dispatch('USER_UPDATE_PROFILE', {
+                    user: {
+                        ...authState.user,
+                        name: state.settings.name,
+                        avatar: state.settings.avatar_url,
+                        email: state.settings.email
+                    }
+                });
+                
+                // Обновляем profileStore
+                dispatcher.dispatch('PROFILE_UPDATE_AVATAR', {
+                    avatar_url: state.settings.avatar_url
+                });
+                
+                // Принудительно перезагружаем профиль если это профиль текущего пользователя
+                const currentPath = window.location.pathname;
+                if (currentPath === '/profile' || currentPath.includes('/profile?id=')) {
+                    dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
+                        userId: authState.user.id 
+                    });
+                }
+            }
+        }
+        
         this.updateAccountContent();
     }
 

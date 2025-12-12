@@ -4,6 +4,7 @@ import { dispatcher } from '../dispatcher/dispatcher';
 import { loginStore } from '../stores/storeLogin';
 import { LoginFormView } from './viewLogin';
 import { ReplyView } from './viewReply';
+import { subscriptionsStore } from '../stores/storeSubscriptions';
 
 export class CommentView {
     private container: HTMLElement;
@@ -104,9 +105,7 @@ export class CommentView {
             // Проверяем, является ли автор комментария текущим пользователем
             const isOwnComment = comment.authorId === userId;
             
-            // Временное решение - всегда false, пока нет store подписок
-            // TODO: Получить реальное состояние подписки из store подписок или API
-            const isSubscribed = false;
+            const isSubscribed = subscriptionsStore.isSubscribed(comment.authorId.toString());
 
             const commentInstance = new Comment({
                 commentId: comment.id,

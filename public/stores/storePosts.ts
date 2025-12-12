@@ -15,7 +15,7 @@ export interface Post {
     commentsCount?: number;
     repostsCount?: number;
     viewsCount?: number;
-    isAuthorSubscribed?: boolean;
+    isAuthorSubscribed?: boolean; // ← ДОБАВЬТЕ ЭТО
 }
 
 export interface PostsState {

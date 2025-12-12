@@ -4,6 +4,7 @@ import { dispatcher } from '../dispatcher/dispatcher';
 import { postsStore, Post } from '../stores/storePosts';
 import { loginStore } from '../stores/storeLogin';
 import { HashtagParser } from '../utils/hashtagParser'; // Добавляем импорт
+import { subscriptionsStore } from '../stores/storeSubscriptions';
 
 export class PostsView {
     private feedWrapper: HTMLElement | null = null;
@@ -213,6 +214,14 @@ export class PostsView {
         
         const isMyProfile = isOwnPost;
 
+        // Используем store подписок для проверки - теперь метод exists!
+        const isSubscribed = subscriptionsStore.isSubscribed(String(apiPost.authorId));
+        
+        // Объединяем данные с сервера и локальные
+        const finalIsSubscribed = apiPost.isAuthorSubscribed !== undefined 
+            ? apiPost.isAuthorSubscribed 
+            : isSubscribed;
+
         // Обрабатываем хештеги в заголовке и тексте
         const processedTitle = HashtagParser.replaceHashtagsWithLinks(apiPost.title || '');
         const processedText = HashtagParser.replaceHashtagsWithLinks(apiPost.content || '');
@@ -224,9 +233,9 @@ export class PostsView {
                 name: apiPost.authorName || 'Аноним',
                 subtitle: apiPost.theme || 'Блог',
                 avatar: apiPost.authorAvatar || '/img/defaultAvatar.jpg',
-                isSubscribed: apiPost.isAuthorSubscribed || false,
+                isSubscribed: finalIsSubscribed,
                 id: apiPost.authorId,
-                hideSubscribeButton: isMyProfile, // ← ОБЯЗАТЕЛЬНО добавить здесь!
+                hideSubscribeButton: isMyProfile,
                 isMyProfile: isMyProfile
             },
             title: processedTitle,

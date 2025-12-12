@@ -135,6 +135,14 @@ class API {
                 this.unsubscribe(payload.userId, payload.targetProfileId);
                 break;
 
+            case 'SUBSCRIPTIONS_LOAD_REQUEST':
+                this.loadSubscriptions();
+                break;
+
+            case 'SUBSCRIBERS_LOAD_REQUEST':
+                this.loadSubscribers();
+                break;
+
         }
     }
 
@@ -404,6 +412,7 @@ private normalizeAppealData(appeal: any): any {
                         email: response.data.email || ''
                     };
                     this.sendAction('USER_LOGIN_CHECKED', { user: userData });
+                    this.sendAction('SUBSCRIPTIONS_LOAD_REQUEST');
                 } else {
                     this.sendAction('USER_LOGIN_FAIL', { error: 'No user data' });
                 }
@@ -431,6 +440,8 @@ private normalizeAppealData(appeal: any): any {
                         email: response.data.email || ''
                     };
                     this.sendAction('USER_LOGIN_SUCCESS', { user: userData });
+
+                    this.sendAction('SUBSCRIPTIONS_LOAD_REQUEST');
                 } else {
                     this.sendAction('USER_LOGIN_FAIL', { error: 'No user data in response' });
                 }
@@ -1120,80 +1131,6 @@ private normalizeAppealData(appeal: any): any {
         }
     }
 
-    private async loadSubscriptions(): Promise<void> {
-        const response = await ajax.get('/subscriptions');
-        switch (response.status) {
-            case STATUS.ok:
-                if (response.data) {
-                    const users = response.data.map((item: any) => {
-                        // ✅ ДОБАВЛЯЕМ TIMESTAMP
-                        const avatar = item.avatar || '/img/defaultAvatar.jpg';
-                        const avatarWithTimestamp = avatar ? 
-                            `${avatar.split('?')[0]}?_=${Date.now()}` : 
-                            avatar;
-                        
-                        return {
-                            id: item.id,
-                            name: item.name,
-                            subtitle: `Подписчики: ${item.subscribers}`,
-                            avatar: avatarWithTimestamp, // ✅ С TIMESTAMP!
-                            isSubscribed: true,
-                            hideSubscribeButton: false
-                        };
-                    });
-                    this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
-                } else {
-                    this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No subscriptions data' });
-                }
-                break;
-            case STATUS.unauthorized:
-                this.sendAction('USER_UNAUTHORIZED');
-                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
-                break;
-            default:
-                this.sendAction('USER_LIST_LOAD_FAIL', {
-                    error: response.message || 'Ошибка загрузки подписок'
-                });
-        }
-    }
-
-    private async loadSubscribers(): Promise<void> {
-        const response = await ajax.get('/subscribers');
-        switch (response.status) {
-            case STATUS.ok:
-                if (response.data) {
-                    const users = response.data.map((item: any) => {
-                        // ✅ ДОБАВЛЯЕМ TIMESTAMP
-                        const avatar = item.avatar || '/img/defaultAvatar.jpg';
-                        const avatarWithTimestamp = avatar ? 
-                            `${avatar.split('?')[0]}?_=${Date.now()}` : 
-                            avatar;
-                        
-                        return {
-                            id: item.id,
-                            name: item.name,
-                            subtitle: `Подписчики: ${item.subscribers}`,
-                            avatar: avatarWithTimestamp, // ✅ С TIMESTAMP!
-                            isSubscribed: false,
-                            hideSubscribeButton: false
-                        };
-                    });
-                    this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
-                } else {
-                    this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No subscribers data' });
-                }
-                break;
-            case STATUS.unauthorized:
-                this.sendAction('USER_UNAUTHORIZED');
-                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
-                break;
-            default:
-                this.sendAction('USER_LIST_LOAD_FAIL', {
-                    error: response.message || 'Ошибка загрузки подписчиков'
-                });
-        }
-    }
-
     private async createComment(postId: string, text: string, attachment?: File): Promise<void> {
 
         const authState = loginStore.getState();
@@ -1469,11 +1406,18 @@ private normalizeAppealData(appeal: any): any {
             switch (response.status) {
                 case STATUS.ok:
                 case 201:
-                    // Отправляем успех с ID пользователя и ID профиля для обновления
+                    // Отправляем успех с ID пользователя
                     this.sendAction('SUBSCRIBE_SUCCESS', { 
-                        userId,
-                        targetProfileId: targetProfileId || userId
+                        userId: userId.toString(),
+                        targetProfileId: targetProfileId ? targetProfileId.toString() : userId.toString()
                     });
+                    
+                    // Обновляем данные профиля если это другой профиль
+                    if (targetProfileId && targetProfileId !== userId) {
+                        this.sendAction('PROFILE_LOAD_REQUEST', { 
+                            userId: targetProfileId.toString() 
+                        });
+                    }
                     break;
                 case STATUS.unauthorized:
                     this.sendAction('USER_UNAUTHORIZED');
@@ -1498,11 +1442,17 @@ private normalizeAppealData(appeal: any): any {
             switch (response.status) {
                 case STATUS.ok:
                 case 201:
-                    // Отправляем успех с ID пользователя и ID профиля для обновления
                     this.sendAction('UNSUBSCRIBE_SUCCESS', { 
-                        userId,
-                        targetProfileId: targetProfileId || userId
+                        userId: userId.toString(),
+                        targetProfileId: targetProfileId ? targetProfileId.toString() : userId.toString()
                     });
+                    
+                    // Обновляем данные профиля если это другой профиль
+                    if (targetProfileId && targetProfileId !== userId) {
+                        this.sendAction('PROFILE_LOAD_REQUEST', { 
+                            userId: targetProfileId.toString() 
+                        });
+                    }
                     break;
                 case STATUS.unauthorized:
                     this.sendAction('USER_UNAUTHORIZED');
@@ -1517,6 +1467,48 @@ private normalizeAppealData(appeal: any): any {
             this.sendAction('UNSUBSCRIBE_FAIL', { 
                 error: 'Ошибка при выполнении отписки' 
             });
+        }
+    }
+
+    private async loadSubscriptions(): Promise<void> {
+        const response = await ajax.get('/subscriptions');
+        switch (response.status) {
+            case STATUS.ok:
+                if (response.data) {
+                    this.sendAction('SUBSCRIPTIONS_LOAD_SUCCESS', { users: response.data });
+                } else {
+                    this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', { error: 'No subscriptions data' });
+                }
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', { error: 'Not authenticated' });
+                break;
+            default:
+                this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', {
+                    error: response.message || 'Ошибка загрузки подписок'
+                });
+        }
+    }
+
+    private async loadSubscribers(): Promise<void> {
+        const response = await ajax.get('/subscribers');
+        switch (response.status) {
+            case STATUS.ok:
+                if (response.data) {
+                    this.sendAction('SUBSCRIBERS_LOAD_SUCCESS', { users: response.data });
+                } else {
+                    this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', { error: 'No subscribers data' });
+                }
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', { error: 'Not authenticated' });
+                break;
+            default:
+                this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', {
+                    error: response.message || 'Ошибка загрузки подписчиков'
+                });
         }
     }
 }

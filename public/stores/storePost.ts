@@ -13,6 +13,7 @@ export interface Post {
     repostsCount?: number;
     viewsCount?: number;
     theme?: string;
+    isAuthorSubscribed?: boolean; // ← ДОБАВЬТЕ ЭТО
 }
 
 export interface PostState {

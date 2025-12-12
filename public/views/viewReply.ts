@@ -8,6 +8,7 @@ import { Comment } from '../components/Comment/Comment';
 import { commentsStore } from '../stores/storeComments';
 import { userListStore } from '../stores/storeUserList';
 import { UserList } from '../components/UserList/UserList';
+import { subscriptionsStore } from '../stores/storeSubscriptions';
 
 export class ReplyView {
     private container: HTMLElement;
@@ -162,6 +163,9 @@ export class ReplyView {
         const wrapper = document.createElement('div');
         wrapper.className = 'comment-wrapper comment--parent';
 
+        const isOwnComment = parent.user_id === loginStore.getState().user?.id;
+        const isSubscribed = isOwnComment ? false : subscriptionsStore.isSubscribed(parent.user_id.toString());
+
         const commentInstance = new Comment({
             commentId: parent.id,
             postId: this.postId,
@@ -169,14 +173,14 @@ export class ReplyView {
                 name: parent.author_name,
                 subtitle: '',
                 avatar: parent.author_avatar || '/img/defaultAvatar.jpg',
-                isSubscribed: false,
+                isSubscribed: isSubscribed,
                 id: parent.user_id
             },
             postTitle: parent.article_title || '',
             postDate: parent.created_at,
             text: parent.content,
             attachment: undefined,
-            hideSubscribeButton: parent.user_id === loginStore.getState().user?.id,
+            hideSubscribeButton: isOwnComment,
         });
 
         try {
@@ -192,9 +196,7 @@ export class ReplyView {
         const repliesList = document.querySelector('#replies-container .replies-list');
         if (!repliesList) return;
         
-        console.log('handleCommentsStoreChange called');
         const state = commentsStore.getState();
-        console.log('Replies to render:', state.comments);
 
         if (state.isLoading) {
             repliesList.innerHTML = '<div class="replies-loader">Загрузка ответов...</div>';
@@ -212,6 +214,9 @@ export class ReplyView {
             const wrapper = document.createElement('div');
             wrapper.className = 'comment-wrapper';
             
+            const isOwnReply = reply.authorId === loginStore.getState().user?.id;
+            const isSubscribed = isOwnReply ? false : subscriptionsStore.isSubscribed(reply.authorId.toString());
+            
             const replyInstance = new Comment({
                 commentId: reply.id,
                 postId: this.postId,
@@ -219,14 +224,14 @@ export class ReplyView {
                     name: reply.authorName,
                     subtitle: '',
                     avatar: reply.authorAvatar || '/img/defaultAvatar.jpg',
-                    isSubscribed: false,
+                    isSubscribed: isSubscribed,
                     id: reply.authorId
                 },
                 postTitle: '',
                 postDate: reply.postDate,
                 text: reply.text,
                 attachment: reply.attachment,
-                hideSubscribeButton: reply.authorId === loginStore.getState().user?.id,
+                hideSubscribeButton: isOwnReply,
                 onReplyClick: () => {
                     window.location.href = `/replies/${reply.id}?postId=${this.postId}`;
                 }

@@ -6,6 +6,7 @@ import { loginStore } from '../stores/storeLogin';
 import { userListStore } from '../stores/storeUserList';
 import { HashtagParser } from '../utils/hashtagParser';
 import { CommentView } from './viewComments'; // Импортируем CommentView
+import { subscriptionsStore } from '../stores/storeSubscriptions';
 
 export class PostView extends BaseView {
     private postId: string;
@@ -118,7 +119,14 @@ export class PostView extends BaseView {
     private async renderPostInWrapper(post: Post, wrapper: HTMLElement): Promise<void> {
         const authState = loginStore.getState();
         const currentUserId = authState.user?.id;
-        const isOwnPost = !!currentUserId && currentUserId.toString() === post.authorId.toString();
+        const isOwnPost = !!currentUserId && currentUserId.toString() === post.authorId?.toString();
+
+        // Используем store подписок
+        const isSubscribed = subscriptionsStore.isSubscribed(String(post.authorId));
+        
+        const finalIsSubscribed = post.isAuthorSubscribed !== undefined 
+            ? post.isAuthorSubscribed 
+            : isSubscribed;
 
         // Обрабатываем хештеги в заголовке и тексте
         const processedTitle = HashtagParser.replaceHashtagsWithLinks(post.title || '');
@@ -131,8 +139,9 @@ export class PostView extends BaseView {
                 name: post.authorName || 'Аноним',
                 subtitle: post.theme || 'Блог',
                 avatar: post.authorAvatar || '/img/defaultAvatar.jpg',
-                isSubscribed: true,
-                id: post.authorId
+                isSubscribed: finalIsSubscribed,
+                id: post.authorId,
+                hideSubscribeButton: isOwnPost
             },
             title: processedTitle,
             text: processedText,

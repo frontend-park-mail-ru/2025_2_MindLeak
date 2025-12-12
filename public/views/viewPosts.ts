@@ -207,7 +207,11 @@ export class PostsView {
     private transformPost(apiPost: Post): PostCardProps {
         const authState = loginStore.getState();
         const currentUserId = authState.user?.id;
-        const isOwnPost = !!currentUserId && currentUserId.toString() === apiPost.authorId?.toString();
+
+        const isOwnPost = !!currentUserId && 
+            String(currentUserId) === String(apiPost.authorId);
+        
+        const isMyProfile = isOwnPost;
 
         // Обрабатываем хештеги в заголовке и тексте
         const processedTitle = HashtagParser.replaceHashtagsWithLinks(apiPost.title || '');
@@ -220,11 +224,13 @@ export class PostsView {
                 name: apiPost.authorName || 'Аноним',
                 subtitle: apiPost.theme || 'Блог',
                 avatar: apiPost.authorAvatar || '/img/defaultAvatar.jpg',
-                isSubscribed: false,
-                id: apiPost.authorId
+                isSubscribed: apiPost.isAuthorSubscribed || false,
+                id: apiPost.authorId,
+                hideSubscribeButton: isMyProfile, // ← ОБЯЗАТЕЛЬНО добавить здесь!
+                isMyProfile: isMyProfile
             },
-            title: processedTitle, // Используем обработанный заголовок с хештегами
-            text: processedText,   // Используем обработанный текст с хештегами
+            title: processedTitle,
+            text: processedText,
             image: apiPost.image || '',
             tags: Array.isArray(apiPost.tags) ? apiPost.tags : [],
             commentsCount: apiPost.commentsCount || 0,

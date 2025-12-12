@@ -11,7 +11,20 @@
                 </div>
                 
                 <div class="profile__main-info">
-                    <h1 class="profile__name">{{profile.name}}</h1>
+                    <div class="profile__name-row">
+                        <h1 class="profile__name">{{profile.name}}</h1>
+                        
+                        {{#unless isMyProfile}}
+                            <button class="profile__subscribe-btn {{#if profile.isSubscribed}}profile__subscribe-btn--subscribed{{/if}}"
+                                    data-user-id="{{profile.id}}">
+                                {{#if profile.isSubscribed}}
+                                    Отписаться
+                                {{else}}
+                                    Подписаться
+                                {{/if}}
+                            </button>
+                        {{/unless}}
+                    </div>
                     
                     <div class="profile__description">
                         {{#if isEditingDescription}}

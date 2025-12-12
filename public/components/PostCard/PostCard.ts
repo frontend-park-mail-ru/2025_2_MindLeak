@@ -14,6 +14,8 @@ export interface PostAuthor {
     avatar: string | null;
     isSubscribed: boolean;
     id?: number;
+    hideSubscribeButton?: boolean;
+    isMyProfile?: boolean;
 }
 
 export interface PostCardProps {
@@ -83,7 +85,14 @@ export class PostCard {
         this.image = props.image || '';
 
         const {
-            user = { name: 'Аккаунт', subtitle: 'тема', avatar: null, isSubscribed: false },
+            user = { 
+                name: 'Аккаунт', 
+                subtitle: 'тема', 
+                avatar: null, 
+                isSubscribed: false,
+                hideSubscribeButton: false, // ← Добавить значение по умолчанию
+                isMyProfile: false // ← И это тоже
+            },
             title = 'Большой заголовок поста',
             text = 'Текст поста поменьше',
             link = '',
@@ -96,7 +105,11 @@ export class PostCard {
             canEdit = false
         } = props;
 
-        this.user = user;
+        this.user = {
+            ...user,
+            hideSubscribeButton: user.hideSubscribeButton || false, // Сохраняем флаг
+            isMyProfile: user.isMyProfile || false // Сохраняем если есть
+        };
         this.title = title;
         this.text = text;
         this.link = link;
@@ -288,6 +301,14 @@ export class PostCard {
 
         // И на весь блок user-menu
         const userMenuBlock = postCard.querySelector('.user-menu') as HTMLElement;
+        if (subscribeButton) {
+            subscribeButton.addEventListener('click', (e: Event) => {
+                e.stopPropagation();
+                this.handleSubscribeAction(subscribeButton);
+            });
+        }
+        
+        // Обновляем navigateToProfile чтобы не перекрывать кнопку подписки
         if (userMenuBlock) {
             userMenuBlock.style.cursor = 'pointer';
             userMenuBlock.addEventListener('click', (e: Event) => {
@@ -297,10 +318,23 @@ export class PostCard {
                 navigateToProfile(e);
             });
         }
+    }
 
-        if (subscribeButton) {
-            subscribeButton.addEventListener('click', (e: Event) => {
-                e.stopPropagation();
+    private handleSubscribeAction(button: HTMLElement): void {
+        const userId = this.user.id;
+        if (!userId) return;
+        
+        const isSubscribed = button.classList.contains('user-menu__button--subscribed');
+        
+        if (isSubscribed) {
+            dispatcher.dispatch('UNSUBSCRIBE_REQUEST', { 
+                userId: userId,
+                targetProfileId: userId
+            });
+        } else {
+            dispatcher.dispatch('SUBSCRIBE_REQUEST', { 
+                userId: userId,
+                targetProfileId: userId
             });
         }
     }

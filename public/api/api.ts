@@ -127,6 +127,14 @@ class API {
             case 'SEARCH_POSTS_REQUEST':
                 this.searchPosts(payload.query);
                 break;
+
+            case 'SUBSCRIBE_REQUEST':
+                this.subscribe(payload.userId, payload.targetProfileId);
+                break;
+            case 'UNSUBSCRIBE_REQUEST':
+                this.unsubscribe(payload.userId, payload.targetProfileId);
+                break;
+
         }
     }
 
@@ -359,6 +367,9 @@ private normalizeAppealData(appeal: any): any {
         const avatarWithTimestamp = authorAvatar ? 
             `${authorAvatar.split('?')[0]}?_=${Date.now()}` : 
             authorAvatar;
+
+        // Убедитесь, что authorId берется правильно из всех возможных полей
+        const authorId = post.author_id || post.AuthorID || post.authorId;
         
         return {
             id: post.id || post.ID || post.postId,
@@ -373,7 +384,8 @@ private normalizeAppealData(appeal: any): any {
             viewsCount: post.views_count || post.ViewsCount || 0,
             theme: post.Topic?.Title || post.theme || post.Topic?.title || 'Без темы',
             topic_id: post.topic_id || post.Topic?.TopicId || post.Topic?.topic_id || 0,
-            tags: []
+            tags: [],
+            isAuthorSubscribed: post.is_subscribed || false // спроc у ребят todo есть и будет ли?
         };
     }
 
@@ -1450,6 +1462,63 @@ private normalizeAppealData(appeal: any): any {
         }
     }
 
+    private async subscribe(userId: number, targetProfileId?: number | string): Promise<void> {
+        try {
+            const response = await ajax.post(`/subscribe/${userId}`, {});
+            
+            switch (response.status) {
+                case STATUS.ok:
+                case 201:
+                    // Отправляем успех с ID пользователя и ID профиля для обновления
+                    this.sendAction('SUBSCRIBE_SUCCESS', { 
+                        userId,
+                        targetProfileId: targetProfileId || userId
+                    });
+                    break;
+                case STATUS.unauthorized:
+                    this.sendAction('USER_UNAUTHORIZED');
+                    this.sendAction('SUBSCRIBE_FAIL', { error: 'Требуется авторизация' });
+                    break;
+                default:
+                    this.sendAction('SUBSCRIBE_FAIL', { 
+                        error: response.message || 'Ошибка подписки' 
+                    });
+            }
+        } catch (error) {
+            this.sendAction('SUBSCRIBE_FAIL', { 
+                error: 'Ошибка при выполнении подписки' 
+            });
+        }
+    }
+
+    private async unsubscribe(userId: number, targetProfileId?: number | string): Promise<void> {
+        try {
+            const response = await ajax.post(`/unsubscribe/${userId}`, {});
+            
+            switch (response.status) {
+                case STATUS.ok:
+                case 201:
+                    // Отправляем успех с ID пользователя и ID профиля для обновления
+                    this.sendAction('UNSUBSCRIBE_SUCCESS', { 
+                        userId,
+                        targetProfileId: targetProfileId || userId
+                    });
+                    break;
+                case STATUS.unauthorized:
+                    this.sendAction('USER_UNAUTHORIZED');
+                    this.sendAction('UNSUBSCRIBE_FAIL', { error: 'Требуется авторизация' });
+                    break;
+                default:
+                    this.sendAction('UNSUBSCRIBE_FAIL', { 
+                        error: response.message || 'Ошибка отписки' 
+                    });
+            }
+        } catch (error) {
+            this.sendAction('UNSUBSCRIBE_FAIL', { 
+                error: 'Ошибка при выполнении отписки' 
+            });
+        }
+    }
 }
 
 export const api = new API();

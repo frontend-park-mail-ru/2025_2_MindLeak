@@ -65,6 +65,14 @@ class ProfileStore extends BaseStore<ProfileState> {
                 // Сравниваем ID профиля с ID текущего пользователя
                 isMyProfile = String(payload.profile.id) === String(loginState.user.id);
             }
+
+            console.log('🔍 [storeProfile] Determining isMyProfile:', {
+                profileId: payload.profile?.id,
+                profileIdType: typeof payload.profile?.id,
+                userId: loginState.user?.id,
+                userIdType: typeof loginState.user?.id,
+                isMyProfile: isMyProfile
+            });
             
             this.setState({
                 profile: payload.profile,
@@ -199,6 +207,82 @@ class ProfileStore extends BaseStore<ProfileState> {
 
         this.registerAction('PROFILE_LOAD_COMMENTS_FAIL', (payload: { error: string }) => {
             this.setState({ isLoading: false, error: payload.error });
+        });
+
+        // В registerActions добавляем обработку подписки/отписки:
+        this.registerAction('SUBSCRIBE_SUCCESS', (payload: { userId: number; targetProfileId: number | string }) => {
+            const state = this.getState();
+            
+            // Обновляем флаг подписки в профиле
+            if (state.profile && String(state.profile.id) === String(payload.targetProfileId)) {
+                this.setState({
+                    profile: {
+                        ...state.profile,
+                        isSubscribed: true,
+                        subscribers: state.profile.subscribers + 1
+                    }
+                });
+            }
+            
+            // Обновляем флаг подписки в постах этого автора
+            const updatedPosts = state.posts.map(post => {
+                // Если автор поста совпадает с тем, на кого подписались
+                if (post.authorId === payload.userId) {
+                    return {
+                        ...post,
+                        isAuthorSubscribed: true
+                    };
+                }
+                return post;
+            });
+            
+            this.setState({
+                posts: updatedPosts
+            });
+        });
+
+        this.registerAction('UNSUBSCRIBE_SUCCESS', (payload: { userId: number; targetProfileId: number | string }) => {
+            const state = this.getState();
+            
+            // Обновляем флаг подписки в профиле
+            if (state.profile && String(state.profile.id) === String(payload.targetProfileId)) {
+                this.setState({
+                    profile: {
+                        ...state.profile,
+                        isSubscribed: false,
+                        subscribers: Math.max(0, state.profile.subscribers - 1)
+                    }
+                });
+            }
+            
+            // Обновляем флаг подписки в постах этого автора
+            const updatedPosts = state.posts.map(post => {
+                if (post.authorId === payload.userId) {
+                    return {
+                        ...post,
+                        isAuthorSubscribed: false
+                    };
+                }
+                return post;
+            });
+            
+            this.setState({
+                posts: updatedPosts
+            });
+        });
+
+        this.registerAction('SUBSCRIBE_FAIL', (payload: { error: string }) => {
+            this.setState({
+                isLoading: false,
+                error: payload.error
+            });
+        });
+
+        this.registerAction('UNSUBSCRIBE_FAIL', (payload: { error: string }) => {
+            this.setState({
+                isLoading: false,
+                error: payload.error
+            });
         });
     }
 }

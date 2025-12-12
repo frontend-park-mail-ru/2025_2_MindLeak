@@ -176,6 +176,7 @@ export class ReplyView {
             postDate: parent.created_at,
             text: parent.content,
             attachment: undefined,
+            hideSubscribeButton: parent.user_id === loginStore.getState().user?.id,
         });
 
         try {
@@ -225,6 +226,7 @@ export class ReplyView {
                 postDate: reply.postDate,
                 text: reply.text,
                 attachment: reply.attachment,
+                hideSubscribeButton: reply.authorId === loginStore.getState().user?.id,
                 onReplyClick: () => {
                     window.location.href = `/replies/${reply.id}?postId=${this.postId}`;
                 }

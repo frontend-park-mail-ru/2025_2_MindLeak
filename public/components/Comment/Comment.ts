@@ -28,6 +28,7 @@ export interface CommentProps {
     text: string;
     attachment?: CommentAttachment;
     onReplyClick?: (commentId: string) => void;
+    hideSubscribeButton?: boolean;
 }
 
 async function getCommentTemplate(): Promise<Handlebars.TemplateDelegate> {
@@ -63,6 +64,7 @@ export class Comment {
     private text: string;
     private attachment?: CommentAttachment;
     private onReplyClick?: (commentId: string) => void;
+    private hideSubscribeButton: boolean;
 
     constructor(props: CommentProps) {
         this.commentId = props.commentId;
@@ -73,6 +75,7 @@ export class Comment {
         this.text = props.text;
         this.attachment = props.attachment;
         this.onReplyClick = props.onReplyClick;
+        this.hideSubscribeButton = props.hideSubscribeButton || false;
     }
 
     async render(): Promise<HTMLElement> {
@@ -84,6 +87,7 @@ export class Comment {
             postDate: this.postDate,
             text: this.text,
             attachment: this.attachment,
+            hideSubscribeButton: this.hideSubscribeButton,
         });
 
         const div = document.createElement('div');

@@ -46,7 +46,8 @@ export class CommentView {
 
         const authState = loginStore.getState();
         const userId = authState.user?.id;
-    
+
+        // Создаем заглушку для ввода нового комментария
         const emptyComment = new Comment({
             commentId: 'empty',
             postId: this.postId,
@@ -55,12 +56,13 @@ export class CommentView {
                 subtitle: '',
                 avatar: loginStore.getState().user?.avatar || '/img/defaultAvatar.jpg',
                 isSubscribed: true,
-                id: loginStore.getState().user?.id
+                id: userId
             },
             postTitle: '',
             postDate: '',
             text: '', 
             attachment: undefined,
+            hideSubscribeButton: true // Скрываем кнопку подписки для заглушки
         });
 
         emptyComment.render().then(el => {
@@ -99,6 +101,13 @@ export class CommentView {
             wrapper.className = 'comment-wrapper';
             commentListEl.appendChild(wrapper);
 
+            // Проверяем, является ли автор комментария текущим пользователем
+            const isOwnComment = comment.authorId === userId;
+            
+            // Временное решение - всегда false, пока нет store подписок
+            // TODO: Получить реальное состояние подписки из store подписок или API
+            const isSubscribed = false;
+
             const commentInstance = new Comment({
                 commentId: comment.id,
                 postId: this.postId,
@@ -106,13 +115,14 @@ export class CommentView {
                     name: comment.authorName,
                     subtitle: '',
                     avatar: comment.authorAvatar || '/img/defaultAvatar.jpg',
-                    isSubscribed: false,
+                    isSubscribed: isOwnComment ? false : isSubscribed, // Для своих комментариев всегда false
                     id: comment.authorId
                 },
                 postTitle: comment.postTitle,
                 postDate: comment.postDate,
                 text: comment.text,
                 attachment: comment.attachment,
+                hideSubscribeButton: isOwnComment // Скрываем кнопку подписки для своих комментариев
             });
 
             commentInstance.render().then(el => {

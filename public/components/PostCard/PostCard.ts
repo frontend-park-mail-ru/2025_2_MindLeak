@@ -321,19 +321,26 @@ export class PostCard {
     }
 
     private handleSubscribeAction(button: HTMLElement): void {
-        const userId = this.user.id;
+        // Получаем userId как строку
+        const userId = button.getAttribute('data-user-id'); // ← Используем getAttribute
+        
+        console.log('🔍 [PostCard] handleSubscribeAction:', {
+            userId: userId,
+            buttonClass: button.className
+        });
+        
         if (!userId) return;
         
         const isSubscribed = button.classList.contains('user-menu__button--subscribed');
         
         if (isSubscribed) {
             dispatcher.dispatch('UNSUBSCRIBE_REQUEST', { 
-                userId: userId,
+                userId: userId, // ← Уже строка
                 targetProfileId: userId
             });
         } else {
             dispatcher.dispatch('SUBSCRIBE_REQUEST', { 
-                userId: userId,
+                userId: userId, // ← Уже строка
                 targetProfileId: userId
             });
         }

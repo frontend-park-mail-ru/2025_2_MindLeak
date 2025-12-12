@@ -87,7 +87,7 @@ function transformPostForProfile(apiPost: any, isMyProfile: boolean): any {
     };
     
     console.log('✅ User data with hideSubscribeButton:', userData.hideSubscribeButton);
-    
+
     // СОЗДАЕМ menuItems ТАК ЖЕ КАК В POSTCARD.TS
     let menuItems = [
         { key: 'hide', text: 'Скрыть' },
@@ -176,11 +176,19 @@ export class Profile {
     private attachSubscribeListeners(container: HTMLElement): void {
         // Обработчик кнопки подписки в профиле
         const subscribeBtn = container.querySelector('.profile__subscribe-btn');
-        if (subscribeBtn) {
+        if (subscribeBtn && subscribeBtn instanceof HTMLElement) { // ← Проверка типа
             subscribeBtn.addEventListener('click', (e) => {
-                const userId = (e.target as HTMLElement).dataset.userId;
+                // Получаем userId из data-атрибута самой кнопки
+                const userId = subscribeBtn.getAttribute('data-user-id');
+                
+                console.log('🔍 [Profile] Subscribe button clicked:', {
+                    button: subscribeBtn,
+                    dataset: subscribeBtn.dataset, // ← Теперь безопасно
+                    userId: userId
+                });
+                
                 if (userId) {
-                    this.handleSubscribeAction(Number(userId), subscribeBtn as HTMLElement);
+                    this.handleSubscribeAction(userId, subscribeBtn);
                 }
             });
         }
@@ -188,32 +196,41 @@ export class Profile {
         // Обработчики кнопок подписки в постах
         const postSubscribeBtns = container.querySelectorAll('.user-menu__button');
         postSubscribeBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const userId = (e.target as HTMLElement).dataset.userId;
-                if (userId) {
-                    this.handleSubscribeAction(Number(userId), btn as HTMLElement);
-                }
-            });
+            if (btn instanceof HTMLElement) { // ← Проверка типа
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const userId = btn.getAttribute('data-user-id');
+                    
+                    if (userId) {
+                        this.handleSubscribeAction(userId, btn);
+                    }
+                });
+            }
         });
     }
 
     // ДОБАВЛЯЕМ НОВЫЙ МЕТОД ДЛЯ ОБРАБОТКИ ДЕЙСТВИЙ ПОДПИСКИ
-    private handleSubscribeAction(userId: number, button: HTMLElement): void {
+    private handleSubscribeAction(userId: string, button: HTMLElement): void { // ← userId как string!
         const isSubscribed = button.classList.contains('user-menu__button--subscribed') || 
                             button.classList.contains('profile__subscribe-btn--subscribed');
         
         // Получаем ID профиля, который просматриваем
         const targetProfileId = this.props.profile?.id;
         
+        console.log('🔍 [Profile] handleSubscribeAction:', {
+            userId: userId,
+            targetProfileId: targetProfileId,
+            isSubscribed: isSubscribed
+        });
+        
         if (isSubscribed) {
             dispatcher.dispatch('UNSUBSCRIBE_REQUEST', { 
-                userId: userId,
+                userId: userId, // ← Уже строка
                 targetProfileId: targetProfileId
             });
         } else {
             dispatcher.dispatch('SUBSCRIBE_REQUEST', { 
-                userId: userId,
+                userId: userId, // ← Уже строка
                 targetProfileId: targetProfileId
             });
         }

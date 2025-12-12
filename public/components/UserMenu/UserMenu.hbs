@@ -13,7 +13,6 @@
             <div class="user-menu__name">{{name}}</div>
             
             {{#unless hideSubscribeButton}}
-                <!-- DEBUG: Showing button, hideSubscribeButton = {{hideSubscribeButton}} -->
                 <button class="user-menu__button {{#if isSubscribed}}user-menu__button--subscribed{{/if}}"
                         data-user-id="{{id}}">
                     {{#if isSubscribed}}
@@ -22,8 +21,6 @@
                         Подписаться
                     {{/if}}
                 </button>
-            {{else}}
-                <!-- DEBUG: Hiding button, hideSubscribeButton = {{hideSubscribeButton}}, id = {{id}} -->
             {{/unless}}
         </div>
         <div class="user-menu__subtitle">{{subtitle}}</div>

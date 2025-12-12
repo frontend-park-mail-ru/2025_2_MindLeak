@@ -148,7 +148,8 @@ export class ProfileView extends BaseView {
         const postsWithHashtags = state.posts ? state.posts.map(post => ({
             ...post,
             title: HashtagParser.replaceHashtagsWithLinks(post.title || ''),
-            content: HashtagParser.replaceHashtagsWithLinks(post.content || '')
+            content: HashtagParser.replaceHashtagsWithLinks(post.content || ''),
+            isAuthorSubscribed: post.isAuthorSubscribed || false 
         })) : [];
 
         const profileComponent = new Profile({
@@ -205,6 +206,8 @@ export class ProfileView extends BaseView {
                 if (!this.isDestroyed && newContent && this.mainContent) {
                     this.mainContent.innerHTML = '';
                     this.mainContent.appendChild(newContent);
+
+                    this.attachEventListeners(newContent);
                 }
             });
         }

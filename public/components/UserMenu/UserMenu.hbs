@@ -1,3 +1,4 @@
+{{! UserMenu.hbs - тестовая версия }}
 <div class="user-menu">
     <div class="user-menu__avatar">
         {{#if avatar}}
@@ -12,19 +13,14 @@
             <div class="user-menu__name">{{name}}</div>
             
             {{#unless hideSubscribeButton}}
-                {{#if isLoggedIn}}
-                    <button 
-                        class="user-menu__button {{#if isSubscribed}}user-menu__button--subscribed{{/if}}"
-                        data-key="toggle-subscribe">
-                        {{#if isSubscribed}}✔{{else}}Подписаться{{/if}}
-                    </button>
-                {{else}}
-                    <button 
-                        class="user-menu__button user-menu__button--login"
-                        data-key="open-login">
+                <button class="user-menu__button {{#if isSubscribed}}user-menu__button--subscribed{{/if}}"
+                        data-user-id="{{id}}">
+                    {{#if isSubscribed}}
+                        Отписаться
+                    {{else}}
                         Подписаться
-                    </button>
-                {{/if}}
+                    {{/if}}
+                </button>
             {{/unless}}
         </div>
         <div class="user-menu__subtitle">{{subtitle}}</div>

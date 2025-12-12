@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mindleak-cache-v1';
+const CACHE_NAME = 'mindleak-cache-v2';
 const urlsCache = ['/']; // Кэшируем только главную страницу
 
 // Установка

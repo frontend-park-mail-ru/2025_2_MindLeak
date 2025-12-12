@@ -1176,7 +1176,9 @@ private normalizeAppealData(appeal: any): any {
                 id: c.id,
                 authorId: c.user_id,
                 authorName: c.author_name,
-                authorAvatar: c.author_avatar || '/img/defaultAvatar.jpg',
+                authorAvatar: c.author_avatar ? 
+                    `${c.author_avatar.split('?')[0]}?_=${Date.now()}` : 
+                    '/img/defaultAvatar.jpg',
                 text: c.content,
                 postTitle: c.article_title || '',
                 postDate: c.created_at,
@@ -1201,7 +1203,9 @@ private normalizeAppealData(appeal: any): any {
                 id: r.id,
                 authorId: r.user_id,
                 authorName: r.author_name,
-                authorAvatar: r.author_avatar || '/img/defaultAvatar.jpg',
+                authorAvatar: r.author_avatar ? 
+                    `${r.author_avatar.split('?')[0]}?_=${Date.now()}` : 
+                    '/img/defaultAvatar.jpg',
                 text: r.content,
                 postTitle: r.article_title || '',
                 postDate: r.created_at,

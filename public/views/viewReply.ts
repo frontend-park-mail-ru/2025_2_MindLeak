@@ -18,6 +18,9 @@ export class ReplyView {
     private rightMenu: HTMLElement | null = null;
     private boundUserListStoreHandler: () => void;
     private rootElement: HTMLElement | null = null;
+    private currentCategory: string = '';
+    private sidebarEl1: HTMLElement | null = null;
+    private sidebarEl2: HTMLElement | null = null;
 
     constructor(container: HTMLElement, params: { commentId: string }) {
         this.container = container;
@@ -32,16 +35,34 @@ export class ReplyView {
 
         this.boundCommentsStoreHandler = this.handleCommentsStoreChange.bind(this);
         this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
+        
+        this.determineCurrentCategory();
+    }
+
+    private determineCurrentCategory(): void {
+        const url = new URL(window.location.href);
+        const pathname = url.pathname;
+        if (pathname === '/' || pathname === '/feed') {
+            this.currentCategory = 'fresh';
+        } else if (pathname === '/feed/category') {
+            const topicParam = url.searchParams.get('topic');
+            this.currentCategory = topicParam || 'fresh';
+        }
+    }
+
+    private deactivateAll(sidebarEl: HTMLElement): void {
+        sidebarEl.querySelectorAll('.menu-item').forEach(item => {
+            item.classList.remove('menu-item--active');
+        });
     }
 
     async render(): Promise<HTMLElement> {
         this.rootElement = document.createElement('div');
         
-        // Header - ИСПРАВЛЕНО!
+        // Header
         const headerContainer = document.createElement('header');
         const header = Header.getInstance();
         
-        // ✅ ИНИЦИАЛИЗИРУЕМ Header (важно!)
         await header.init(headerContainer);
         
         const headerEl = header.getElement();
@@ -57,10 +78,43 @@ export class ReplyView {
 
         const leftMenu = document.createElement('aside');
         leftMenu.className = 'sidebar-left';
-        const sidebar1 = new SidebarMenu(MAIN_MENU_ITEMS, '', () => {});
-        const sidebar2 = new SidebarMenu(SECONDARY_MENU_ITEMS, '', () => {});
-        leftMenu.appendChild(await sidebar1.render());
-        leftMenu.appendChild(await sidebar2.render());
+        
+        const sidebar1 = new SidebarMenu(
+            MAIN_MENU_ITEMS,
+            this.currentCategory,
+            (key) => {
+                if (this.sidebarEl2) this.deactivateAll(this.sidebarEl2);
+                let newUrl = '';
+                if (key === 'fresh') {
+                    newUrl = '/feed';
+                } else {
+                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
+                }
+                window.history.pushState({}, '', newUrl);
+                window.dispatchEvent(new PopStateEvent('popstate'));
+            }
+        );
+        this.sidebarEl1 = await sidebar1.render();
+        
+        const sidebar2 = new SidebarMenu(
+            SECONDARY_MENU_ITEMS,
+            this.currentCategory,
+            (key) => {
+                if (this.sidebarEl1) this.deactivateAll(this.sidebarEl1);
+                let newUrl = '';
+                if (key === 'fresh') {
+                    newUrl = '/feed';
+                } else {
+                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
+                }
+                window.history.pushState({}, '', newUrl);
+                window.dispatchEvent(new PopStateEvent('popstate'));
+            }
+        );
+        this.sidebarEl2 = await sidebar2.render();
+        
+        leftMenu.appendChild(this.sidebarEl1);
+        leftMenu.appendChild(this.sidebarEl2);
         contentContainer.appendChild(leftMenu);
 
         // Центр — контейнер для комментария и ответов
@@ -166,13 +220,18 @@ export class ReplyView {
         const isOwnComment = parent.user_id === loginStore.getState().user?.id;
         const isSubscribed = isOwnComment ? false : subscriptionsStore.isSubscribed(parent.user_id.toString());
 
+        const authorAvatar = parent.author_avatar || '/img/defaultAvatar.jpg';
+        const avatarWithTimestamp = authorAvatar ? 
+            `${authorAvatar.split('?')[0]}?_=${Date.now()}` : 
+            authorAvatar;
+
         const commentInstance = new Comment({
             commentId: parent.id,
             postId: this.postId,
             user: {
                 name: parent.author_name,
                 subtitle: '',
-                avatar: parent.author_avatar || '/img/defaultAvatar.jpg',
+                avatar: avatarWithTimestamp || '/img/defaultAvatar.jpg',
                 isSubscribed: isSubscribed,
                 id: parent.user_id
             },
@@ -249,6 +308,9 @@ export class ReplyView {
     destroy(): void {
         commentsStore.removeListener(this.boundCommentsStoreHandler);
         userListStore.removeListener(this.boundUserListStoreHandler);
+        
+        this.sidebarEl1 = null;
+        this.sidebarEl2 = null;
         
         if (this.rootElement && this.rootElement.parentNode === this.container) {
             this.container.removeChild(this.rootElement);

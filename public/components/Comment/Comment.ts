@@ -144,9 +144,58 @@ export class Comment {
         });
 
         if (subscribeButton) {
+            // 🔥 ДОБАВЬТЕ ЭТОТ ОБРАБОТЧИК
             subscribeButton.addEventListener('click', (e) => {
                 e.stopPropagation();
+                e.preventDefault();
+                
+                const authorId = this.user.id;
+                if (!authorId) return;
+                
+                this.handleSubscribeAction(subscribeButton, authorId.toString());
             });
+        }
+    }
+
+    private handleSubscribeAction(button: HTMLElement, userId: string): void {
+        console.log('🔍 [Comment] handleSubscribeAction:', {
+            userId: userId,
+            buttonClass: button.className,
+            hideSubscribeButton: this.hideSubscribeButton
+        });
+        
+        // Если это собственный комментарий, ничего не делаем
+        if (this.hideSubscribeButton) {
+            console.log('⚠️ [Comment] Own comment, skipping subscription');
+            return;
+        }
+        
+        const isSubscribed = button.classList.contains('user-menu__button--subscribed');
+        
+        console.log('🔍 [Comment] Current subscription state:', isSubscribed);
+        
+        if (isSubscribed) {
+            // Отписка
+            dispatcher.dispatch('UNSUBSCRIBE_REQUEST', { 
+                userId: userId,
+                targetProfileId: userId
+            });
+            
+            // Сразу обновляем UI
+            button.classList.remove('user-menu__button--subscribed');
+            button.classList.add('user-menu__button--subscribe');
+            button.textContent = 'Подписаться';
+        } else {
+            // Подписка
+            dispatcher.dispatch('SUBSCRIBE_REQUEST', { 
+                userId: userId,
+                targetProfileId: userId
+            });
+            
+            // Сразу обновляем UI
+            button.classList.remove('user-menu__button--subscribe');
+            button.classList.add('user-menu__button--subscribed');
+            button.textContent = 'Отписаться';
         }
     }
 

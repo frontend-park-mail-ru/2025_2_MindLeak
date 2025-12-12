@@ -12,17 +12,14 @@
         <div class="user-menu__row">
             <div class="user-menu__name">{{name}}</div>
             
-            {{#unless hideSubscribeButton}}
-                <button class="user-menu__button {{#if isSubscribed}}user-menu__button--subscribed{{/if}}"
-                        data-user-id="{{id}}">
+                {{#unless hideSubscribeButton}}
                     {{#if isSubscribed}}
-                        Отписаться
+                        <button class="user-menu__button user-menu__button--subscribed" data-user-id="{{id}}">Отписаться</button>
                     {{else}}
-                        Подписаться
+                        <button class="user-menu__button user-menu__button--subscribe" data-user-id="{{id}}">Подписаться</button>
                     {{/if}}
-                </button>
-            {{/unless}}
-        </div>
+                {{/unless}}
+            </div>
         <div class="user-menu__subtitle">{{subtitle}}</div>
     </div>
 </div>

@@ -215,19 +215,16 @@ export class PostsView {
         
         const isMyProfile = isOwnPost;
 
-        // Если грузятся - Promise сам подождет
         const isSubscribed = await SubscriptionHelper.getSubscriptionFlag(String(apiPost.authorId));
-        
-        // Если сервер вернул флаг, используем его, иначе берем из store
-        const finalIsSubscribed = apiPost.isAuthorSubscribed !== undefined 
-            ? apiPost.isAuthorSubscribed 
-            : isSubscribed;
 
-        console.log('🔄 [PostsView] Subscription status:', {
+        const finalIsSubscribed = isSubscribed;
+
+        console.log('🔄 [PostsView] Subscription status (FIXED):', {
             authorId: apiPost.authorId,
             serverFlag: apiPost.isAuthorSubscribed,
             storeFlag: isSubscribed,
-            finalFlag: finalIsSubscribed
+            finalFlag: finalIsSubscribed,
+            rule: 'ALWAYS USE STORE FLAG'
         });
 
         // Обрабатываем хештеги в заголовке и тексте
@@ -241,7 +238,7 @@ export class PostsView {
                 name: apiPost.authorName || 'Аноним',
                 subtitle: apiPost.theme || 'Блог',
                 avatar: apiPost.authorAvatar || '/img/defaultAvatar.jpg',
-                isSubscribed: finalIsSubscribed,
+                isSubscribed: finalIsSubscribed, // Используем исправленный флаг
                 id: apiPost.authorId,
                 hideSubscribeButton: isMyProfile,
                 isMyProfile: isMyProfile

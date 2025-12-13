@@ -123,11 +123,17 @@ export class PostView extends BaseView {
 
         // Используем store подписок
         const isSubscribed = !subscriptionsStore.getState().isLoading && 
-                     subscriptionsStore.isSubscribed(String(post.authorId));
+                        subscriptionsStore.isSubscribed(String(post.authorId));
         
-        const finalIsSubscribed = post.isAuthorSubscribed !== undefined 
-            ? post.isAuthorSubscribed 
-            : isSubscribed;
+        const finalIsSubscribed = isSubscribed;
+
+        console.log('🔍 [PostView] Subscription status (FIXED):', {
+            authorId: post.authorId,
+            serverFlag: post.isAuthorSubscribed,
+            storeFlag: isSubscribed,
+            finalFlag: finalIsSubscribed,
+            isOwnPost: isOwnPost
+        });
 
         // Обрабатываем хештеги в заголовке и тексте
         const processedTitle = HashtagParser.replaceHashtagsWithLinks(post.title || '');
@@ -140,7 +146,7 @@ export class PostView extends BaseView {
                 name: post.authorName || 'Аноним',
                 subtitle: post.theme || 'Блог',
                 avatar: post.authorAvatar || '/img/defaultAvatar.jpg',
-                isSubscribed: finalIsSubscribed,
+                isSubscribed: finalIsSubscribed, // Используем исправленный флаг
                 id: post.authorId,
                 hideSubscribeButton: isOwnPost
             },

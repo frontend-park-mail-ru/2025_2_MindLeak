@@ -122,7 +122,8 @@ export class PostView extends BaseView {
         const isOwnPost = !!currentUserId && currentUserId.toString() === post.authorId?.toString();
 
         // Используем store подписок
-        const isSubscribed = subscriptionsStore.isSubscribed(String(post.authorId));
+        const isSubscribed = !subscriptionsStore.getState().isLoading && 
+                     subscriptionsStore.isSubscribed(String(post.authorId));
         
         const finalIsSubscribed = post.isAuthorSubscribed !== undefined 
             ? post.isAuthorSubscribed 

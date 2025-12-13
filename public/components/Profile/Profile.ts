@@ -1,5 +1,6 @@
 import { PostCardMenu } from '../PostCardMenu/PostCardMenu';
 import { dispatcher } from '../../dispatcher/dispatcher';
+import { subscriptionsStore } from '../../stores/storeSubscriptions';
 
 let profileTemplate: Handlebars.TemplateDelegate | null = null;
 let partialsLoaded = false;
@@ -69,24 +70,32 @@ function transformPostForProfile(apiPost: any, isMyProfile: boolean): any {
     console.log('🔍 [Profile] Checking post ownership:', {
         postId: apiPost.id,
         authorId: apiPost.authorId,
-        authorIdType: typeof apiPost.authorId,
+        //authorIdType: typeof apiPost.authorId,
         isMyProfile: isMyProfile
     });
 
     if (!apiPost) return {};
     
+
+    const isSubscribed = subscriptionsStore.isSubscribed(String(apiPost.authorId));
     // Правильно формируем объект user
     const userData = {
         name: apiPost.authorName || 'Аноним',
         subtitle: apiPost.theme || 'Блог', 
         avatar: apiPost.authorAvatar || '/img/defaultAvatar.jpg',
-        isSubscribed: apiPost.isAuthorSubscribed || false, // Будет обновлено из store
+        isSubscribed: isSubscribed, // Будет обновлено из store
         id: apiPost.authorId,
         hideSubscribeButton: isMyProfile, // Важно: передаем этот флаг
         isMyProfile: isMyProfile // Также можно передать isMyProfile для UserMenu
     };
     
     console.log('✅ User data with hideSubscribeButton:', userData.hideSubscribeButton);
+
+    console.log('✅ User data with subscription:', {
+        authorId: apiPost.authorId,
+        isSubscribed: isSubscribed,
+        fromServer: apiPost.isAuthorSubscribed
+    });
 
     // СОЗДАЕМ menuItems ТАК ЖЕ КАК В POSTCARD.TS
     let menuItems = [

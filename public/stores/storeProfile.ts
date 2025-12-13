@@ -2,6 +2,7 @@ import { BaseStore } from './store';
 import { Post } from './storePosts';
 import { loginStore } from './storeLogin';
 import { dispatcher } from '../dispatcher/dispatcher';
+import { subscriptionsStore } from './storeSubscriptions';
 
 export interface ProfileData {
     id: string;
@@ -58,29 +59,33 @@ class ProfileStore extends BaseStore<ProfileState> {
         this.registerAction('PROFILE_LOAD_SUCCESS', (payload: { profile: ProfileData; posts: Post[] }) => {
             const loginState = loginStore.getState();
             
-            // ПРАВИЛЬНАЯ логика определения isMyProfile
             let isMyProfile = false;
-            
             if (payload.profile && loginState.user) {
-                // Сравниваем ID профиля с ID текущего пользователя
                 isMyProfile = String(payload.profile.id) === String(loginState.user.id);
             }
 
-            console.log('🔍 [storeProfile] Determining isMyProfile:', {
-                profileId: payload.profile?.id,
-                profileIdType: typeof payload.profile?.id,
-                userId: loginState.user?.id,
-                userIdType: typeof loginState.user?.id,
+            // ✅ ВАЖНО: Переопределяем флаг подписки из локального store
+            const updatedProfile = { ...payload.profile };
+            
+            // Если это не мой профиль, проверяем подписку в локальном store
+            if (!isMyProfile) {
+                updatedProfile.isSubscribed = subscriptionsStore.isSubscribed(updatedProfile.id);
+            }
+
+            console.log('🔍 [storeProfile] Profile subscription:', {
+                profileId: updatedProfile.id,
+                serverFlag: payload.profile.isSubscribed,
+                localFlag: updatedProfile.isSubscribed,
                 isMyProfile: isMyProfile
             });
             
             this.setState({
-                profile: payload.profile,
+                profile: updatedProfile, // ← Используем профиль с актуальным флагом
                 posts: payload.posts,
                 isLoading: false,
                 error: null,
                 isMyProfile: isMyProfile,
-                isOffline: false // Успешная загрузка - не оффлайн
+                isOffline: false
             });
         });
 

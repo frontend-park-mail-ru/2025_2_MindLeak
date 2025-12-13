@@ -223,7 +223,8 @@ export class ReplyView {
         wrapper.className = 'comment-wrapper comment--parent';
 
         const isOwnComment = parent.user_id === loginStore.getState().user?.id;
-        const isSubscribed = isOwnComment ? false : subscriptionsStore.isSubscribed(parent.user_id.toString());
+        const isSubscribed = isOwnComment ? false : !subscriptionsStore.getState().isLoading && 
+                     subscriptionsStore.isSubscribed(parent.user_id.toString());
 
         const authorAvatar = parent.author_avatar || '/img/defaultAvatar.jpg';
         const avatarWithTimestamp = authorAvatar ? 
@@ -279,7 +280,8 @@ export class ReplyView {
             wrapper.className = 'comment-wrapper';
             
             const isOwnReply = reply.authorId === loginStore.getState().user?.id;
-            const isSubscribed = isOwnReply ? false : subscriptionsStore.isSubscribed(reply.authorId.toString());
+            const isSubscribed = isOwnReply ? false : !subscriptionsStore.getState().isLoading && 
+                     subscriptionsStore.isSubscribed(reply.authorId.toString());
             
             const replyInstance = new Comment({
                 commentId: reply.id,

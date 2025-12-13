@@ -40,6 +40,10 @@ class LoginStore extends BaseStore<LoginState> {
             };
             this.setState(newState);
             this.saveAuthState(newState);
+            
+            // ✅ ЗАГРУЖАЕМ ПОДПИСКИ ПРИ ПРОВЕРКЕ АВТОРИЗАЦИИ
+            console.log('🔄 Loading subscriptions after auth check...');
+            dispatcher.dispatch('SUBSCRIPTIONS_LOAD_REQUEST');
         });
 
         this.registerAction('USER_LOGIN_SUCCESS', (payload: { user: User }) => {
@@ -51,6 +55,10 @@ class LoginStore extends BaseStore<LoginState> {
             };
             this.setState(newState);
             this.saveAuthState(newState);
+            
+            // ✅ ЗАГРУЖАЕМ ПОДПИСКИ ПОСЛЕ УСПЕШНОГО ЛОГИНА
+            console.log('🔄 Loading subscriptions after login...');
+            dispatcher.dispatch('SUBSCRIPTIONS_LOAD_REQUEST');
         });
 
         this.registerAction('USER_LOGIN_FAIL', (payload: { error: string }) => {
@@ -143,6 +151,9 @@ class LoginStore extends BaseStore<LoginState> {
             this.setState(newState);
             this.clearAuthState();
 
+            // ✅ ОЧИЩАЕМ ПОДПИСКИ ПРИ ВЫХОДЕ
+            dispatcher.dispatch('SUBSCRIPTIONS_CLEAR');
+            
             dispatcher.dispatch('HEADER_FORCE_REFRESH');
         });
 
@@ -155,6 +166,9 @@ class LoginStore extends BaseStore<LoginState> {
             };
             this.setState(newState);
             this.clearAuthState();
+            
+            // ✅ ОЧИЩАЕМ ПОДПИСКИ ПРИ ИСТЕЧЕНИИ СЕССИИ
+            dispatcher.dispatch('SUBSCRIPTIONS_CLEAR');
         });
     }
 
@@ -176,6 +190,14 @@ class LoginStore extends BaseStore<LoginState> {
                     user: parsed.user,
                     isLoggedIn: parsed.isLoggedIn
                 });
+                
+                // ✅ ЗАГРУЖАЕМ ПОДПИСКИ ПРИ ВОССТАНОВЛЕНИИ СЕССИИ
+                if (parsed.isLoggedIn) {
+                    console.log('🔄 Loading subscriptions after session restore...');
+                    setTimeout(() => {
+                        dispatcher.dispatch('SUBSCRIPTIONS_LOAD_REQUEST');
+                    }, 500); // Небольшая задержка для стабилизации
+                }
             }
         } catch (error) {
             console.error('Error loading auth state from localStorage:', error);

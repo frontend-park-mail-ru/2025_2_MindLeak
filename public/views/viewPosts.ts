@@ -5,6 +5,7 @@ import { postsStore, Post } from '../stores/storePosts';
 import { loginStore } from '../stores/storeLogin';
 import { HashtagParser } from '../utils/hashtagParser'; // Добавляем импорт
 import { subscriptionsStore } from '../stores/storeSubscriptions';
+import { SubscriptionHelper } from '../utils/subscriptionHelper';
 
 export class PostsView {
     private feedWrapper: HTMLElement | null = null;
@@ -94,7 +95,7 @@ export class PostsView {
         for (const apiPost of this.allPosts) {
             console.log('📄 Processing post:', apiPost);
             
-            const postData = this.transformPost(apiPost);
+            const postData = await this.transformPost(apiPost);
             console.log('🔄 Transformed post data:', postData);
             
             const postCard = new PostCard({
@@ -205,7 +206,7 @@ export class PostsView {
         }
     }
 
-    private transformPost(apiPost: Post): PostCardProps {
+    private async transformPost(apiPost: Post): Promise<PostCardProps> {
         const authState = loginStore.getState();
         const currentUserId = authState.user?.id;
 
@@ -214,13 +215,20 @@ export class PostsView {
         
         const isMyProfile = isOwnPost;
 
-        // Используем store подписок для проверки - теперь метод exists!
-        const isSubscribed = subscriptionsStore.isSubscribed(String(apiPost.authorId));
+        // Если грузятся - Promise сам подождет
+        const isSubscribed = await SubscriptionHelper.getSubscriptionFlag(String(apiPost.authorId));
         
-        // Объединяем данные с сервера и локальные
+        // Если сервер вернул флаг, используем его, иначе берем из store
         const finalIsSubscribed = apiPost.isAuthorSubscribed !== undefined 
             ? apiPost.isAuthorSubscribed 
             : isSubscribed;
+
+        console.log('🔄 [PostsView] Subscription status:', {
+            authorId: apiPost.authorId,
+            serverFlag: apiPost.isAuthorSubscribed,
+            storeFlag: isSubscribed,
+            finalFlag: finalIsSubscribed
+        });
 
         // Обрабатываем хештеги в заголовке и тексте
         const processedTitle = HashtagParser.replaceHashtagsWithLinks(apiPost.title || '');
@@ -254,6 +262,8 @@ export class PostsView {
     private async renderNextPosts(): Promise<void> {
         if (!this.feedWrapper || this.allPosts.length === 0) return;
 
+        await SubscriptionHelper.waitForSubscriptions();
+
         const POSTS_PER_LOAD = 10;
         const fragment = document.createDocumentFragment();
         
@@ -266,7 +276,7 @@ export class PostsView {
             
             const apiPost = this.allPosts[this.virtualPostIndex];
             
-            const postData = this.transformPost(apiPost);
+            const postData = await this.transformPost(apiPost);
             
             try {
                 const postCard = new PostCard({
@@ -310,6 +320,9 @@ export class PostsView {
         this.allPosts = [];
         this.virtualPostIndex = 0;
         this.isInitialized = false;
+        
+        // Сбрасываем SubscriptionHelper
+        SubscriptionHelper.reset();
     }
 
     private handlePostAction(action: string, postId?: string): void {

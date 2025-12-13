@@ -646,25 +646,31 @@ private normalizeAppealData(appeal: any): any {
                             `${response.data.cover_url}${response.data.cover_url.includes('?') ? '&' : '?'}_=${Date.now()}` : 
                             response.data.cover_url;
                         
+                        // ⚠️ НЕ используем серверный is_subscribed напрямую
+                        // Вместо этого будем полагаться на локальный subscriptionsStore
                         const profileData = {
                             id: response.data.id,
                             name: response.data.name,
                             email: response.data.email,
-                            avatar_url: avatarWithTimestamp, // ✅ С TIMESTAMP!
-                            cover_url: coverWithTimestamp,   // ✅ С TIMESTAMP!
+                            avatar_url: avatarWithTimestamp,
+                            cover_url: coverWithTimestamp,
                             description: response.data.description,
                             subscribers: response.data.subscribers || 0,
                             subscriptions: response.data.subscriptions || 0,
                             postsCount: response.data.posts_count || 0,
+                            // ⚠️ Серверный флаг может быть устаревшим
                             isSubscribed: response.data.is_subscribed || false
                         };
 
                         const userPosts = await this.loadUserPosts(profileData.id);
-                            
+                                            
                         this.sendAction('PROFILE_LOAD_SUCCESS', {
                             profile: profileData,
                             posts: userPosts
                         });
+                        
+                        // ⚠️ ВАЖНО: Не отправляем SUBSCRIBE_SUCCESS здесь!
+                        // Вместо этого пусть storeProfile сам проверит subscriptionsStore
                     } else {
                         this.sendAction('PROFILE_LOAD_FAIL', { 
                             error: 'No profile data' 
@@ -1507,13 +1513,26 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private async loadSubscriptions(): Promise<void> {
-        const response = await ajax.get('/subscriptions');
+        const authState = loginStore.getState();
+        if (!authState.user?.id) {
+            this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', { error: 'User not authenticated' });
+            return;
+        }
+        
+        const response = await ajax.get(`/subscriptions?id=${authState.user.id}`);
+        console.log('📡 Subscriptions response:', response); // Добавь для отладки
+        
         switch (response.status) {
             case STATUS.ok:
-                if (response.data) {
-                    this.sendAction('SUBSCRIPTIONS_LOAD_SUCCESS', { users: response.data });
+                if (response.data && response.data.subscriptions) {
+                    // ВАЖНО: берем response.data.subscriptions, а не response.data
+                    this.sendAction('SUBSCRIPTIONS_LOAD_SUCCESS', { 
+                        users: response.data.subscriptions  // ← ИЗМЕНИЛОСЬ!
+                    });
                 } else {
-                    this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', { error: 'No subscriptions data' });
+                    this.sendAction('SUBSCRIPTIONS_LOAD_SUCCESS', { 
+                        users: []  // Отправляем пустой массив если нет подписок
+                    });
                 }
                 break;
             case STATUS.unauthorized:
@@ -1528,13 +1547,29 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private async loadSubscribers(): Promise<void> {
-        const response = await ajax.get('/subscribers');
+        const authState = loginStore.getState();
+        if (!authState.user?.id) {
+            this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', { error: 'User not authenticated' });
+            return;
+        }
+        
+        const response = await ajax.get(`/subscribers?id=${authState.user.id}`);
+        console.log('📡 Subscribers response:', response); // Это покажет структуру
+        console.log('📊 Subscriptions data DETAIL:', response.data);
+        console.log('👥 Subscriptions array:', response.data.subscriptions);
+        console.log('🆔 First subscription:', response.data.subscriptions[0]);
+        
         switch (response.status) {
             case STATUS.ok:
-                if (response.data) {
-                    this.sendAction('SUBSCRIBERS_LOAD_SUCCESS', { users: response.data });
+                if (response.data && response.data.subscriptions) {
+                    this.sendAction('SUBSCRIBERS_LOAD_SUCCESS', { 
+                        users: response.data.subscriptions
+                    });
                 } else {
-                    this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', { error: 'No subscribers data' });
+                    // Нет данных или пустой массив
+                    this.sendAction('SUBSCRIBERS_LOAD_SUCCESS', { 
+                        users: []
+                    });
                 }
                 break;
             case STATUS.unauthorized:

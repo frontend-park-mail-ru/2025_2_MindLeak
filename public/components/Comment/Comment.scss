@@ -172,3 +172,23 @@
     color: var(--text-lighter);
     font-size: var(--text-base);
 }
+
+.comments-loader,
+.comments-error {
+    text-align: center;
+    padding: 20px;
+    margin: 10px 0;
+    border-radius: 8px;
+    font-size: var(--text-sm);
+}
+
+.comments-loader {
+    color: var(--text-lighter);
+    background-color: var(--section-hover);
+}
+
+.comments-error {
+    color: var(--text-failure);
+    background-color: rgba(255, 0, 0, 0.1);
+    border: 1px solid var(--text-failure);
+}

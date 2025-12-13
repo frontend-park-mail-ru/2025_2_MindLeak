@@ -69,15 +69,15 @@ export class PostView extends BaseView {
 
         pageElement.appendChild(this.postWrapper);
 
-        // Создаем контейнер для комментариев (из основной ветки)
+        // Создаем контейнер для комментариев
         const commentsContainer = document.createElement('div');
         commentsContainer.id = 'comments-section';
         commentsContainer.className = 'comments-section';
         pageElement.appendChild(commentsContainer);
 
-        // Инициализируем CommentView (из основной ветки)
+        // Инициализируем CommentView
         this.commentView = new CommentView(commentsContainer, this.postId);
-        this.commentView.init();
+        await this.commentView.init(); // Добавляем await
 
         return pageElement;
     }

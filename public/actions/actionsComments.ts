@@ -5,8 +5,8 @@ export const commentsActions = {
         dispatcher.dispatch('COMMENTS_LOAD_REQUEST', { postId });
     },
 
-    addCommentSuccess(): void {
-        dispatcher.dispatch('COMMENT_ADDED_SUCCESS');
+    addCommentSuccess(postId: string): void {
+        dispatcher.dispatch('COMMENT_ADDED_SUCCESS', { postId });
     },
 
     addComment(postId: string, text: string, attachment?: File): void {

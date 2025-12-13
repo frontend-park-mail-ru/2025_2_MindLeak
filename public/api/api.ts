@@ -1132,14 +1132,17 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private async createComment(postId: string, text: string, attachment?: File): Promise<void> {
-
+        console.log('🔄 createComment called with postId:', postId, 'text length:', text.length);
+        
         const authState = loginStore.getState();
         const userId = authState.user?.id;
 
         if (!userId) {
+            console.error('❌ User not authenticated for comment creation');
             this.sendAction('COMMENT_ADD_FAIL', { error: 'Пользователь не авторизован' });
             return;
         }
+        
         // Загрузка вложения, если есть
         let attachmentUrl = '';
         if (attachment) {
@@ -1151,18 +1154,30 @@ private normalizeAppealData(appeal: any): any {
             }*/
         }
 
-        const res = await ajax.post(`/comments?articleId=${postId}`, {
-            article_id: postId,
-            user_id: userId,
-            content: text,
-            reply_to: null,
-            ...(attachmentUrl ? { attachment: attachmentUrl } : {})
-        });
+        try {
+            console.log('📤 Sending comment to server...');
+            const res = await ajax.post(`/comments?articleId=${postId}`, {
+                article_id: postId,
+                user_id: userId,
+                content: text,
+                reply_to: null,
+                ...(attachmentUrl ? { attachment: attachmentUrl } : {})
+            });
 
-        if (res.status === 201) {
-            this.sendAction('COMMENT_ADDED_SUCCESS');
-        } else {
-            this.sendAction('COMMENT_ADD_FAIL', { error: 'Не удалось добавить комментарий' });
+            console.log('📥 Server response:', res.status, res.data);
+
+            // ИСПРАВЛЕНИЕ: Принимаем как 200, так и 201 как успешные статусы
+            if (res.status === 200 || res.status === 201) {
+                console.log('✅ Comment created successfully, dispatching COMMENT_ADDED_SUCCESS with postId:', postId);
+                // ИЗМЕНЕНИЕ: Теперь передаем postId
+                this.sendAction('COMMENT_ADDED_SUCCESS', { postId: postId });
+            } else {
+                console.error('❌ Failed to create comment, status:', res.status);
+                this.sendAction('COMMENT_ADD_FAIL', { error: 'Не удалось добавить комментарий' });
+            }
+        } catch (error) {
+            console.error('❌ Exception in createComment:', error);
+            this.sendAction('COMMENT_ADD_FAIL', { error: 'Ошибка при отправке комментария' });
         }
     }
 
@@ -1223,10 +1238,13 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private async createReply(commentId: string, text: string, postId: string, attachment?: File): Promise<void> {
+        console.log('🔄 createReply called with commentId:', commentId, 'postId:', postId);
+        
         const authState = loginStore.getState();
         const userId = authState.user?.id;
 
         if (!userId) {
+            console.error('❌ User not authenticated for reply creation');
             this.sendAction('COMMENT_ADD_FAIL', { error: 'Пользователь не авторизован' });
             return;
         }
@@ -1241,19 +1259,33 @@ private normalizeAppealData(appeal: any): any {
             }*/
         }
         
-        const res = await ajax.post(`/comments`, {
-            article_id: postId,
-            user_id: userId,
-            content: text,
-            reply_to: commentId,
-            ...(attachmentUrl ? { attachment: attachmentUrl } : {})
-        });
+        try {
+            console.log('📤 Sending reply to server...');
+            const res = await ajax.post(`/comments`, {
+                article_id: postId,
+                user_id: userId,
+                content: text,
+                reply_to: commentId,
+                ...(attachmentUrl ? { attachment: attachmentUrl } : {})
+            });
 
-        if (res.status === 201) {
-            this.sendAction('REPLY_ADDED_SUCCESS');
-            dispatcher.dispatch('REPLIES_LOAD_REQUEST', { commentId, articleId: postId });
-        } else {
-            this.sendAction('REPLY_ADD_FAIL', { error: 'Не удалось добавить ответ' });
+            console.log('📥 Server response for reply:', res.status, res.data);
+
+            // ИСПРАВЛЕНИЕ: Принимаем как 200, так и 201 как успешные статусы
+            if (res.status === 200 || res.status === 201) {
+                console.log('✅ Reply created successfully, dispatching REPLY_ADDED_SUCCESS');
+                // ИЗМЕНЕНИЕ: Теперь передаем commentId и postId
+                this.sendAction('REPLY_ADDED_SUCCESS', { 
+                    commentId: commentId, 
+                    postId: postId 
+                });
+            } else {
+                console.error('❌ Failed to create reply, status:', res.status);
+                this.sendAction('REPLY_ADD_FAIL', { error: 'Не удалось добавить ответ' });
+            }
+        } catch (error) {
+            console.error('❌ Exception in createReply:', error);
+            this.sendAction('REPLY_ADD_FAIL', { error: 'Ошибка при отправке ответа' });
         }
     }
 

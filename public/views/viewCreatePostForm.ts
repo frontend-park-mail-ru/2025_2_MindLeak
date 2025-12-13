@@ -184,7 +184,18 @@ export class CreatePostFormView {
             titleInput.value = state.draftTitle;
         }
 
-        const charCounter = this.formElement.querySelector('.char-counter__number');
+        const charCounter = this.formElement.querySelector('.create-post-form__char-counter-number');
+        if (charCounter) {
+            charCounter.textContent = (this.maxChars - state.draftContent.length).toString();
+        }
+    }
+
+    private updateCharCounter(): void {
+        if (!this.formElement) return;
+        
+        const state = createPostStore.getState();
+        const charCounter = this.formElement.querySelector('.create-post-form__char-counter-number');
+        
         if (charCounter) {
             charCounter.textContent = (this.maxChars - state.draftContent.length).toString();
         }
@@ -225,6 +236,7 @@ export class CreatePostFormView {
 
         this.setupEventHandlers();
         this.updateUIFromState(state);
+        this.updateCharCounter();
         return this.formElement;
     }
 
@@ -283,6 +295,7 @@ export class CreatePostFormView {
         textarea?.addEventListener('input', (e) => {
             const val = (e.target as HTMLTextAreaElement).value;
             updatePostContent(val);
+            this.updateCharCounter();
         });
 
         const titleInput = this.formElement.querySelector('[data-key="post-title"]') as HTMLInputElement;

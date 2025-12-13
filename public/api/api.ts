@@ -120,7 +120,13 @@ class API {
                 break;
 
             case 'REPLY_CREATE_REQUEST':
-                this.createReply(payload.commentId, payload.text, payload.postId);
+                this.createReply(
+                    payload.commentId, 
+                    payload.text, 
+                    payload.postId, 
+                    payload.attachment
+                );
+                break;
             case 'SEARCH_BLOGS_REQUEST':
                 this.searchBlogs(payload.query);
                 break;
@@ -133,6 +139,14 @@ class API {
                 break;
             case 'UNSUBSCRIBE_REQUEST':
                 this.unsubscribe(payload.userId, payload.targetProfileId);
+                break;
+
+            case 'SUBSCRIPTIONS_LOAD_REQUEST':
+                this.loadSubscriptions();
+                break;
+
+            case 'SUBSCRIBERS_LOAD_REQUEST':
+                this.loadSubscribers();
                 break;
 
         }
@@ -431,6 +445,7 @@ private normalizeAppealData(appeal: any): any {
                         email: response.data.email || ''
                     };
                     this.sendAction('USER_LOGIN_SUCCESS', { user: userData });
+
                 } else {
                     this.sendAction('USER_LOGIN_FAIL', { error: 'No user data in response' });
                 }
@@ -635,25 +650,31 @@ private normalizeAppealData(appeal: any): any {
                             `${response.data.cover_url}${response.data.cover_url.includes('?') ? '&' : '?'}_=${Date.now()}` : 
                             response.data.cover_url;
                         
+                        // ⚠️ НЕ используем серверный is_subscribed напрямую
+                        // Вместо этого будем полагаться на локальный subscriptionsStore
                         const profileData = {
                             id: response.data.id,
                             name: response.data.name,
                             email: response.data.email,
-                            avatar_url: avatarWithTimestamp, // ✅ С TIMESTAMP!
-                            cover_url: coverWithTimestamp,   // ✅ С TIMESTAMP!
+                            avatar_url: avatarWithTimestamp,
+                            cover_url: coverWithTimestamp,
                             description: response.data.description,
                             subscribers: response.data.subscribers || 0,
                             subscriptions: response.data.subscriptions || 0,
                             postsCount: response.data.posts_count || 0,
+                            // ⚠️ Серверный флаг может быть устаревшим
                             isSubscribed: response.data.is_subscribed || false
                         };
 
                         const userPosts = await this.loadUserPosts(profileData.id);
-                            
+                                            
                         this.sendAction('PROFILE_LOAD_SUCCESS', {
                             profile: profileData,
                             posts: userPosts
                         });
+                        
+                        // ⚠️ ВАЖНО: Не отправляем SUBSCRIBE_SUCCESS здесь!
+                        // Вместо этого пусть storeProfile сам проверит subscriptionsStore
                     } else {
                         this.sendAction('PROFILE_LOAD_FAIL', { 
                             error: 'No profile data' 
@@ -945,7 +966,7 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private async deletePost(postId: string): Promise<void> {
-        const response = await ajax.deletePost(`/${postId}`);
+        const response = await ajax.deletePost(postId);
         if (response.status === 200) {
             this.sendAction('POST_DELETE_SUCCESS', { postId });
             this.sendAction('POSTS_RELOAD_AFTER_DELETE');
@@ -1120,89 +1141,18 @@ private normalizeAppealData(appeal: any): any {
         }
     }
 
-    private async loadSubscriptions(): Promise<void> {
-        const response = await ajax.get('/subscriptions');
-        switch (response.status) {
-            case STATUS.ok:
-                if (response.data) {
-                    const users = response.data.map((item: any) => {
-                        // ✅ ДОБАВЛЯЕМ TIMESTAMP
-                        const avatar = item.avatar || '/img/defaultAvatar.jpg';
-                        const avatarWithTimestamp = avatar ? 
-                            `${avatar.split('?')[0]}?_=${Date.now()}` : 
-                            avatar;
-                        
-                        return {
-                            id: item.id,
-                            name: item.name,
-                            subtitle: `Подписчики: ${item.subscribers}`,
-                            avatar: avatarWithTimestamp, // ✅ С TIMESTAMP!
-                            isSubscribed: true,
-                            hideSubscribeButton: false
-                        };
-                    });
-                    this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
-                } else {
-                    this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No subscriptions data' });
-                }
-                break;
-            case STATUS.unauthorized:
-                this.sendAction('USER_UNAUTHORIZED');
-                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
-                break;
-            default:
-                this.sendAction('USER_LIST_LOAD_FAIL', {
-                    error: response.message || 'Ошибка загрузки подписок'
-                });
-        }
-    }
-
-    private async loadSubscribers(): Promise<void> {
-        const response = await ajax.get('/subscribers');
-        switch (response.status) {
-            case STATUS.ok:
-                if (response.data) {
-                    const users = response.data.map((item: any) => {
-                        // ✅ ДОБАВЛЯЕМ TIMESTAMP
-                        const avatar = item.avatar || '/img/defaultAvatar.jpg';
-                        const avatarWithTimestamp = avatar ? 
-                            `${avatar.split('?')[0]}?_=${Date.now()}` : 
-                            avatar;
-                        
-                        return {
-                            id: item.id,
-                            name: item.name,
-                            subtitle: `Подписчики: ${item.subscribers}`,
-                            avatar: avatarWithTimestamp, // ✅ С TIMESTAMP!
-                            isSubscribed: false,
-                            hideSubscribeButton: false
-                        };
-                    });
-                    this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
-                } else {
-                    this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No subscribers data' });
-                }
-                break;
-            case STATUS.unauthorized:
-                this.sendAction('USER_UNAUTHORIZED');
-                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
-                break;
-            default:
-                this.sendAction('USER_LIST_LOAD_FAIL', {
-                    error: response.message || 'Ошибка загрузки подписчиков'
-                });
-        }
-    }
-
     private async createComment(postId: string, text: string, attachment?: File): Promise<void> {
-
+        console.log('🔄 createComment called with postId:', postId, 'text length:', text.length);
+        
         const authState = loginStore.getState();
         const userId = authState.user?.id;
 
         if (!userId) {
+            console.error('❌ User not authenticated for comment creation');
             this.sendAction('COMMENT_ADD_FAIL', { error: 'Пользователь не авторизован' });
             return;
         }
+        
         // Загрузка вложения, если есть
         let attachmentUrl = '';
         if (attachment) {
@@ -1214,18 +1164,30 @@ private normalizeAppealData(appeal: any): any {
             }*/
         }
 
-        const res = await ajax.post(`/comments?articleId=${postId}`, {
-            article_id: postId,
-            user_id: userId,
-            content: text,
-            reply_to: null,
-            ...(attachmentUrl ? { attachment: attachmentUrl } : {})
-        });
+        try {
+            console.log('📤 Sending comment to server...');
+            const res = await ajax.post(`/comments?articleId=${postId}`, {
+                article_id: postId,
+                user_id: userId,
+                content: text,
+                reply_to: null,
+                ...(attachmentUrl ? { attachment: attachmentUrl } : {})
+            });
 
-        if (res.status === 201) {
-            this.sendAction('COMMENT_ADDED_SUCCESS');
-        } else {
-            this.sendAction('COMMENT_ADD_FAIL', { error: 'Не удалось добавить комментарий' });
+            console.log('📥 Server response:', res.status, res.data);
+
+            // ИСПРАВЛЕНИЕ: Принимаем как 200, так и 201 как успешные статусы
+            if (res.status === 200 || res.status === 201) {
+                console.log('✅ Comment created successfully, dispatching COMMENT_ADDED_SUCCESS with postId:', postId);
+                // ИЗМЕНЕНИЕ: Теперь передаем postId
+                this.sendAction('COMMENT_ADDED_SUCCESS', { postId: postId });
+            } else {
+                console.error('❌ Failed to create comment, status:', res.status);
+                this.sendAction('COMMENT_ADD_FAIL', { error: 'Не удалось добавить комментарий' });
+            }
+        } catch (error) {
+            console.error('❌ Exception in createComment:', error);
+            this.sendAction('COMMENT_ADD_FAIL', { error: 'Ошибка при отправке комментария' });
         }
     }
 
@@ -1239,7 +1201,9 @@ private normalizeAppealData(appeal: any): any {
                 id: c.id,
                 authorId: c.user_id,
                 authorName: c.author_name,
-                authorAvatar: c.author_avatar || '/img/defaultAvatar.jpg',
+                authorAvatar: c.author_avatar ? 
+                    `${c.author_avatar.split('?')[0]}?_=${Date.now()}` : 
+                    '/img/defaultAvatar.jpg',
                 text: c.content,
                 postTitle: c.article_title || '',
                 postDate: c.created_at,
@@ -1264,7 +1228,9 @@ private normalizeAppealData(appeal: any): any {
                 id: r.id,
                 authorId: r.user_id,
                 authorName: r.author_name,
-                authorAvatar: r.author_avatar || '/img/defaultAvatar.jpg',
+                authorAvatar: r.author_avatar ? 
+                    `${r.author_avatar.split('?')[0]}?_=${Date.now()}` : 
+                    '/img/defaultAvatar.jpg',
                 text: r.content,
                 postTitle: r.article_title || '',
                 postDate: r.created_at,
@@ -1282,10 +1248,13 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private async createReply(commentId: string, text: string, postId: string, attachment?: File): Promise<void> {
+        console.log('🔄 createReply called with commentId:', commentId, 'postId:', postId);
+        
         const authState = loginStore.getState();
         const userId = authState.user?.id;
 
         if (!userId) {
+            console.error('❌ User not authenticated for reply creation');
             this.sendAction('COMMENT_ADD_FAIL', { error: 'Пользователь не авторизован' });
             return;
         }
@@ -1300,19 +1269,47 @@ private normalizeAppealData(appeal: any): any {
             }*/
         }
         
-        const res = await ajax.post(`/comments`, {
-            article_id: postId,
-            user_id: userId,
-            content: text,
-            reply_to: commentId,
-            ...(attachmentUrl ? { attachment: attachmentUrl } : {})
-        });
+        try {
+            console.log('📤 Sending reply to server...');
+            const res = await ajax.post(`/comments`, {
+                article_id: postId,
+                user_id: userId,
+                content: text,
+                reply_to: commentId,
+                ...(attachmentUrl ? { attachment: attachmentUrl } : {})
+            });
 
-        if (res.status === 201) {
-            this.sendAction('REPLY_ADDED_SUCCESS');
-            dispatcher.dispatch('REPLIES_LOAD_REQUEST', { commentId, articleId: postId });
-        } else {
-            this.sendAction('REPLY_ADD_FAIL', { error: 'Не удалось добавить ответ' });
+            console.log('📥 Server response for reply:', res.status, res.data);
+
+            // ИСПРАВЛЕНИЕ: Принимаем как 200, так и 201 как успешные статусы
+            if (res.status === 200 || res.status === 201) {
+                console.log('✅ Reply created successfully, dispatching REPLY_ADDED_SUCCESS');
+                
+                // ⚠️ ВАЖНОЕ ИЗМЕНЕНИЕ: Определяем, нужно ли переходить на страницу ответов
+                // Логика: если мы находимся на странице поста (не на странице ответов), 
+                // то нужно перейти в viewReply для этого комментария
+                const isOnRepliesPage = window.location.pathname.includes('/replies/');
+                const shouldNavigate = !isOnRepliesPage;
+                
+                console.log('📍 Навигационные данные:', {
+                    currentPath: window.location.pathname,
+                    isOnRepliesPage,
+                    shouldNavigate
+                });
+                
+                // ⚠️ ДОБАВЛЯЕМ ПАРАМЕТР shouldNavigate
+                this.sendAction('REPLY_ADDED_SUCCESS', { 
+                    commentId: commentId, 
+                    postId: postId,
+                    shouldNavigate: shouldNavigate // true = перейти в viewReply, false = остаться
+                });
+            } else {
+                console.error('❌ Failed to create reply, status:', res.status);
+                this.sendAction('REPLY_ADD_FAIL', { error: 'Не удалось добавить ответ' });
+            }
+        } catch (error) {
+            console.error('❌ Exception in createReply:', error);
+            this.sendAction('REPLY_ADD_FAIL', { error: 'Ошибка при отправке ответа' });
         }
     }
 
@@ -1469,11 +1466,18 @@ private normalizeAppealData(appeal: any): any {
             switch (response.status) {
                 case STATUS.ok:
                 case 201:
-                    // Отправляем успех с ID пользователя и ID профиля для обновления
+                    // Отправляем успех с ID пользователя
                     this.sendAction('SUBSCRIBE_SUCCESS', { 
-                        userId,
-                        targetProfileId: targetProfileId || userId
+                        userId: userId.toString(),
+                        targetProfileId: targetProfileId ? targetProfileId.toString() : userId.toString()
                     });
+                    
+                    // Обновляем данные профиля если это другой профиль
+                    if (targetProfileId && targetProfileId !== userId) {
+                        this.sendAction('PROFILE_LOAD_REQUEST', { 
+                            userId: targetProfileId.toString() 
+                        });
+                    }
                     break;
                 case STATUS.unauthorized:
                     this.sendAction('USER_UNAUTHORIZED');
@@ -1498,11 +1502,17 @@ private normalizeAppealData(appeal: any): any {
             switch (response.status) {
                 case STATUS.ok:
                 case 201:
-                    // Отправляем успех с ID пользователя и ID профиля для обновления
                     this.sendAction('UNSUBSCRIBE_SUCCESS', { 
-                        userId,
-                        targetProfileId: targetProfileId || userId
+                        userId: userId.toString(),
+                        targetProfileId: targetProfileId ? targetProfileId.toString() : userId.toString()
                     });
+                    
+                    // Обновляем данные профиля если это другой профиль
+                    if (targetProfileId && targetProfileId !== userId) {
+                        this.sendAction('PROFILE_LOAD_REQUEST', { 
+                            userId: targetProfileId.toString() 
+                        });
+                    }
                     break;
                 case STATUS.unauthorized:
                     this.sendAction('USER_UNAUTHORIZED');
@@ -1517,6 +1527,77 @@ private normalizeAppealData(appeal: any): any {
             this.sendAction('UNSUBSCRIBE_FAIL', { 
                 error: 'Ошибка при выполнении отписки' 
             });
+        }
+    }
+
+    private async loadSubscriptions(): Promise<void> {
+        const authState = loginStore.getState();
+        if (!authState.user?.id) {
+            this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', { error: 'User not authenticated' });
+            return;
+        }
+        
+        const response = await ajax.get(`/subscriptions?id=${authState.user.id}`);
+        console.log('📡 Subscriptions response:', response); // Добавь для отладки
+        
+        switch (response.status) {
+            case STATUS.ok:
+                if (response.data && response.data.subscriptions) {
+                    // ВАЖНО: берем response.data.subscriptions, а не response.data
+                    this.sendAction('SUBSCRIPTIONS_LOAD_SUCCESS', { 
+                        users: response.data.subscriptions  // ← ИЗМЕНИЛОСЬ!
+                    });
+                } else {
+                    this.sendAction('SUBSCRIPTIONS_LOAD_SUCCESS', { 
+                        users: []  // Отправляем пустой массив если нет подписок
+                    });
+                }
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', { error: 'Not authenticated' });
+                break;
+            default:
+                this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', {
+                    error: response.message || 'Ошибка загрузки подписок'
+                });
+        }
+    }
+
+    private async loadSubscribers(): Promise<void> {
+        const authState = loginStore.getState();
+        if (!authState.user?.id) {
+            this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', { error: 'User not authenticated' });
+            return;
+        }
+        
+        const response = await ajax.get(`/subscribers?id=${authState.user.id}`);
+        console.log('📡 Subscribers response:', response); // Это покажет структуру
+        console.log('📊 Subscriptions data DETAIL:', response.data);
+        console.log('👥 Subscriptions array:', response.data.subscriptions);
+        console.log('🆔 First subscription:', response.data.subscriptions[0]);
+        
+        switch (response.status) {
+            case STATUS.ok:
+                if (response.data && response.data.subscriptions) {
+                    this.sendAction('SUBSCRIBERS_LOAD_SUCCESS', { 
+                        users: response.data.subscriptions
+                    });
+                } else {
+                    // Нет данных или пустой массив
+                    this.sendAction('SUBSCRIBERS_LOAD_SUCCESS', { 
+                        users: []
+                    });
+                }
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', { error: 'Not authenticated' });
+                break;
+            default:
+                this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', {
+                    error: response.message || 'Ошибка загрузки подписчиков'
+                });
         }
     }
 }

@@ -15,7 +15,7 @@ export interface Post {
     commentsCount?: number;
     repostsCount?: number;
     viewsCount?: number;
-    isAuthorSubscribed?: boolean;
+    isAuthorSubscribed?: boolean; // ← ДОБАВЬТЕ ЭТО
 }
 
 export interface PostsState {
@@ -105,6 +105,43 @@ class PostsStore extends BaseStore<PostsState> {
                 error: null
             });
             dispatcher.dispatch('POSTS_LOAD_REQUEST', { filter: this.state.currentFilter });
+        });
+
+        this.registerAction('SUBSCRIBE_SUCCESS', (payload: { userId: string; targetProfileId?: string }) => {
+            const state = this.getState();
+            
+            // Обновляем флаг подписки в постах этого автора
+            const updatedPosts = state.posts.map(post => {
+                if (String(post.authorId) === String(payload.userId)) {
+                    return {
+                        ...post,
+                        isAuthorSubscribed: true
+                    };
+                }
+                return post;
+            });
+            
+            this.setState({
+                posts: updatedPosts
+            });
+        });
+
+        this.registerAction('UNSUBSCRIBE_SUCCESS', (payload: { userId: string; targetProfileId?: string }) => {
+            const state = this.getState();
+            
+            const updatedPosts = state.posts.map(post => {
+                if (String(post.authorId) === String(payload.userId)) {
+                    return {
+                        ...post,
+                        isAuthorSubscribed: false
+                    };
+                }
+                return post;
+            });
+            
+            this.setState({
+                posts: updatedPosts
+            });
         });
     }
 }

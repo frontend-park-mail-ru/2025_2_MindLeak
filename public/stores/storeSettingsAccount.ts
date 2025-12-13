@@ -201,6 +201,14 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
         if (!dateOfBirth) return undefined;
         
         const birthDate = new Date(dateOfBirth);
+        
+        // Проверяем, не является ли это специальной датой 01.01.0001
+        if (birthDate.getFullYear() === 1 && 
+            birthDate.getMonth() === 0 && 
+            birthDate.getDate() === 1) {
+            return undefined; // Возраст не рассчитывается для специальной даты
+        }
+        
         const today = new Date();
         let age = today.getFullYear() - birthDate.getFullYear();
         const monthDiff = today.getMonth() - birthDate.getMonth();

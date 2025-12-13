@@ -29,28 +29,30 @@ class LoginStore extends BaseStore<LoginState> {
     }
 
     protected registerActions(): void {
-        this.registerAction('USER_LOGIN_CHECKED', (payload: { user: User }) => {
-            console.log('🔄 USER_LOGIN_CHECKED payload:', payload);
-            
-            const newState = {
+        this.registerAction('USER_LOGIN_CHECKED', (payload: { user: any }) => {
+            console.log('✅ Login checked, loading subscriptions...');
+            this.setState({
                 user: payload.user,
                 isLoggedIn: true,
                 isLoading: false,
                 error: null
-            };
-            this.setState(newState);
-            this.saveAuthState(newState);
+            });
+            
+            // ⚠️ ВАЖНО: Загружаем подписки при проверке авторизации
+            dispatcher.dispatch('SUBSCRIPTIONS_LOAD_REQUEST');
         });
 
-        this.registerAction('USER_LOGIN_SUCCESS', (payload: { user: User }) => {
-            const newState = {
+        this.registerAction('USER_LOGIN_SUCCESS', (payload: { user: any }) => {
+            console.log('✅ Login success, loading subscriptions...');
+            this.setState({
                 user: payload.user,
                 isLoggedIn: true,
                 isLoading: false,
                 error: null
-            };
-            this.setState(newState);
-            this.saveAuthState(newState);
+            });
+            
+            // ⚠️ ВАЖНО: Загружаем подписки после успешного логина
+            dispatcher.dispatch('SUBSCRIPTIONS_LOAD_REQUEST');
         });
 
         this.registerAction('USER_LOGIN_FAIL', (payload: { error: string }) => {
@@ -143,6 +145,9 @@ class LoginStore extends BaseStore<LoginState> {
             this.setState(newState);
             this.clearAuthState();
 
+            // ✅ ОЧИЩАЕМ ПОДПИСКИ ПРИ ВЫХОДЕ
+            dispatcher.dispatch('SUBSCRIPTIONS_CLEAR');
+            
             dispatcher.dispatch('HEADER_FORCE_REFRESH');
         });
 
@@ -155,6 +160,9 @@ class LoginStore extends BaseStore<LoginState> {
             };
             this.setState(newState);
             this.clearAuthState();
+            
+            // ✅ ОЧИЩАЕМ ПОДПИСКИ ПРИ ИСТЕЧЕНИИ СЕССИИ
+            dispatcher.dispatch('SUBSCRIPTIONS_CLEAR');
         });
     }
 
@@ -176,6 +184,14 @@ class LoginStore extends BaseStore<LoginState> {
                     user: parsed.user,
                     isLoggedIn: parsed.isLoggedIn
                 });
+                
+                // ✅ ЗАГРУЖАЕМ ПОДПИСКИ ПРИ ВОССТАНОВЛЕНИИ СЕССИИ
+                if (parsed.isLoggedIn) {
+                    console.log('🔄 Loading subscriptions after session restore...');
+                    setTimeout(() => {
+                        dispatcher.dispatch('SUBSCRIPTIONS_LOAD_REQUEST');
+                    }, 500); // Небольшая задержка для стабилизации
+                }
             }
         } catch (error) {
             console.error('Error loading auth state from localStorage:', error);

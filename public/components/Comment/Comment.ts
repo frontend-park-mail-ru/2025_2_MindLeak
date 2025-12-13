@@ -28,6 +28,7 @@ export interface CommentProps {
     text: string;
     attachment?: CommentAttachment;
     onReplyClick?: (commentId: string) => void;
+    hideSubscribeButton?: boolean;
 }
 
 async function getCommentTemplate(): Promise<Handlebars.TemplateDelegate> {
@@ -63,6 +64,7 @@ export class Comment {
     private text: string;
     private attachment?: CommentAttachment;
     private onReplyClick?: (commentId: string) => void;
+    private hideSubscribeButton: boolean;
 
     constructor(props: CommentProps) {
         this.commentId = props.commentId;
@@ -73,6 +75,7 @@ export class Comment {
         this.text = props.text;
         this.attachment = props.attachment;
         this.onReplyClick = props.onReplyClick;
+        this.hideSubscribeButton = props.hideSubscribeButton || false;
     }
 
     async render(): Promise<HTMLElement> {
@@ -84,6 +87,7 @@ export class Comment {
             postDate: this.postDate,
             text: this.text,
             attachment: this.attachment,
+            hideSubscribeButton: this.hideSubscribeButton,
         });
 
         const div = document.createElement('div');
@@ -140,9 +144,58 @@ export class Comment {
         });
 
         if (subscribeButton) {
+            // 🔥 ДОБАВЬТЕ ЭТОТ ОБРАБОТЧИК
             subscribeButton.addEventListener('click', (e) => {
                 e.stopPropagation();
+                e.preventDefault();
+                
+                const authorId = this.user.id;
+                if (!authorId) return;
+                
+                this.handleSubscribeAction(subscribeButton, authorId.toString());
             });
+        }
+    }
+
+    private handleSubscribeAction(button: HTMLElement, userId: string): void {
+        console.log('🔍 [Comment] handleSubscribeAction:', {
+            userId: userId,
+            buttonClass: button.className,
+            hideSubscribeButton: this.hideSubscribeButton
+        });
+        
+        // Если это собственный комментарий, ничего не делаем
+        if (this.hideSubscribeButton) {
+            console.log('⚠️ [Comment] Own comment, skipping subscription');
+            return;
+        }
+        
+        const isSubscribed = button.classList.contains('user-menu__button--subscribed');
+        
+        console.log('🔍 [Comment] Current subscription state:', isSubscribed);
+        
+        if (isSubscribed) {
+            // Отписка
+            dispatcher.dispatch('UNSUBSCRIBE_REQUEST', { 
+                userId: userId,
+                targetProfileId: userId
+            });
+            
+            // Сразу обновляем UI
+            button.classList.remove('user-menu__button--subscribed');
+            button.classList.add('user-menu__button--subscribe');
+            button.textContent = 'Подписаться';
+        } else {
+            // Подписка
+            dispatcher.dispatch('SUBSCRIBE_REQUEST', { 
+                userId: userId,
+                targetProfileId: userId
+            });
+            
+            // Сразу обновляем UI
+            button.classList.remove('user-menu__button--subscribe');
+            button.classList.add('user-menu__button--subscribed');
+            button.textContent = 'Отписаться';
         }
     }
 
@@ -189,21 +242,22 @@ export class Comment {
                 return;
             }
 
-            // если этот Comment — заглушка (нет текста)
-            const isRootInput = !this.text;
+            // определяем, является ли это ответом на комментарий или на пост
+            const isRootInput = !this.text; // Если this.text пустой - это форма ответа на пост
 
             if (isRootInput) {
-                // основная форма для создания комментария
+                // Ответ на пост - остаёмся здесь и перезагружаем
                 dispatcher.dispatch('COMMENT_CREATE_REQUEST', {
                     postId: this.postId,
                     text
                 });
             } else {
-                // это ответ на конкретный комментарий
+                // Ответ на комментарий - переходим к просмотру ответов
                 dispatcher.dispatch('REPLY_CREATE_REQUEST', {
                     commentId: this.commentId,
                     postId: this.postId,
-                    text
+                    text,
+                    shouldNavigate: true // ⚠️ ДОБАВЛЯЕМ ФЛАГ ДЛЯ ПЕРЕХОДА
                 });
             }
 

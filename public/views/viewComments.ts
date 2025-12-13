@@ -131,8 +131,7 @@ export class CommentView {
             container.appendChild(wrapper);
 
             const isOwnComment = comment.authorId === userId;
-            const isSubscribed = !subscriptionsStore.getState().isLoading && 
-                     subscriptionsStore.isSubscribed(comment.authorId.toString());
+            const isSubscribed = comment.isAuthorSubscribed || false;
 
             const commentInstance = new Comment({
                 commentId: comment.id,

@@ -280,8 +280,7 @@ export class ReplyView {
             wrapper.className = 'comment-wrapper';
             
             const isOwnReply = reply.authorId === loginStore.getState().user?.id;
-            const isSubscribed = isOwnReply ? false : !subscriptionsStore.getState().isLoading && 
-                     subscriptionsStore.isSubscribed(reply.authorId.toString());
+            const isSubscribed = reply.isAuthorSubscribed || false;
             
             const replyInstance = new Comment({
                 commentId: reply.id,
@@ -290,7 +289,7 @@ export class ReplyView {
                     name: reply.authorName,
                     subtitle: '',
                     avatar: reply.authorAvatar || '/img/defaultAvatar.jpg',
-                    isSubscribed: isSubscribed,
+                    isSubscribed: isOwnReply ? false : isSubscribed,
                     id: reply.authorId
                 },
                 postTitle: '',

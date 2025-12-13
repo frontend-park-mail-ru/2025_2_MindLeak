@@ -1,6 +1,7 @@
 import { BaseStore } from './store';
 import { dispatcher } from '../dispatcher/dispatcher';
 import { router } from '../router/router';
+import { subscriptionsStore } from '../stores/storeSubscriptions'; // ⚠️ ИМПОРТ!
 
 export interface Comment {
     id: string;
@@ -12,6 +13,7 @@ export interface Comment {
     postDate: string;
     attachment?: { image?: string; file?: string; fileName?: string };
     repliesCount: number;
+    isAuthorSubscribed?: boolean; // ⚠️ ДОБАВИТЬ ЭТО ПОЛЕ!
 }
 
 export interface CommentsState {
@@ -29,6 +31,48 @@ class CommentsStore extends BaseStore<CommentsState> {
             error: null,
             postId: null
         });
+        
+        // ⚠️ ПОДПИСЫВАЕМСЯ НА ИЗМЕНЕНИЯ ПОДПИСОК
+        subscriptionsStore.addListener(() => {
+            this.updateCommentSubscriptions();
+        });
+    }
+    
+    // ⚠️ НОВЫЙ МЕТОД: Обновить подписки в комментариях
+    private updateCommentSubscriptions(): void {
+        const state = this.getState();
+        if (!state.comments || state.comments.length === 0) return;
+        
+        const updatedComments = state.comments.map(comment => {
+            // Проверяем текущее состояние подписки
+            const isCurrentlySubscribed = subscriptionsStore.isSubscribed(comment.authorId);
+            
+            // Если состояние изменилось, обновляем
+            if (comment.isAuthorSubscribed !== isCurrentlySubscribed) {
+                return {
+                    ...comment,
+                    isAuthorSubscribed: isCurrentlySubscribed
+                };
+            }
+            return comment;
+        });
+        
+        // Проверяем действительно ли что-то изменилось
+        let hasChanges = false;
+        for (let i = 0; i < state.comments.length; i++) {
+            if (state.comments[i].isAuthorSubscribed !== updatedComments[i].isAuthorSubscribed) {
+                hasChanges = true;
+                break;
+            }
+        }
+        
+        if (hasChanges) {
+            console.log('🔄 [CommentsStore] Updating comment subscriptions');
+            this.setState({
+                ...state,
+                comments: updatedComments
+            });
+        }
     }
 
     protected registerActions(): void {
@@ -42,9 +86,15 @@ class CommentsStore extends BaseStore<CommentsState> {
         });
 
         this.registerAction('COMMENTS_LOAD_SUCCESS', (payload: { comments: Comment[] }) => {
+            // ⚠️ ВАЖНО: Добавляем isAuthorSubscribed при загрузке комментариев
+            const commentsWithSubscription = payload.comments.map(comment => ({
+                ...comment,
+                isAuthorSubscribed: subscriptionsStore.isSubscribed(comment.authorId)
+            }));
+            
             this.setState({
                 ...this.state,
-                comments: payload.comments,
+                comments: commentsWithSubscription,
                 isLoading: false,
                 error: null
             });
@@ -106,9 +156,15 @@ class CommentsStore extends BaseStore<CommentsState> {
         });
 
         this.registerAction('REPLIES_LOAD_SUCCESS', (payload: { replies: Comment[] }) => {
+            // ⚠️ ВАЖНО: Добавляем isAuthorSubscribed при загрузке ответов
+            const repliesWithSubscription = payload.replies.map(reply => ({
+                ...reply,
+                isAuthorSubscribed: subscriptionsStore.isSubscribed(reply.authorId)
+            }));
+            
             this.setState({
                 ...this.state,
-                comments: payload.replies,
+                comments: repliesWithSubscription,
                 isLoading: false,
                 error: null
             });
@@ -122,8 +178,17 @@ class CommentsStore extends BaseStore<CommentsState> {
             });
         });
 
-    }
+        // ⚠️ ДОБАВИТЬ: Обновлять комментарии при подписке/отписке
+        this.registerAction('SUBSCRIBE_SUCCESS', (payload: { userId: string; targetProfileId?: string }) => {
+            console.log('🔄 [CommentsStore] SUBSCRIBE_SUCCESS - updating comments');
+            this.updateCommentSubscriptions();
+        });
 
+        this.registerAction('UNSUBSCRIBE_SUCCESS', (payload: { userId: string; targetProfileId?: string }) => {
+            console.log('🔄 [CommentsStore] UNSUBSCRIBE_SUCCESS - updating comments');
+            this.updateCommentSubscriptions();
+        });
+    }
 }
 
 export const commentsStore = new CommentsStore();

@@ -114,11 +114,11 @@ export class CommentView {
                     name: comment.authorName,
                     subtitle: '',
                     avatar: comment.authorAvatar || '/img/defaultAvatar.jpg',
-                    isSubscribed: isOwnComment ? false : isSubscribed, // Для своих комментариев всегда false
+                    isSubscribed: isOwnComment ? false : isSubscribed,
                     id: comment.authorId
                 },
-                postTitle: comment.postTitle,
-                postDate: comment.postDate,
+                postTitle: '',
+                postDate: '',
                 text: comment.text,
                 attachment: comment.attachment,
                 hideSubscribeButton: isOwnComment // Скрываем кнопку подписки для своих комментариев

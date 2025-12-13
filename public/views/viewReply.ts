@@ -129,6 +129,11 @@ export class ReplyView {
         parentSection.className = 'replies-parent-section';
         repliesContainer.appendChild(parentSection);
 
+        const repliesTitle = document.createElement('h2');
+        repliesTitle.className = 'replies-title';
+        repliesTitle.textContent = 'Ответы на комментарий';
+        repliesContainer.appendChild(repliesTitle);
+
         const repliesList = document.createElement('div');
         repliesList.className = 'replies-list';
         repliesContainer.appendChild(repliesList);
@@ -235,8 +240,8 @@ export class ReplyView {
                 isSubscribed: isSubscribed,
                 id: parent.user_id
             },
-            postTitle: parent.article_title || '',
-            postDate: parent.created_at,
+            postTitle: '',
+            postDate: '',
             text: parent.content,
             attachment: undefined,
             hideSubscribeButton: isOwnComment,
@@ -287,7 +292,7 @@ export class ReplyView {
                     id: reply.authorId
                 },
                 postTitle: '',
-                postDate: reply.postDate,
+                postDate: '',
                 text: reply.text,
                 attachment: reply.attachment,
                 hideSubscribeButton: isOwnReply,

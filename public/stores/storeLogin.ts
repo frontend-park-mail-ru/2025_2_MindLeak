@@ -29,35 +29,29 @@ class LoginStore extends BaseStore<LoginState> {
     }
 
     protected registerActions(): void {
-        this.registerAction('USER_LOGIN_CHECKED', (payload: { user: User }) => {
-            console.log('🔄 USER_LOGIN_CHECKED payload:', payload);
-            
-            const newState = {
+        this.registerAction('USER_LOGIN_CHECKED', (payload: { user: any }) => {
+            console.log('✅ Login checked, loading subscriptions...');
+            this.setState({
                 user: payload.user,
                 isLoggedIn: true,
                 isLoading: false,
                 error: null
-            };
-            this.setState(newState);
-            this.saveAuthState(newState);
+            });
             
-            // ✅ ЗАГРУЖАЕМ ПОДПИСКИ ПРИ ПРОВЕРКЕ АВТОРИЗАЦИИ
-            console.log('🔄 Loading subscriptions after auth check...');
+            // ⚠️ ВАЖНО: Загружаем подписки при проверке авторизации
             dispatcher.dispatch('SUBSCRIPTIONS_LOAD_REQUEST');
         });
 
-        this.registerAction('USER_LOGIN_SUCCESS', (payload: { user: User }) => {
-            const newState = {
+        this.registerAction('USER_LOGIN_SUCCESS', (payload: { user: any }) => {
+            console.log('✅ Login success, loading subscriptions...');
+            this.setState({
                 user: payload.user,
                 isLoggedIn: true,
                 isLoading: false,
                 error: null
-            };
-            this.setState(newState);
-            this.saveAuthState(newState);
+            });
             
-            // ✅ ЗАГРУЖАЕМ ПОДПИСКИ ПОСЛЕ УСПЕШНОГО ЛОГИНА
-            console.log('🔄 Loading subscriptions after login...');
+            // ⚠️ ВАЖНО: Загружаем подписки после успешного логина
             dispatcher.dispatch('SUBSCRIPTIONS_LOAD_REQUEST');
         });
 

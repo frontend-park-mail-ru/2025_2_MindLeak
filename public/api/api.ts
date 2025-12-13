@@ -412,7 +412,6 @@ private normalizeAppealData(appeal: any): any {
                         email: response.data.email || ''
                     };
                     this.sendAction('USER_LOGIN_CHECKED', { user: userData });
-                    this.sendAction('SUBSCRIPTIONS_LOAD_REQUEST');
                 } else {
                     this.sendAction('USER_LOGIN_FAIL', { error: 'No user data' });
                 }
@@ -441,7 +440,6 @@ private normalizeAppealData(appeal: any): any {
                     };
                     this.sendAction('USER_LOGIN_SUCCESS', { user: userData });
 
-                    this.sendAction('SUBSCRIPTIONS_LOAD_REQUEST');
                 } else {
                     this.sendAction('USER_LOGIN_FAIL', { error: 'No user data in response' });
                 }

@@ -26,11 +26,13 @@ export interface ProfileState {
     error: string | null;
     isEditingDescription: boolean;
     isMyProfile?: boolean;
-    isOffline?: boolean; // Добавляем флаг оффлайн
-    requestedId?: string; // Добавляем запрошенный ID
+    isOffline?: boolean;
+    requestedId?: string;
 }
 
 class ProfileStore extends BaseStore<ProfileState> {
+    private subscriptionsLoaded: boolean = false;
+
     constructor() {
         super({
             profile: null,
@@ -41,34 +43,71 @@ class ProfileStore extends BaseStore<ProfileState> {
             error: null,
             isEditingDescription: false,
             isMyProfile: false,
-            isOffline: false, // Инициализируем
+            isOffline: false,
             requestedId: undefined
         });
+
+        // Подписываемся на загрузку подписок
+        subscriptionsStore.addListener(() => {
+            this.onSubscriptionsUpdated();
+        });
+    }
+
+    private onSubscriptionsUpdated(): void {
+        const subscriptionState = subscriptionsStore.getState();
+        
+        // Если подписки загрузились
+        if (!subscriptionState.isLoading && !this.subscriptionsLoaded) {
+            this.subscriptionsLoaded = true;
+            
+            const state = this.getState();
+            // Если профиль уже загружен, обновляем флаг подписки
+            if (state.profile && !state.isMyProfile) {
+                const isSubscribed = subscriptionsStore.isSubscribed(state.profile.id);
+                
+                if (state.profile.isSubscribed !== isSubscribed) {
+                    console.log('🔄 [storeProfile] Updating subscription flag after load:', {
+                        profileId: state.profile.id,
+                        newFlag: isSubscribed
+                    });
+                    
+                    this.setState({
+                        profile: {
+                            ...state.profile,
+                            isSubscribed: isSubscribed
+                        }
+                    });
+                }
+            }
+        }
     }
 
     protected registerActions(): void {
         this.registerAction('PROFILE_LOAD_REQUEST', (payload: { userId?: string }) => {
+            // Сбрасываем флаг загрузки подписок при новой загрузке профиля
+            this.subscriptionsLoaded = subscriptionsStore.getState().isLoading ? false : true;
+            
             this.setState({
                 isLoading: true,
                 error: null,
-                isOffline: false, // Сбрасываем при новом запросе
-                requestedId: payload?.userId // Сохраняем запрошенный ID
+                isOffline: false,
+                requestedId: payload?.userId
             });
         });
 
         this.registerAction('PROFILE_LOAD_SUCCESS', (payload: { profile: ProfileData; posts: Post[] }) => {
             const loginState = loginStore.getState();
+            const subscriptionState = subscriptionsStore.getState();
             
             let isMyProfile = false;
             if (payload.profile && loginState.user) {
                 isMyProfile = String(payload.profile.id) === String(loginState.user.id);
             }
 
-            // ✅ ВАЖНО: Переопределяем флаг подписки из локального store
             const updatedProfile = { ...payload.profile };
             
-            // Если это не мой профиль, проверяем подписку в локальном store
-            if (!isMyProfile) {
+            // ⚠️ ВАЖНО: Если подписки уже загружены - используем локальный store
+            if (!isMyProfile && !subscriptionState.isLoading) {
                 updatedProfile.isSubscribed = subscriptionsStore.isSubscribed(updatedProfile.id);
             }
 
@@ -76,11 +115,12 @@ class ProfileStore extends BaseStore<ProfileState> {
                 profileId: updatedProfile.id,
                 serverFlag: payload.profile.isSubscribed,
                 localFlag: updatedProfile.isSubscribed,
+                subscriptionsLoaded: !subscriptionState.isLoading,
                 isMyProfile: isMyProfile
             });
             
             this.setState({
-                profile: updatedProfile, // ← Используем профиль с актуальным флагом
+                profile: updatedProfile,
                 posts: payload.posts,
                 isLoading: false,
                 error: null,
@@ -89,23 +129,19 @@ class ProfileStore extends BaseStore<ProfileState> {
             });
         });
 
-        // ОБНОВЛЯЕМ: Добавляем обработку оффлайн ошибки
         this.registerAction('PROFILE_LOAD_FAIL', (payload: { error: string; isOffline?: boolean; requestedId?: string }) => {
             const currentState = this.getState();
             
-            // Если это оффлайн ошибка, не очищаем данные полностью
             if (payload.isOffline) {
                 this.setState({
                     isLoading: false,
                     error: payload.error,
                     isOffline: true,
                     requestedId: payload.requestedId,
-                    // Сохраняем старые данные, если они есть
                     profile: currentState.profile,
                     posts: currentState.posts
                 });
             } else {
-                // Если обычная ошибка - очищаем
                 this.setState({
                     profile: null,
                     posts: [],
@@ -117,7 +153,6 @@ class ProfileStore extends BaseStore<ProfileState> {
             }
         });
 
-        // ДОБАВЛЯЕМ: Обработчик для сброса оффлайн состояния
         this.registerAction('PROFILE_RESET_OFFLINE', () => {
             this.setState({
                 isOffline: false,
@@ -125,11 +160,10 @@ class ProfileStore extends BaseStore<ProfileState> {
             });
         });
 
-        // ДОБАВЛЯЕМ: Обновление постов после редактирования
+        // ✅ ЭТИ ОБРАБОТЧИКИ ДОЛЖНЫ ВЫЗЫВАТЬ API ЧЕРЕЗ DISPATCHER
         this.registerAction('POSTS_RELOAD_AFTER_EDIT', () => {
             const state = this.getState();
             if (state.profile) {
-                // Перезагружаем профиль чтобы обновить посты
                 dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
                     userId: state.profile.id 
                 });
@@ -139,7 +173,6 @@ class ProfileStore extends BaseStore<ProfileState> {
         this.registerAction('PROFILE_RELOAD_AFTER_DELETE', () => {
             const state = this.getState();
             if (state.profile) {
-                // Перезагружаем профиль чтобы обновить посты
                 dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
                     userId: state.profile.id 
                 });
@@ -149,13 +182,13 @@ class ProfileStore extends BaseStore<ProfileState> {
         this.registerAction('POSTS_RELOAD_AFTER_CREATE', () => {
             const state = this.getState();
             if (state.profile) {
-                // Перезагружаем профиль чтобы обновить посты
                 dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
                     userId: state.profile.id 
                 });
             }
         });
 
+        // ... остальные обработчики без изменений ...
         this.registerAction('PROFILE_CHANGE_TAB', (payload: { tab: 'posts' | 'comments' }) => {
             this.setState({
                 activeTab: payload.tab
@@ -214,11 +247,9 @@ class ProfileStore extends BaseStore<ProfileState> {
             this.setState({ isLoading: false, error: payload.error });
         });
 
-        // В registerActions добавляем обработку подписки/отписки:
         this.registerAction('SUBSCRIBE_SUCCESS', (payload: { userId: number; targetProfileId: number | string }) => {
             const state = this.getState();
             
-            // Обновляем флаг подписки в профиле
             if (state.profile && String(state.profile.id) === String(payload.targetProfileId)) {
                 this.setState({
                     profile: {
@@ -229,9 +260,7 @@ class ProfileStore extends BaseStore<ProfileState> {
                 });
             }
             
-            // Обновляем флаг подписки в постах этого автора
             const updatedPosts = state.posts.map(post => {
-                // Если автор поста совпадает с тем, на кого подписались
                 if (post.authorId === payload.userId) {
                     return {
                         ...post,
@@ -249,7 +278,6 @@ class ProfileStore extends BaseStore<ProfileState> {
         this.registerAction('UNSUBSCRIBE_SUCCESS', (payload: { userId: number; targetProfileId: number | string }) => {
             const state = this.getState();
             
-            // Обновляем флаг подписки в профиле
             if (state.profile && String(state.profile.id) === String(payload.targetProfileId)) {
                 this.setState({
                     profile: {
@@ -260,7 +288,6 @@ class ProfileStore extends BaseStore<ProfileState> {
                 });
             }
             
-            // Обновляем флаг подписки в постах этого автора
             const updatedPosts = state.posts.map(post => {
                 if (post.authorId === payload.userId) {
                     return {

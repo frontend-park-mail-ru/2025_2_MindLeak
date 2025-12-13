@@ -55,6 +55,16 @@ export class ProfileView extends BaseView {
         loginStore.addListener(this.boundLoginStoreHandler);
         userListStore.addListener(this.boundUserListStoreHandler);
         
+        // ⚠️ ВАЖНО: ПЕРВОЕ - загружаем подписки
+        const loginState = loginStore.getState();
+        if (loginState.isLoggedIn && loginState.user?.id) {
+            console.log('🔄 [PROFILE] Loading subscriptions before profile...');
+            dispatcher.dispatch('SUBSCRIPTIONS_LOAD_REQUEST');
+            
+            // Ждем немного чтобы подписки начали загружаться
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
         // Рендерим базовую структуру
         await this.renderPageLayout();
         
@@ -63,8 +73,7 @@ export class ProfileView extends BaseView {
             userId: this.userId 
         });
 
-        // Инициализируем UserList (вызовется автоматически из BaseView.renderPageLayout)
-        // или явно если нужно:
+        // Инициализируем UserList
         await this.initUserList();
 
         // Добавляем контент в container

@@ -21,6 +21,11 @@ export class ReplyView {
     private currentCategory: string = '';
     private sidebarEl1: HTMLElement | null = null;
     private sidebarEl2: HTMLElement | null = null;
+    
+    // ⚠️ НОВЫЕ ПОЛЯ ДЛЯ РОДИТЕЛЬСКОГО КОММЕНТАРИЯ
+    private parentCommentSubscriptionHandler: () => void;
+    private parentCommentData: any = null;
+    private parentCommentElement: HTMLElement | null = null;
 
     constructor(container: HTMLElement, params: { commentId: string }) {
         this.container = container;
@@ -35,6 +40,9 @@ export class ReplyView {
 
         this.boundCommentsStoreHandler = this.handleCommentsStoreChange.bind(this);
         this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
+        
+        // ⚠️ ИНИЦИАЛИЗИРУЕМ ОБРАБОТЧИК ДЛЯ РОДИТЕЛЬСКОГО КОММЕНТАРИЯ
+        this.parentCommentSubscriptionHandler = this.updateParentComment.bind(this);
         
         this.determineCurrentCategory();
     }
@@ -221,10 +229,12 @@ export class ReplyView {
     private async renderParentComment(parent: any, container: HTMLElement): Promise<void> {
         const wrapper = document.createElement('div');
         wrapper.className = 'comment-wrapper comment--parent';
+        wrapper.id = `parent-comment-${parent.id}`; // ⚠️ Добавить ID для обновления
 
         const isOwnComment = parent.user_id === loginStore.getState().user?.id;
-        const isSubscribed = isOwnComment ? false : !subscriptionsStore.getState().isLoading && 
-                     subscriptionsStore.isSubscribed(parent.user_id.toString());
+        
+        // ⚠️ ИСПРАВИТЬ: Использовать store для начального значения
+        const isSubscribed = subscriptionsStore.isSubscribed(parent.user_id.toString());
 
         const authorAvatar = parent.author_avatar || '/img/defaultAvatar.jpg';
         const avatarWithTimestamp = authorAvatar ? 
@@ -238,7 +248,7 @@ export class ReplyView {
                 name: parent.author_name,
                 subtitle: '',
                 avatar: avatarWithTimestamp || '/img/defaultAvatar.jpg',
-                isSubscribed: isSubscribed,
+                isSubscribed: isSubscribed, // ⚠️ Из store
                 id: parent.user_id
             },
             postTitle: '',
@@ -252,8 +262,49 @@ export class ReplyView {
             const el = await commentInstance.render();
             wrapper.appendChild(el);
             container.appendChild(wrapper);
+            
+            // ⚠️ Сохранить данные родительского комментария для обновления
+            this.parentCommentData = parent;
+            this.parentCommentElement = wrapper;
+            
+            // ⚠️ ПОДПИСАТЬСЯ НА ИЗМЕНЕНИЯ ПОДПИСОК
+            subscriptionsStore.addListener(this.parentCommentSubscriptionHandler);
+            
+            console.log('✅ Родительский комментарий отрендерен, подписан на обновления подписок');
         } catch (error) {
             console.error('Error rendering parent comment:', error);
+        }
+    }
+
+    // ⚠️ НОВЫЙ МЕТОД: Обновить родительский комментарий
+    private updateParentComment(): void {
+        if (!this.parentCommentElement || !this.parentCommentData) return;
+        
+        const isOwnComment = this.parentCommentData.user_id === loginStore.getState().user?.id;
+        if (isOwnComment) return; // На свой комментарий не обновляем
+        
+        const isSubscribed = subscriptionsStore.isSubscribed(this.parentCommentData.user_id.toString());
+        
+        // Найти кнопку подписки в родительском комментарии
+        const subscribeButton = this.parentCommentElement.querySelector(`[data-user-id="${this.parentCommentData.user_id}"]`);
+        if (subscribeButton && subscribeButton instanceof HTMLElement) {
+            const currentlySubscribed = subscribeButton.classList.contains('user-menu__button--subscribed');
+            
+            if (isSubscribed !== currentlySubscribed) {
+                console.log('🔄 [ReplyView] Updating parent comment subscription:', {
+                    userId: this.parentCommentData.user_id,
+                    newState: isSubscribed,
+                    currentlySubscribed: currentlySubscribed
+                });
+                
+                if (isSubscribed) {
+                    subscribeButton.classList.add('user-menu__button--subscribed');
+                    subscribeButton.textContent = 'Отписаться';
+                } else {
+                    subscribeButton.classList.remove('user-menu__button--subscribed');
+                    subscribeButton.textContent = 'Подписаться';
+                }
+            }
         }
     }
 
@@ -315,8 +366,15 @@ export class ReplyView {
         commentsStore.removeListener(this.boundCommentsStoreHandler);
         userListStore.removeListener(this.boundUserListStoreHandler);
         
+        // ⚠️ ОТПИСАТЬСЯ ОТ ИЗМЕНЕНИЙ ПОДПИСОК
+        if (this.parentCommentSubscriptionHandler) {
+            subscriptionsStore.removeListener(this.parentCommentSubscriptionHandler);
+        }
+        
         this.sidebarEl1 = null;
         this.sidebarEl2 = null;
+        this.parentCommentElement = null;
+        this.parentCommentData = null;
         
         if (this.rootElement && this.rootElement.parentNode === this.container) {
             this.container.removeChild(this.rootElement);

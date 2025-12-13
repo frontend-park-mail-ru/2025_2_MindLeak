@@ -1,0 +1,63 @@
+<div class="chat" data-key="{{this.key}}">
+    <div class="chat__header">
+        <div class="chat__back">
+            <a href="" class="chat__back-button link-no-decorations">
+                {{> icon className="chat-back-icon" key="back" src="/icons/back.svg" title="Назад"}}
+            </a>
+        </div>
+
+        <div class="chat__info">
+            <img class="avatar" src="{{this.companionAvatar}}" alt="">
+            <div class="chat__details">
+                <a class="link chat__companion" href="">{{this.companionName}}</a>
+            </div>
+        </div>
+
+        <div class="chat__settings">
+            <a href="" class="chat__settings-button link-no-decorations">
+                {{> icon className="chat-settings-icon" key="settings" src="/icons/settings.svg" title="Настройки"}}
+            </a>
+        </div>
+    </div>
+
+    <div class="chat__content">
+        {{#each messages}}
+            {{{this}}}
+        {{/each}}
+    </div>
+
+    <form action="" class="chat__bottom sender" data-key="form">
+        <textarea
+            class="sender__input"
+            placeholder="Напишите сообщение.."
+            data-key="{{this.inputKey}}"
+        >{{this.inputText}}</textarea>
+
+        <div class="chat__emoji">
+            <div class="emoji-btn" data-key="emoji-btn">
+                {{> icon className="emoji-icon" key="emoji" src="/icons/emoji.svg" title="Эмодзи"}}
+            </div>
+
+            <div class="chat__emoji-panel {{#unless this.showEmojiPanel}}chat__emoji-panel_hidden{{/unless}}" data-key="emoji-panel">
+                <div class="emoji-panel__header">
+                    <div class="emoji-panel__switcher {{#if emojisPanelSelected}}emoji-panel__switcher_active{{/if}}" data-key="emoji-switcher">
+                        Эмодзи
+                    </div>
+                </div>
+                <div class="emoji-panel__content">
+                    {{#each emojis}}
+                        {{{this}}}
+                    {{/each}}
+                </div>
+            </div>
+        </div>
+
+        <div class="chat__attach-button svg-button" data-key="attach-button">
+            {{> icon className="attach-icon" key="attach" src="/icons/attach.svg" title="Прикрепить файл"}}
+        </div>
+
+        <button class="sender__send button-no-decorations">
+            {{> icon className="send-icon" key="send" src="/icons/send.svg" title="Отправить"}}
+        </button>
+    </form>
+</div>

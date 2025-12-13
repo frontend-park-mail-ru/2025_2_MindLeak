@@ -103,8 +103,17 @@ export abstract class BaseView {
             MAIN_MENU_ITEMS,
             this.currentCategory, // Используем текущую категорию
             (key) => {
-                if (this.sidebarEl2) deactivateAll(this.sidebarEl2);
-                this.navigateToCategory(key);
+                let newUrl = '';
+                if (key === 'messages'  || key === 'Сообщения') {
+                    newUrl = '/messages';
+                } else if (key === 'fresh') {
+                    newUrl = '/feed';
+                } else {
+                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
+                }
+                
+                window.history.pushState({}, '', newUrl);
+                window.dispatchEvent(new PopStateEvent('popstate'));
             }
         );
         this.sidebarEl1 = await sidebar1.render();
@@ -115,7 +124,17 @@ export abstract class BaseView {
             this.currentCategory, // Используем текущую категорию
             (key) => {
                 if (this.sidebarEl1) deactivateAll(this.sidebarEl1);
-                this.navigateToCategory(key);
+                let newUrl = '';
+                if (key === 'messages') {
+                    newUrl = '/messages';
+                } else if (key === 'fresh') {
+                    newUrl = '/feed';
+                } else {
+                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
+                }
+                
+                window.history.pushState({}, '', newUrl);
+                window.dispatchEvent(new PopStateEvent('popstate'));
             }
         );
         this.sidebarEl2 = await sidebar2.render();

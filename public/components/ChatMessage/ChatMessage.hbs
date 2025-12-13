@@ -1,0 +1,16 @@
+<div class="chat-message {{messageClass}}" data-key="{{this.key}}">
+    <div class="chat-message__avatar">
+        <img class="avatar" src="{{this.messageAvatar}}" alt="">
+    </div>
+
+    <div class="chat-message__content">
+        <div class="chat-message__name">
+            <span class="chat-message__author">{{this.messageName}}</span>
+            <span class="chat-message__date date">{{this.createdAt}}</span>
+        </div>
+
+        <div class="chat-message__text">
+            {{this.messageText}}
+        </div>
+    </div>
+</div>

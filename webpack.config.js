@@ -106,11 +106,24 @@ module.exports = (env, argv) => {
             static: {
                 directory: path.join(__dirname, 'dist'),
             },
-            port: 3000,
-            open: true,
+            port: 8080,
+            host: "0.0.0.0",
+            allowedHosts: "all",
             hot: true,
-            historyApiFallback: true
+            open: true,
+            historyApiFallback: true,
+
+            proxy: {
+                "/api": {
+                    target: "https://mindleak.ru",
+                    changeOrigin: true,
+                    secure: false,
+                    ws: true,       // ← теперь ВКЛЮЧЕНО
+                    cookieDomainRewrite: "localhost",
+                }
+            }
         },
+
 
         optimization: {
             splitChunks: false,

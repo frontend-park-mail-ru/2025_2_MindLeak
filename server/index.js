@@ -5,14 +5,33 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const path = require('path');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
+const BACKEND = 'https://mindleak.ru';
 
 app.use(morgan('dev'));
+
+app.use(
+  '/api',
+  createProxyMiddleware({
+    target: BACKEND,
+    changeOrigin: true,
+    secure: false,
+    ws: true, // ← WebSocket поддержка
+    onProxyReq: (proxyReq, req) => {
+      // Передаём куки и заголовки
+      // (http-proxy-middleware делает это автоматически при changeOrigin: true)
+    },
+    onProxyReqWs: () => {
+      console.log('🔄 WebSocket proxy upgrade → backend');
+    }
+  })
+);
+
 app.use(express.static(path.resolve(__dirname, '..', 'public')));
 app.use(express.static(path.resolve(__dirname, '..', 'node_modules')));
 app.use('/dist', express.static(path.resolve(__dirname, '..', 'dist')));
-
 
 app.use(bodyParser.json());
 app.use(cookieParser());

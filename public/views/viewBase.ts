@@ -6,7 +6,6 @@ import { dispatcher } from '../dispatcher/dispatcher';
 import { HashtagParser } from '../utils/hashtagParser';
 
 export abstract class BaseView {
-    protected headerInstance: Header;
     protected rootElement: HTMLElement | null = null;
     protected pageWrapper: HTMLElement | null = null;
     protected contentContainer: HTMLElement | null = null;
@@ -19,42 +18,33 @@ export abstract class BaseView {
     protected sidebarEl1: HTMLElement | null = null;
     protected sidebarEl2: HTMLElement | null = null;
     
-    // Статическое поле для Header синглтона (если нужно)
-    private static headerInstance: Header | null = null;
-
     constructor() {
-        // Используем синглтон для Header
-        if (!BaseView.headerInstance) {
-            BaseView.headerInstance = new Header();
-        }
-        this.headerInstance = BaseView.headerInstance;
+        // Header теперь синглтон, не создаем новый экземпляр
     }
 
-    /**
-     * Абстрактный метод для рендера основного контента
-     */
     protected abstract renderMainContent(): Promise<HTMLElement>;
 
-    /**
-     * Основной метод рендера страницы
-     */
     async render(): Promise<HTMLElement> {
         this.isDestroyed = false;
         await this.renderPageLayout();
         return this.rootElement!;
     }
 
-    /**
-     * Рендер общей структуры страницы
-     */
     protected async renderPageLayout(): Promise<void> {
         this.rootElement = document.createElement('div');
         
-        // Header
+        // ✅ Используем синглтон Header
+        const header = Header.getInstance();
+        
+        // Инициализируем Header если еще не инициализирован
         const headerContainer = document.createElement('header');
-        const headerEl = await this.headerInstance.render(headerContainer);
-        headerContainer.appendChild(headerEl);
-        this.rootElement.appendChild(headerContainer);
+        await header.init(headerContainer);
+        
+        const headerEl = header.getElement();
+        if (headerEl) {
+            headerContainer.appendChild(headerEl);
+            this.rootElement.appendChild(headerContainer);
+        }
 
         // Основной контент
         this.contentContainer = document.createElement('div');
@@ -81,9 +71,6 @@ export abstract class BaseView {
         await this.initUserList();
     }
 
-    /**
-     * Рендер левого меню (сайдбара)
-     */
     protected async renderLeftMenu(): Promise<HTMLElement> {
         const leftMenu = document.createElement('aside');
         leftMenu.className = 'sidebar-left';
@@ -126,9 +113,6 @@ export abstract class BaseView {
         return leftMenu;
     }
 
-    /**
-     * Навигация по категориям
-     */
     protected navigateToCategory(key: string): void {
         let newUrl = '';
         if (key === 'fresh') {
@@ -140,10 +124,6 @@ export abstract class BaseView {
         window.dispatchEvent(new PopStateEvent('popstate'));
     }
 
-    /**
-     * Определение текущей категории из URL
-     * Должен быть переопределен в наследниках при необходимости
-     */
     protected determineCurrentCategory(): void {
         const url = new URL(window.location.href);
         const pathname = url.pathname;
@@ -157,9 +137,6 @@ export abstract class BaseView {
         // Для других страниц по умолчанию оставляем 'fresh' или пустую строку
     }
 
-    /**
-     * Инициализация UserList в правом меню
-     */
     protected async initUserList(): Promise<void> {
         if (!this.isUserListRendered && !this.isDestroyed) {
             dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
@@ -167,9 +144,6 @@ export abstract class BaseView {
         }
     }
 
-    /**
-     * Обновление UserList при изменении store
-     */
     protected async updateUserListContent(users?: any[]): Promise<void> {
         if (this.isDestroyed || !this.rightMenu) return;
         
@@ -194,9 +168,6 @@ export abstract class BaseView {
         }
     }
 
-    /**
-     * Базовый метод уничтожения
-     */
     destroy(): void {
         this.isDestroyed = true;
         
@@ -219,16 +190,6 @@ export abstract class BaseView {
         if (this.rootElement && this.rootElement.parentNode) {
             this.rootElement.parentNode.removeChild(this.rootElement);
             this.rootElement = null;
-        }
-    }
-
-    /**
-     * Статический метод для очистки синглтона
-     */
-    public static cleanup(): void {
-        if (BaseView.headerInstance) {
-            BaseView.headerInstance.destroy();
-            BaseView.headerInstance = null;
         }
     }
 }

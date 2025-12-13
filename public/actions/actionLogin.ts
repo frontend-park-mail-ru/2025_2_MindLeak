@@ -21,5 +21,21 @@ export const loginActions = {
 
     loginChecked(user: User | null): void {
         dispatcher.dispatch('USER_LOGIN_CHECKED', { user });
+    },
+
+    avatarUploaded(avatar: string): void {
+        dispatcher.dispatch('AVATAR_UPLOADED', { avatar });
+    },
+
+    updateUser(user: Partial<User>): void {
+        dispatcher.dispatch('USER_UPDATE_PROFILE', { user });
+    },
+
+    avatarUpdated(avatar: string): void {
+        dispatcher.dispatch('UPDATE_AVATAR_ONLY', { avatar });
+    },
+    
+    forceHeaderUpdate(): void {
+        dispatcher.dispatch('HEADER_FORCE_UPDATE', { reason: 'manual_update' });
     }
 };

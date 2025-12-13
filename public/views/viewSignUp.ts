@@ -43,7 +43,7 @@ export class SignUpFormView {
     }
 
     private setupPasswordToggles(form: HTMLFormElement): void {
-        const toggles = form.querySelectorAll('.password-toggle');
+        const toggles = form.querySelectorAll('.form__password-toggle');
         const passwordInputs = form.querySelectorAll('input[type="password"]') as NodeListOf<HTMLInputElement>;
 
         toggles.forEach((toggle: Element, index: number) => {
@@ -148,7 +148,7 @@ export class SignUpFormView {
             errorEl.className = 'field-error';
             errorEl.textContent = message;
 
-            const wrapper = input.closest('.input-wrapper');
+            const wrapper = input.closest('.form__input-wrapper');
             if (wrapper) {
                 wrapper.parentNode!.insertBefore(errorEl, wrapper.nextSibling);
             } else {

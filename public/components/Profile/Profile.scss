@@ -305,3 +305,74 @@
     border-top: 1px solid var(--border-color);
     font-style: italic;
 }
+
+// Добавить в конец Profile.scss
+.profile__name-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 20px;
+}
+
+.profile__subscribe-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    
+    &:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-1px);
+    }
+    
+    &:active {
+        transform: translateY(0);
+    }
+    
+    &--subscribed {
+        background-color: var(--text-lighter);
+        color: var(--text-color);
+        
+        &:hover {
+            background-color: var(--text-light);
+        }
+    }
+}
+
+.user-menu__button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    
+    &:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-1px);
+    }
+    
+    &:active {
+        transform: translateY(0);
+    }
+    
+    &--subscribed {
+        background-color: var(--text-lighter);
+        color: var(--text-color);
+        
+        &:hover {
+            background-color: var(--text-light);
+        }
+    }
+}

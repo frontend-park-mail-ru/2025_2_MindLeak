@@ -6,6 +6,7 @@ import { loginStore } from '../stores/storeLogin';
 import { userListStore } from '../stores/storeUserList';
 import { HashtagParser } from '../utils/hashtagParser';
 import { CommentView } from './viewComments'; // Импортируем CommentView
+import { subscriptionsStore } from '../stores/storeSubscriptions';
 
 export class PostView extends BaseView {
     private postId: string;
@@ -68,15 +69,15 @@ export class PostView extends BaseView {
 
         pageElement.appendChild(this.postWrapper);
 
-        // Создаем контейнер для комментариев (из основной ветки)
+        // Создаем контейнер для комментариев
         const commentsContainer = document.createElement('div');
         commentsContainer.id = 'comments-section';
         commentsContainer.className = 'comments-section';
         pageElement.appendChild(commentsContainer);
 
-        // Инициализируем CommentView (из основной ветки)
+        // Инициализируем CommentView
         this.commentView = new CommentView(commentsContainer, this.postId);
-        this.commentView.init();
+        await this.commentView.init(); // Добавляем await
 
         return pageElement;
     }
@@ -118,7 +119,21 @@ export class PostView extends BaseView {
     private async renderPostInWrapper(post: Post, wrapper: HTMLElement): Promise<void> {
         const authState = loginStore.getState();
         const currentUserId = authState.user?.id;
-        const isOwnPost = !!currentUserId && currentUserId.toString() === post.authorId.toString();
+        const isOwnPost = !!currentUserId && currentUserId.toString() === post.authorId?.toString();
+
+        // Используем store подписок
+        const isSubscribed = !subscriptionsStore.getState().isLoading && 
+                        subscriptionsStore.isSubscribed(String(post.authorId));
+        
+        const finalIsSubscribed = isSubscribed;
+
+        console.log('🔍 [PostView] Subscription status (FIXED):', {
+            authorId: post.authorId,
+            serverFlag: post.isAuthorSubscribed,
+            storeFlag: isSubscribed,
+            finalFlag: finalIsSubscribed,
+            isOwnPost: isOwnPost
+        });
 
         // Обрабатываем хештеги в заголовке и тексте
         const processedTitle = HashtagParser.replaceHashtagsWithLinks(post.title || '');
@@ -131,8 +146,9 @@ export class PostView extends BaseView {
                 name: post.authorName || 'Аноним',
                 subtitle: post.theme || 'Блог',
                 avatar: post.authorAvatar || '/img/defaultAvatar.jpg',
-                isSubscribed: true,
-                id: post.authorId
+                isSubscribed: finalIsSubscribed, // Используем исправленный флаг
+                id: post.authorId,
+                hideSubscribeButton: isOwnPost
             },
             title: processedTitle,
             text: processedText,

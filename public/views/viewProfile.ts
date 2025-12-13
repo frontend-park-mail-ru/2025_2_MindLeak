@@ -55,6 +55,16 @@ export class ProfileView extends BaseView {
         loginStore.addListener(this.boundLoginStoreHandler);
         userListStore.addListener(this.boundUserListStoreHandler);
         
+        // ⚠️ ВАЖНО: ПЕРВОЕ - загружаем подписки
+        const loginState = loginStore.getState();
+        if (loginState.isLoggedIn && loginState.user?.id) {
+            console.log('🔄 [PROFILE] Loading subscriptions before profile...');
+            dispatcher.dispatch('SUBSCRIPTIONS_LOAD_REQUEST');
+            
+            // Ждем немного чтобы подписки начали загружаться
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
         // Рендерим базовую структуру
         await this.renderPageLayout();
         
@@ -63,8 +73,7 @@ export class ProfileView extends BaseView {
             userId: this.userId 
         });
 
-        // Инициализируем UserList (вызовется автоматически из BaseView.renderPageLayout)
-        // или явно если нужно:
+        // Инициализируем UserList
         await this.initUserList();
 
         // Добавляем контент в container
@@ -148,7 +157,8 @@ export class ProfileView extends BaseView {
         const postsWithHashtags = state.posts ? state.posts.map(post => ({
             ...post,
             title: HashtagParser.replaceHashtagsWithLinks(post.title || ''),
-            content: HashtagParser.replaceHashtagsWithLinks(post.content || '')
+            content: HashtagParser.replaceHashtagsWithLinks(post.content || ''),
+            isAuthorSubscribed: post.isAuthorSubscribed || false 
         })) : [];
 
         const profileComponent = new Profile({
@@ -205,15 +215,45 @@ export class ProfileView extends BaseView {
                 if (!this.isDestroyed && newContent && this.mainContent) {
                     this.mainContent.innerHTML = '';
                     this.mainContent.appendChild(newContent);
+
+                    this.attachEventListeners(newContent);
                 }
             });
         }
     }
 
+    //todo нужен ли ФФФФФФФФФФФФФФФФффф (имею в виду изменения )
     private handleLoginStoreChange(): void {
         if (this.isDestroyed) return;
 
         const loginState = loginStore.getState();
+        const profileState = profileStore.getState();
+        
+        // Функция для извлечения ЧИСТОГО URL
+        const getCleanUrl = (url: string | undefined): string => {
+            if (!url) return '';
+            return url.split('?')[0];
+        };
+        
+        const loginAvatarClean = getCleanUrl(loginState.user?.avatar);
+        const profileAvatarClean = getCleanUrl(profileState.profile?.avatar_url);
+        
+        console.log('🔄 ProfileView: Avatar comparison:', {
+            loginAvatarClean,
+            profileAvatarClean
+        });
+        
+        // Если аватар изменился И это профиль текущего пользователя
+        if (loginAvatarClean && profileAvatarClean && loginAvatarClean !== profileAvatarClean) {
+            const isMyProfile = !this.userId || loginState.user?.id.toString() === this.userId.toString();
+            
+            if (isMyProfile) {
+                console.log('🖼️ Avatar changed! Reloading profile...');
+                dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
+                    userId: this.userId || loginState.user?.id
+                });
+            }
+        }
         
         if (!loginState.isLoggedIn) {
             router.navigate('/');

@@ -18,7 +18,7 @@ export class UserListView {
 
   constructor(container: HTMLElement, listType: 'topblogs' | 'subscriptions' | 'subscribers' = 'topblogs') {
     this.container = container;
-    this.headerInstance = new Header();
+    this.headerInstance = Header.getInstance();
     this.boundStoreHandler = this.handleStoreChange.bind(this);
     this.listType = listType;
     this.determineCurrentCategory();
@@ -55,7 +55,7 @@ export class UserListView {
     this.pageWrapper = document.createElement('div');
 
     const headerContainer = document.createElement('header');
-    const headerEl = await this.headerInstance.render(headerContainer);
+    const headerEl = await this.headerInstance.render();
     headerContainer.appendChild(headerEl);
     this.pageWrapper.appendChild(headerContainer);
 

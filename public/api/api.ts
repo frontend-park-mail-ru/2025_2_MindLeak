@@ -120,13 +120,35 @@ class API {
                 break;
 
             case 'REPLY_CREATE_REQUEST':
-                this.createReply(payload.commentId, payload.text, payload.postId);
+                this.createReply(
+                    payload.commentId, 
+                    payload.text, 
+                    payload.postId, 
+                    payload.attachment
+                );
+                break;
             case 'SEARCH_BLOGS_REQUEST':
                 this.searchBlogs(payload.query);
                 break;
             case 'SEARCH_POSTS_REQUEST':
                 this.searchPosts(payload.query);
                 break;
+
+            case 'SUBSCRIBE_REQUEST':
+                this.subscribe(payload.userId, payload.targetProfileId);
+                break;
+            case 'UNSUBSCRIBE_REQUEST':
+                this.unsubscribe(payload.userId, payload.targetProfileId);
+                break;
+
+            case 'SUBSCRIPTIONS_LOAD_REQUEST':
+                this.loadSubscriptions();
+                break;
+
+            case 'SUBSCRIBERS_LOAD_REQUEST':
+                this.loadSubscribers();
+                break;
+
         }
     }
 
@@ -354,11 +376,20 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private normalizePostData(post: any): any {
+        // ✅ ДОБАВЛЯЕМ TIMESTAMP к авторскому аватару
+        const authorAvatar = post.author_avatar || post.AuthorAvatar || '/img/defaultAvatar.jpg';
+        const avatarWithTimestamp = authorAvatar ? 
+            `${authorAvatar.split('?')[0]}?_=${Date.now()}` : 
+            authorAvatar;
+
+        // Убедитесь, что authorId берется правильно из всех возможных полей
+        const authorId = post.author_id || post.AuthorID || post.authorId;
+        
         return {
             id: post.id || post.ID || post.postId,
             authorId: post.author_id || post.AuthorID,
             authorName: post.author_name || post.AuthorName || 'Неизвестный автор',
-            authorAvatar: post.author_avatar || post.AuthorAvatar || '/img/defaultAvatar.jpg',
+            authorAvatar: avatarWithTimestamp, // ✅ С TIMESTAMP!
             title: post.title || post.Title,
             content: post.content || post.Content,
             image: post.media_url || post.MediaURL || post.image || '',
@@ -367,7 +398,8 @@ private normalizeAppealData(appeal: any): any {
             viewsCount: post.views_count || post.ViewsCount || 0,
             theme: post.Topic?.Title || post.theme || post.Topic?.title || 'Без темы',
             topic_id: post.topic_id || post.Topic?.TopicId || post.Topic?.topic_id || 0,
-            tags: []
+            tags: [],
+            isAuthorSubscribed: post.is_subscribed || false // спроc у ребят todo есть и будет ли?
         };
     }
 
@@ -381,7 +413,7 @@ private normalizeAppealData(appeal: any): any {
                     const userData = {
                         id: response.data.id,
                         name: response.data.name,
-                        avatar: response.data.avatar || '/img/defaultAvatar.jpg',
+                        avatar: response.data.avatar || response.data.Avatar || '/img/defaultAvatar.jpg',
                         subtitle: response.data.subtitle || 'Блог',
                         email: response.data.email || ''
                     };
@@ -408,11 +440,12 @@ private normalizeAppealData(appeal: any): any {
                     const userData = {
                         id: response.data.id,
                         name: response.data.name,
-                        avatar: response.data.avatar || '/img/defaultAvatar.jpg',
+                        avatar: response.data.avatar || response.data.Avatar || '/img/defaultAvatar.jpg',
                         subtitle: response.data.subtitle || 'Блог',
                         email: response.data.email || ''
                     };
                     this.sendAction('USER_LOGIN_SUCCESS', { user: userData });
+
                 } else {
                     this.sendAction('USER_LOGIN_FAIL', { error: 'No user data in response' });
                 }
@@ -502,6 +535,14 @@ private normalizeAppealData(appeal: any): any {
             response = await ajax.get(`/feed?offset=${offset}`);
         }
 
+        if (response.status === 408) {
+            this.sendAction('POSTS_LOAD_FAIL', { 
+                error: 'Посты не доступны в оффлайн режиме 😴',
+                isOffline: true
+            });
+            return;
+        }
+
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
@@ -554,6 +595,7 @@ private normalizeAppealData(appeal: any): any {
         }
     }
 
+    //todo стоит ли менять???
     private async loadUserPosts(userId: number): Promise<any[]> {
         console.log('🔄 [API] Loading user posts for userId:', userId);
         let url = `/posts?author_id=${userId}`;
@@ -566,7 +608,7 @@ private normalizeAppealData(appeal: any): any {
             console.log('📊 [API] Raw posts data:', postsArray);
             
             const normalizedPosts = postsArray.map((post: any) => {
-                const normalized = this.normalizePostData(post);
+                const normalized = this.normalizePostData(post); // ✅ уже использует normalizePostData с timestamp
                 return normalized;
             });
             
@@ -578,7 +620,7 @@ private normalizeAppealData(appeal: any): any {
         return [];
     }
 
-    private async loadProfile(userId?: number): Promise<void> {
+    private async loadProfile(userId?: string): Promise<void> {
         let url = '/profile';
         
         if (userId) {
@@ -588,7 +630,6 @@ private normalizeAppealData(appeal: any): any {
         try {
             const response = await ajax.get(url);
             
-            // todo Проверяем статус 408 (Оффлайн режим)
             if (response.status === 408) {
                 this.sendAction('PROFILE_LOAD_FAIL', { 
                     error: 'Профиль не доступен в оффлайн режиме 😴',
@@ -600,25 +641,40 @@ private normalizeAppealData(appeal: any): any {
             switch (response.status) {
                 case STATUS.ok:
                     if (response.data) {
+                        // ✅ ДОБАВЛЯЕМ TIMESTAMP к URL чтобы избежать кэширования
+                        const avatarWithTimestamp = response.data.avatar_url ? 
+                            `${response.data.avatar_url}${response.data.avatar_url.includes('?') ? '&' : '?'}_=${Date.now()}` : 
+                            response.data.avatar_url;
+                        
+                        const coverWithTimestamp = response.data.cover_url ? 
+                            `${response.data.cover_url}${response.data.cover_url.includes('?') ? '&' : '?'}_=${Date.now()}` : 
+                            response.data.cover_url;
+                        
+                        // ⚠️ НЕ используем серверный is_subscribed напрямую
+                        // Вместо этого будем полагаться на локальный subscriptionsStore
                         const profileData = {
                             id: response.data.id,
                             name: response.data.name,
                             email: response.data.email,
-                            avatar_url: response.data.avatar_url,
-                            cover_url: response.data.cover_url,
+                            avatar_url: avatarWithTimestamp,
+                            cover_url: coverWithTimestamp,
                             description: response.data.description,
                             subscribers: response.data.subscribers || 0,
                             subscriptions: response.data.subscriptions || 0,
                             postsCount: response.data.posts_count || 0,
+                            // ⚠️ Серверный флаг может быть устаревшим
                             isSubscribed: response.data.is_subscribed || false
                         };
 
                         const userPosts = await this.loadUserPosts(profileData.id);
-                            
+                                            
                         this.sendAction('PROFILE_LOAD_SUCCESS', {
                             profile: profileData,
                             posts: userPosts
                         });
+                        
+                        // ⚠️ ВАЖНО: Не отправляем SUBSCRIBE_SUCCESS здесь!
+                        // Вместо этого пусть storeProfile сам проверит subscriptionsStore
                     } else {
                         this.sendAction('PROFILE_LOAD_FAIL', { 
                             error: 'No profile data' 
@@ -712,15 +768,24 @@ private normalizeAppealData(appeal: any): any {
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
+                    // ✅ ДОБАВЛЯЕМ TIMESTAMP к URL в настройках тоже
+                    const avatarWithTimestamp = response.data.avatar_url ? 
+                        `${response.data.avatar_url}${response.data.avatar_url.includes('?') ? '&' : '?'}_=${Date.now()}` : 
+                        response.data.avatar_url;
+                    
+                    const coverWithTimestamp = response.data.cover_url ? 
+                        `${response.data.cover_url}${response.data.cover_url.includes('?') ? '&' : '?'}_=${Date.now()}` : 
+                        response.data.cover_url;
+                    
                     const settingsData = {
                         phone: response.data.phone || '',
                         country: response.data.country || 'Россия',
                         language: response.data.language || 'Русский',
                         sex: response.data.sex || 'other',
                         date_of_birth: response.data.date_of_birth || '',
-                        cover_url: response.data.cover_url,
+                        cover_url: coverWithTimestamp,     // ✅ С TIMESTAMP!
                         name: response.data.name || '',
-                        avatar_url: response.data.avatar_url,
+                        avatar_url: avatarWithTimestamp,   // ✅ С TIMESTAMP!
                         email: response.data.email || '',
                         created_at: response.data.created_at || ''
                     };
@@ -740,13 +805,96 @@ private normalizeAppealData(appeal: any): any {
         }
     }
 
+    private async syncProfileAfterUpdate(): Promise<void> {
+        console.log('🔄 Synchronizing profile data after update...');
+        
+        const authState = loginStore.getState();
+        if (authState.user && authState.isLoggedIn) {
+            try {
+                // Загружаем свежие данные профиля с сервера
+                const profileResponse = await ajax.get('/profile');
+                
+                if (profileResponse.status === STATUS.ok && profileResponse.data) {
+                    const profileData = {
+                        id: profileResponse.data.id,
+                        name: profileResponse.data.name,
+                        email: profileResponse.data.email,
+                        avatar_url: profileResponse.data.avatar_url,
+                        cover_url: profileResponse.data.cover_url,
+                        description: profileResponse.data.description,
+                        subscribers: profileResponse.data.subscribers || 0,
+                        subscriptions: profileResponse.data.subscriptions || 0,
+                        postsCount: profileResponse.data.posts_count || 0,
+                        isSubscribed: profileResponse.data.is_subscribed || false
+                    };
+
+                    // Обновляем loginStore
+                    const cacheBustedAvatar = profileData.avatar_url ? 
+                        `${profileData.avatar_url}${profileData.avatar_url.includes('?') ? '&' : '?'}_=${Date.now()}` :
+                        profileData.avatar_url;
+                    
+                    this.sendAction('USER_UPDATE_PROFILE', {
+                        user: {
+                            id: authState.user.id,
+                            name: profileData.name,
+                            avatar: cacheBustedAvatar,
+                            subtitle: authState.user.subtitle,
+                            email: profileData.email
+                        }
+                    });
+
+                    // Обновляем profileStore
+                    const userPosts = await this.loadUserPosts(profileData.id);
+                    this.sendAction('PROFILE_LOAD_SUCCESS', {
+                        profile: profileData,
+                        posts: userPosts
+                    });
+
+                    // Обновляем settingsAccountStore
+                    this.loadSettingsAccount();
+                    
+                    console.log('✅ Profile synchronized successfully');
+                }
+            } catch (error) {
+                console.error('❌ Error synchronizing profile:', error);
+            }
+        }
+    }
+
     private async updateSettingsAccount(settings: any): Promise<void> {
         const response = await ajax.put('/profile', settings);
         
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
+                    console.log('✅ Settings updated, response data:', response.data);
+                    
                     this.sendAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS');
+                    
+                    // ✅ ВАЖНО: ПРИНУДИТЕЛЬНО ПЕРЕЗАГРУЖАЕМ ПРОФИЛЬ И ПОСТЫ!
+                    const authState = loginStore.getState();
+                    if (authState.user) {
+                        const cacheBustedUrl = `${response.data.avatar_url}${response.data.avatar_url.includes('?') ? '&' : '?'}_=${Date.now()}`;
+                        
+                        this.sendAction('USER_UPDATE_PROFILE', {
+                            user: {
+                                id: authState.user.id,
+                                name: response.data.name || authState.user.name,
+                                avatar: cacheBustedUrl,
+                                subtitle: authState.user.subtitle,
+                                email: response.data.email || authState.user.email
+                            }
+                        });
+                        
+                        // ✅ ПРИНУДИТЕЛЬНО ПЕРЕЗАГРУЖАЕМ ПРОФИЛЬ
+                        this.sendAction('PROFILE_LOAD_REQUEST', { 
+                            userId: authState.user.id 
+                        });
+                        
+                        // ✅ ПРИНУДИТЕЛЬНО ПЕРЕЗАГРУЖАЕМ ПОСТЫ
+                        this.sendAction('POSTS_RELOAD_AFTER_EDIT');
+                    }
+                    
                     this.loadSettingsAccount();
                 } else {
                     this.sendAction('SETTINGS_ACCOUNT_UPDATE_FAIL', { error: 'No updated data' });
@@ -818,7 +966,7 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private async deletePost(postId: string): Promise<void> {
-        const response = await ajax.deletePost(`/${postId}`);
+        const response = await ajax.deletePost(postId);
         if (response.status === 200) {
             this.sendAction('POST_DELETE_SUCCESS', { postId });
             this.sendAction('POSTS_RELOAD_AFTER_DELETE');
@@ -828,15 +976,42 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private async uploadAvatar(file: File): Promise<void> {
+        console.log('🖼️ Uploading avatar file:', file.name, file.type, file.size);
         const formData = new FormData();
         formData.append('file', file);
 
         const response = await ajax.uploadAvatar(formData);
 
+        console.log('📡 Avatar upload response:', response); 
+
         switch (response.status) {
             case STATUS.ok:
-                this.sendAction('AVATAR_UPLOAD_SUCCESS');
-                this.loadSettingsAccount();
+                let avatarUrl = '';
+                
+                if (response.data?.Avatar) {
+                    avatarUrl = response.data.Avatar;
+                } else if (response.data?.avatar_url) {
+                    avatarUrl = response.data.avatar_url;
+                }
+                
+                console.log('✅ Avatar uploaded, URL:', avatarUrl);
+                
+                if (avatarUrl) {
+                    // ✅ TIMESTAMP будет добавлен при загрузке профиля!
+                    this.sendAction('AVATAR_UPLOADED', { avatar: avatarUrl });
+                    
+                    // ✅ ОБЯЗАТЕЛЬНО перезагружаем профиль
+                    const authState = loginStore.getState();
+                    if (authState.user) {
+                        console.log('🔄 Forcing PROFILE_LOAD_REQUEST after avatar upload');
+                        this.sendAction('PROFILE_LOAD_REQUEST', { 
+                            userId: authState.user.id 
+                        });
+                    }
+                    
+                    // ✅ Перезагружаем настройки
+                    this.loadSettingsAccount();
+                }
                 break;
             case STATUS.unauthorized:
                 this.sendAction('USER_UNAUTHORIZED');
@@ -854,6 +1029,43 @@ private normalizeAppealData(appeal: any): any {
         }
     }
 
+    private async uploadCover(file: File): Promise<void> {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await ajax.uploadCover(formData);
+
+        switch (response.status) {
+            case STATUS.ok:
+                this.sendAction('COVER_UPLOAD_SUCCESS');
+                
+                // ✅ ОБЯЗАТЕЛЬНО перезагружаем профиль
+                const authState = loginStore.getState();
+                if (authState.user) {
+                    console.log('🔄 Forcing PROFILE_LOAD_REQUEST after cover upload');
+                    this.sendAction('PROFILE_LOAD_REQUEST', { 
+                        userId: authState.user.id 
+                    });
+                }
+                
+                // ✅ Перезагружаем настройки
+                this.loadSettingsAccount();
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('COVER_UPLOAD_FAIL', { error: 'Not authenticated' });
+                break;
+            case STATUS.badRequest:
+                this.sendAction('COVER_UPLOAD_FAIL', { 
+                    error: response.data?.error || 'Неверный формат файла' 
+                });
+                break;
+            default:
+                this.sendAction('COVER_UPLOAD_FAIL', { 
+                    error: response.message || 'Ошибка загрузки обложки' 
+                });
+        }
+    }
     private async deleteAvatar(): Promise<void> {
         const response = await ajax.deleteAvatar();
 
@@ -869,33 +1081,6 @@ private normalizeAppealData(appeal: any): any {
             default:
                 this.sendAction('AVATAR_DELETE_FAIL', { 
                     error: response.message || 'Ошибка удаления аватара' 
-                });
-        }
-    }
-
-    private async uploadCover(file: File): Promise<void> {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const response = await ajax.uploadCover(formData);
-
-        switch (response.status) {
-            case STATUS.ok:
-                this.sendAction('COVER_UPLOAD_SUCCESS');
-                this.loadSettingsAccount();
-                break;
-            case STATUS.unauthorized:
-                this.sendAction('USER_UNAUTHORIZED');
-                this.sendAction('COVER_UPLOAD_FAIL', { error: 'Not authenticated' });
-                break;
-            case STATUS.badRequest:
-                this.sendAction('COVER_UPLOAD_FAIL', { 
-                    error: response.data?.error || 'Неверный формат файла' 
-                });
-                break;
-            default:
-                this.sendAction('COVER_UPLOAD_FAIL', { 
-                    error: response.message || 'Ошибка загрузки обложки' 
                 });
         }
     }
@@ -923,98 +1108,51 @@ private normalizeAppealData(appeal: any): any {
         const response = await ajax.get('/topblogs');
         switch (response.status) {
             case STATUS.ok:
-            if (response.data && Array.isArray(response.data.Blogs)) {
-                const users = response.data.Blogs.map((item: any) => ({
-                id: item.id,
-                name: item.name,
-                subtitle: `Подписчики: ${item.subscribers}`,
-                avatar: item.avatar || '/img/defaultAvatar.jpg',
-                isSubscribed: false,
-                hideSubscribeButton: true
-                }));
-                this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
-            } else {
-                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No top blogs data or invalid format' });
-            }
-            break;
+                if (response.data && Array.isArray(response.data.Blogs)) {
+                    const users = response.data.Blogs.map((item: any) => {
+                        // ✅ ДОБАВЛЯЕМ TIMESTAMP к аватару
+                        const avatar = item.avatar || '/img/defaultAvatar.jpg';
+                        const avatarWithTimestamp = avatar ? 
+                            `${avatar.split('?')[0]}?_=${Date.now()}` : 
+                            avatar;
+                        
+                        return {
+                            id: item.id,
+                            name: item.name,
+                            subtitle: `Подписчики: ${item.subscribers}`,
+                            avatar: avatarWithTimestamp, // ✅ С TIMESTAMP!
+                            isSubscribed: false,
+                            hideSubscribeButton: true
+                        };
+                    });
+                    this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
+                } else {
+                    this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No top blogs data or invalid format' });
+                }
+                break;
             case STATUS.unauthorized:
-            this.sendAction('USER_UNAUTHORIZED');
-            this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
-            break;
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
+                break;
             default:
-            this.sendAction('USER_LIST_LOAD_FAIL', {
-                error: response.message || 'Ошибка загрузки топ блогеров'
-            });
-        }
-    }
-
-    private async loadSubscriptions(): Promise<void> {
-        const response = await ajax.get('/subscriptions');
-        switch (response.status) {
-            case STATUS.ok:
-            if (response.data) {
-                const users = response.data.map((item: any) => ({
-                id: item.id,
-                name: item.name,
-                subtitle: `Подписчики: ${item.subscribers}`,
-                avatar: item.avatar || '/img/defaultAvatar.jpg',
-                isSubscribed: true,
-                hideSubscribeButton: false
-                }));
-                this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
-            } else {
-                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No subscriptions data' });
-            }
-            break;
-            case STATUS.unauthorized:
-            this.sendAction('USER_UNAUTHORIZED');
-            this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
-            break;
-            default:
-            this.sendAction('USER_LIST_LOAD_FAIL', {
-                error: response.message || 'Ошибка загрузки подписок'
-            });
-        }
-    }
-
-    private async loadSubscribers(): Promise<void> {
-        const response = await ajax.get('/subscribers');
-        switch (response.status) {
-            case STATUS.ok:
-            if (response.data) {
-                const users = response.data.map((item: any) => ({
-                id: item.id,
-                name: item.name,
-                subtitle: `Подписчики: ${item.subscribers}`,
-                avatar: item.avatar || '/img/defaultAvatar.jpg',
-                isSubscribed: false,
-                hideSubscribeButton: false
-                }));
-                this.sendAction('USER_LIST_LOAD_SUCCESS', { users });
-            } else {
-                this.sendAction('USER_LIST_LOAD_FAIL', { error: 'No subscribers data' });
-            }
-            break;
-            case STATUS.unauthorized:
-            this.sendAction('USER_UNAUTHORIZED');
-            this.sendAction('USER_LIST_LOAD_FAIL', { error: 'Not authenticated' });
-            break;
-            default:
-            this.sendAction('USER_LIST_LOAD_FAIL', {
-                error: response.message || 'Ошибка загрузки подписчиков'
-            });
+                this.sendAction('USER_LIST_LOAD_FAIL', {
+                    error: response.message || 'Ошибка загрузки топ блогеров'
+                });
         }
     }
 
     private async createComment(postId: string, text: string, attachment?: File): Promise<void> {
-
+        console.log('🔄 createComment called with postId:', postId, 'text length:', text.length);
+        
         const authState = loginStore.getState();
         const userId = authState.user?.id;
 
         if (!userId) {
+            console.error('❌ User not authenticated for comment creation');
             this.sendAction('COMMENT_ADD_FAIL', { error: 'Пользователь не авторизован' });
             return;
         }
+        
         // Загрузка вложения, если есть
         let attachmentUrl = '';
         if (attachment) {
@@ -1026,18 +1164,30 @@ private normalizeAppealData(appeal: any): any {
             }*/
         }
 
-        const res = await ajax.post(`/comments?articleId=${postId}`, {
-            article_id: postId,
-            user_id: userId,
-            content: text,
-            reply_to: null,
-            ...(attachmentUrl ? { attachment: attachmentUrl } : {})
-        });
+        try {
+            console.log('📤 Sending comment to server...');
+            const res = await ajax.post(`/comments?articleId=${postId}`, {
+                article_id: postId,
+                user_id: userId,
+                content: text,
+                reply_to: null,
+                ...(attachmentUrl ? { attachment: attachmentUrl } : {})
+            });
 
-        if (res.status === 201) {
-            this.sendAction('COMMENT_ADDED_SUCCESS');
-        } else {
-            this.sendAction('COMMENT_ADD_FAIL', { error: 'Не удалось добавить комментарий' });
+            console.log('📥 Server response:', res.status, res.data);
+
+            // ИСПРАВЛЕНИЕ: Принимаем как 200, так и 201 как успешные статусы
+            if (res.status === 200 || res.status === 201) {
+                console.log('✅ Comment created successfully, dispatching COMMENT_ADDED_SUCCESS with postId:', postId);
+                // ИЗМЕНЕНИЕ: Теперь передаем postId
+                this.sendAction('COMMENT_ADDED_SUCCESS', { postId: postId });
+            } else {
+                console.error('❌ Failed to create comment, status:', res.status);
+                this.sendAction('COMMENT_ADD_FAIL', { error: 'Не удалось добавить комментарий' });
+            }
+        } catch (error) {
+            console.error('❌ Exception in createComment:', error);
+            this.sendAction('COMMENT_ADD_FAIL', { error: 'Ошибка при отправке комментария' });
         }
     }
 
@@ -1051,7 +1201,9 @@ private normalizeAppealData(appeal: any): any {
                 id: c.id,
                 authorId: c.user_id,
                 authorName: c.author_name,
-                authorAvatar: c.author_avatar || '/img/defaultAvatar.jpg',
+                authorAvatar: c.author_avatar ? 
+                    `${c.author_avatar.split('?')[0]}?_=${Date.now()}` : 
+                    '/img/defaultAvatar.jpg',
                 text: c.content,
                 postTitle: c.article_title || '',
                 postDate: c.created_at,
@@ -1076,7 +1228,9 @@ private normalizeAppealData(appeal: any): any {
                 id: r.id,
                 authorId: r.user_id,
                 authorName: r.author_name,
-                authorAvatar: r.author_avatar || '/img/defaultAvatar.jpg',
+                authorAvatar: r.author_avatar ? 
+                    `${r.author_avatar.split('?')[0]}?_=${Date.now()}` : 
+                    '/img/defaultAvatar.jpg',
                 text: r.content,
                 postTitle: r.article_title || '',
                 postDate: r.created_at,
@@ -1094,10 +1248,13 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private async createReply(commentId: string, text: string, postId: string, attachment?: File): Promise<void> {
+        console.log('🔄 createReply called with commentId:', commentId, 'postId:', postId);
+        
         const authState = loginStore.getState();
         const userId = authState.user?.id;
 
         if (!userId) {
+            console.error('❌ User not authenticated for reply creation');
             this.sendAction('COMMENT_ADD_FAIL', { error: 'Пользователь не авторизован' });
             return;
         }
@@ -1112,19 +1269,47 @@ private normalizeAppealData(appeal: any): any {
             }*/
         }
         
-        const res = await ajax.post(`/comments`, {
-            article_id: postId,
-            user_id: userId,
-            content: text,
-            reply_to: commentId,
-            ...(attachmentUrl ? { attachment: attachmentUrl } : {})
-        });
+        try {
+            console.log('📤 Sending reply to server...');
+            const res = await ajax.post(`/comments`, {
+                article_id: postId,
+                user_id: userId,
+                content: text,
+                reply_to: commentId,
+                ...(attachmentUrl ? { attachment: attachmentUrl } : {})
+            });
 
-        if (res.status === 201) {
-            this.sendAction('REPLY_ADDED_SUCCESS');
-            dispatcher.dispatch('REPLIES_LOAD_REQUEST', { commentId, articleId: postId });
-        } else {
-            this.sendAction('REPLY_ADD_FAIL', { error: 'Не удалось добавить ответ' });
+            console.log('📥 Server response for reply:', res.status, res.data);
+
+            // ИСПРАВЛЕНИЕ: Принимаем как 200, так и 201 как успешные статусы
+            if (res.status === 200 || res.status === 201) {
+                console.log('✅ Reply created successfully, dispatching REPLY_ADDED_SUCCESS');
+                
+                // ⚠️ ВАЖНОЕ ИЗМЕНЕНИЕ: Определяем, нужно ли переходить на страницу ответов
+                // Логика: если мы находимся на странице поста (не на странице ответов), 
+                // то нужно перейти в viewReply для этого комментария
+                const isOnRepliesPage = window.location.pathname.includes('/replies/');
+                const shouldNavigate = !isOnRepliesPage;
+                
+                console.log('📍 Навигационные данные:', {
+                    currentPath: window.location.pathname,
+                    isOnRepliesPage,
+                    shouldNavigate
+                });
+                
+                // ⚠️ ДОБАВЛЯЕМ ПАРАМЕТР shouldNavigate
+                this.sendAction('REPLY_ADDED_SUCCESS', { 
+                    commentId: commentId, 
+                    postId: postId,
+                    shouldNavigate: shouldNavigate // true = перейти в viewReply, false = остаться
+                });
+            } else {
+                console.error('❌ Failed to create reply, status:', res.status);
+                this.sendAction('REPLY_ADD_FAIL', { error: 'Не удалось добавить ответ' });
+            }
+        } catch (error) {
+            console.error('❌ Exception in createReply:', error);
+            this.sendAction('REPLY_ADD_FAIL', { error: 'Ошибка при отправке ответа' });
         }
     }
 
@@ -1149,6 +1334,7 @@ private normalizeAppealData(appeal: any): any {
             });
         }
     }
+
     private async searchBlogs(query: string): Promise<void> {
         console.log('🔍 API: Searching blogs with query:', query);
         
@@ -1161,40 +1347,37 @@ private normalizeAppealData(appeal: any): any {
                     if (response.data) {
                         let users = [];
                         
-                        // Обрабатываем разные форматы ответа
                         if (Array.isArray(response.data.users)) {
-                            // Формат: { users: [...] }
                             users = response.data.users;
                         } else if (Array.isArray(response.data)) {
-                            // Формат: [...]
                             users = response.data;
                         } else if (response.data.Blogs && Array.isArray(response.data.Blogs)) {
-                            // Формат: { Blogs: [...] }
                             users = response.data.Blogs;
                         }
                         
-                        console.log('👥 Normalized users:', users);
+                        const normalizedUsers = users.map((item: any) => {
+                            // ✅ ДОБАВЛЯЕМ TIMESTAMP
+                            const avatar = item.avatar || item.avatar_url || '/img/defaultAvatar.jpg';
+                            const avatarWithTimestamp = avatar ? 
+                                `${avatar.split('?')[0]}?_=${Date.now()}` : 
+                                avatar;
+                            
+                            return {
+                                id: item.id || item.userId,
+                                name: item.name || item.username || 'Неизвестный пользователь',
+                                subtitle: `Подписчики: ${item.subscribers || item.subscribersCount || 0}`,
+                                avatar: avatarWithTimestamp, // ✅ С TIMESTAMP!
+                                isSubscribed: false,
+                                hideSubscribeButton: true
+                            };
+                        });
                         
-                        const normalizedUsers = users.map((item: any) => ({
-                            id: item.id || item.userId,
-                            name: item.name || item.username || 'Неизвестный пользователь',
-                            subtitle: `Подписчики: ${item.subscribers || item.subscribersCount || 0}`,
-                            avatar: item.avatar || item.avatar_url || '/img/defaultAvatar.jpg',
-                            isSubscribed: false,
-                            hideSubscribeButton: true
-                        }));
-                        
-                        console.log('✅ Sending normalized users:', normalizedUsers);
                         this.sendAction('SEARCH_BLOGS_SUCCESS', { users: normalizedUsers, query });
                     } else {
-                        // ЕСЛИ НЕТ РЕЗУЛЬТАТОВ - отправляем пустой массив
-                        console.log('📭 No data in response, sending empty array');
                         this.sendAction('SEARCH_BLOGS_SUCCESS', { users: [], query });
                     }
                     break;
                 case STATUS.notFound:
-                    // ЕСЛИ 404 - отправляем пустой массив
-                    console.log('🔍 404 - No results found');
                     this.sendAction('SEARCH_BLOGS_SUCCESS', { users: [], query });
                     break;
                 case STATUS.unauthorized:
@@ -1276,6 +1459,147 @@ private normalizeAppealData(appeal: any): any {
         }
     }
 
+    private async subscribe(userId: number, targetProfileId?: number | string): Promise<void> {
+        try {
+            const response = await ajax.post(`/subscribe/${userId}`, {});
+            
+            switch (response.status) {
+                case STATUS.ok:
+                case 201:
+                    // Отправляем успех с ID пользователя
+                    this.sendAction('SUBSCRIBE_SUCCESS', { 
+                        userId: userId.toString(),
+                        targetProfileId: targetProfileId ? targetProfileId.toString() : userId.toString()
+                    });
+                    
+                    // Обновляем данные профиля если это другой профиль
+                    if (targetProfileId && targetProfileId !== userId) {
+                        this.sendAction('PROFILE_LOAD_REQUEST', { 
+                            userId: targetProfileId.toString() 
+                        });
+                    }
+                    break;
+                case STATUS.unauthorized:
+                    this.sendAction('USER_UNAUTHORIZED');
+                    this.sendAction('SUBSCRIBE_FAIL', { error: 'Требуется авторизация' });
+                    break;
+                default:
+                    this.sendAction('SUBSCRIBE_FAIL', { 
+                        error: response.message || 'Ошибка подписки' 
+                    });
+            }
+        } catch (error) {
+            this.sendAction('SUBSCRIBE_FAIL', { 
+                error: 'Ошибка при выполнении подписки' 
+            });
+        }
+    }
+
+    private async unsubscribe(userId: number, targetProfileId?: number | string): Promise<void> {
+        try {
+            const response = await ajax.post(`/unsubscribe/${userId}`, {});
+            
+            switch (response.status) {
+                case STATUS.ok:
+                case 201:
+                    this.sendAction('UNSUBSCRIBE_SUCCESS', { 
+                        userId: userId.toString(),
+                        targetProfileId: targetProfileId ? targetProfileId.toString() : userId.toString()
+                    });
+                    
+                    // Обновляем данные профиля если это другой профиль
+                    if (targetProfileId && targetProfileId !== userId) {
+                        this.sendAction('PROFILE_LOAD_REQUEST', { 
+                            userId: targetProfileId.toString() 
+                        });
+                    }
+                    break;
+                case STATUS.unauthorized:
+                    this.sendAction('USER_UNAUTHORIZED');
+                    this.sendAction('UNSUBSCRIBE_FAIL', { error: 'Требуется авторизация' });
+                    break;
+                default:
+                    this.sendAction('UNSUBSCRIBE_FAIL', { 
+                        error: response.message || 'Ошибка отписки' 
+                    });
+            }
+        } catch (error) {
+            this.sendAction('UNSUBSCRIBE_FAIL', { 
+                error: 'Ошибка при выполнении отписки' 
+            });
+        }
+    }
+
+    private async loadSubscriptions(): Promise<void> {
+        const authState = loginStore.getState();
+        if (!authState.user?.id) {
+            this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', { error: 'User not authenticated' });
+            return;
+        }
+        
+        const response = await ajax.get(`/subscriptions?id=${authState.user.id}`);
+        console.log('📡 Subscriptions response:', response); // Добавь для отладки
+        
+        switch (response.status) {
+            case STATUS.ok:
+                if (response.data && response.data.subscriptions) {
+                    // ВАЖНО: берем response.data.subscriptions, а не response.data
+                    this.sendAction('SUBSCRIPTIONS_LOAD_SUCCESS', { 
+                        users: response.data.subscriptions  // ← ИЗМЕНИЛОСЬ!
+                    });
+                } else {
+                    this.sendAction('SUBSCRIPTIONS_LOAD_SUCCESS', { 
+                        users: []  // Отправляем пустой массив если нет подписок
+                    });
+                }
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', { error: 'Not authenticated' });
+                break;
+            default:
+                this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', {
+                    error: response.message || 'Ошибка загрузки подписок'
+                });
+        }
+    }
+
+    private async loadSubscribers(): Promise<void> {
+        const authState = loginStore.getState();
+        if (!authState.user?.id) {
+            this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', { error: 'User not authenticated' });
+            return;
+        }
+        
+        const response = await ajax.get(`/subscribers?id=${authState.user.id}`);
+        console.log('📡 Subscribers response:', response); // Это покажет структуру
+        console.log('📊 Subscriptions data DETAIL:', response.data);
+        console.log('👥 Subscriptions array:', response.data.subscriptions);
+        console.log('🆔 First subscription:', response.data.subscriptions[0]);
+        
+        switch (response.status) {
+            case STATUS.ok:
+                if (response.data && response.data.subscriptions) {
+                    this.sendAction('SUBSCRIBERS_LOAD_SUCCESS', { 
+                        users: response.data.subscriptions
+                    });
+                } else {
+                    // Нет данных или пустой массив
+                    this.sendAction('SUBSCRIBERS_LOAD_SUCCESS', { 
+                        users: []
+                    });
+                }
+                break;
+            case STATUS.unauthorized:
+                this.sendAction('USER_UNAUTHORIZED');
+                this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', { error: 'Not authenticated' });
+                break;
+            default:
+                this.sendAction('SUBSCRIPTIONS_LOAD_FAIL', {
+                    error: response.message || 'Ошибка загрузки подписчиков'
+                });
+        }
+    }
 }
 
 export const api = new API();

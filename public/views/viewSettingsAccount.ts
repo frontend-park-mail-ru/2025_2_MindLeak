@@ -356,11 +356,24 @@ export class SettingsAccountView extends BaseView {
             errors.push({ field: 'phone', message: 'Некорректный формат телефона' });
         }
 
-        if (data.date_of_birth) {
+        if (data.date_of_birth && data.date_of_birth !== '0001-01-01') {
             const birthDate = new Date(data.date_of_birth);
             const today = new Date();
+            
+            // Проверка на будущую дату
             if (birthDate > today) {
                 errors.push({ field: 'date_of_birth', message: 'Дата рождения не может быть в будущем' });
+            } else {
+                // Рассчитываем возраст
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                }
+                
+                if (age < 6 || age > 120) {
+                    errors.push({ field: 'date_of_birth', message: 'Некорректный возраст (должен быть от 6 до 120 лет)' });
+                }
             }
         }
 

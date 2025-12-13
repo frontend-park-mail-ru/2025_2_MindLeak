@@ -45,7 +45,6 @@ export class SettingsAccount {
         this.props = props;
     }
 
-    //первое изменение ФФФФФФФФФФФФФФФ
     async render(): Promise<HTMLElement> {
         const template = await getSettingsAccountTemplate();
         
@@ -124,15 +123,26 @@ export class SettingsAccount {
         let age = 'Не указано';
         if (userData.date_of_birth) {
             const birthDate = new Date(userData.date_of_birth);
-            formattedBirthDate = birthDate.toISOString().split('T')[0]; // Формат для input[type="date"]
             
-            const today = new Date();
-            let calculatedAge = today.getFullYear() - birthDate.getFullYear();
-            const monthDiff = today.getMonth() - birthDate.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                calculatedAge--;
+            // Проверяем, не является ли это специальной датой 01.01.0001
+            if (birthDate.getFullYear() === 1 && 
+                birthDate.getMonth() === 0 && 
+                birthDate.getDate() === 1) {
+                // Оставляем специальную дату как есть
+                formattedBirthDate = '0001-01-01';
+                age = 'Не указано';
+            } else {
+                // Нормальная дата рождения
+                formattedBirthDate = birthDate.toISOString().split('T')[0];
+                
+                const today = new Date();
+                let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                    calculatedAge--;
+                }
+                age = calculatedAge.toString();
             }
-            age = calculatedAge.toString();
         }
 
         let formattedSex = userData.sex;

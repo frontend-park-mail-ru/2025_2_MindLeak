@@ -242,21 +242,22 @@ export class Comment {
                 return;
             }
 
-            // если этот Comment — заглушка (нет текста)
-            const isRootInput = !this.text;
+            // определяем, является ли это ответом на комментарий или на пост
+            const isRootInput = !this.text; // Если this.text пустой - это форма ответа на пост
 
             if (isRootInput) {
-                // основная форма для создания комментария
+                // Ответ на пост - остаёмся здесь и перезагружаем
                 dispatcher.dispatch('COMMENT_CREATE_REQUEST', {
                     postId: this.postId,
                     text
                 });
             } else {
-                // это ответ на конкретный комментарий
+                // Ответ на комментарий - переходим к просмотру ответов
                 dispatcher.dispatch('REPLY_CREATE_REQUEST', {
                     commentId: this.commentId,
                     postId: this.postId,
-                    text
+                    text,
+                    shouldNavigate: true // ⚠️ ДОБАВЛЯЕМ ФЛАГ ДЛЯ ПЕРЕХОДА
                 });
             }
 

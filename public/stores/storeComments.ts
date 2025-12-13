@@ -138,13 +138,23 @@ class CommentsStore extends BaseStore<CommentsState> {
             });
         });
 
-        // ИЗМЕНЕНИЕ: Добавляем payload и перезагружаем ответы
-        this.registerAction('REPLY_ADDED_SUCCESS', (payload: { commentId: string; postId: string }) => {
-            // Перезагружаем ответы для конкретного комментария
-            dispatcher.dispatch('REPLIES_LOAD_REQUEST', { 
-                commentId: payload.commentId, 
-                articleId: payload.postId 
-            });
+        this.registerAction('REPLY_ADDED_SUCCESS', (payload: { 
+            commentId: string; 
+            postId: string;
+            shouldNavigate?: boolean;
+        }) => {
+            console.log('✅ REPLY_ADDED_SUCCESS received:', payload);
+            
+            // ⚠️ ЕСЛИ НУЖНО ПЕРЕЙТИ К ПРОСМОТРУ ОТВЕТОВ
+            if (payload.shouldNavigate) {
+                console.log('🔄 Navigating to replies view for comment:', payload.commentId);
+                window.location.href = `/replies/${payload.commentId}?postId=${payload.postId}`;
+            } 
+            // ⚠️ ИНАЧЕ - ОБЫЧНАЯ ПЕРЕЗАГРУЗКА (для ответа на сам пост)
+            else {
+                console.log('🔄 Reloading comments for post:', payload.postId);
+                dispatcher.dispatch('COMMENTS_LOAD_REQUEST', { postId: payload.postId });
+            }
         });
 
         this.registerAction('REPLIES_LOAD_REQUEST', (payload: { commentId: string; articleId: string}) => {

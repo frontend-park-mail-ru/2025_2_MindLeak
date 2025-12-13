@@ -120,7 +120,13 @@ class API {
                 break;
 
             case 'REPLY_CREATE_REQUEST':
-                this.createReply(payload.commentId, payload.text, payload.postId);
+                this.createReply(
+                    payload.commentId, 
+                    payload.text, 
+                    payload.postId, 
+                    payload.attachment
+                );
+                break;
             case 'SEARCH_BLOGS_REQUEST':
                 this.searchBlogs(payload.query);
                 break;
@@ -1278,10 +1284,24 @@ private normalizeAppealData(appeal: any): any {
             // ИСПРАВЛЕНИЕ: Принимаем как 200, так и 201 как успешные статусы
             if (res.status === 200 || res.status === 201) {
                 console.log('✅ Reply created successfully, dispatching REPLY_ADDED_SUCCESS');
-                // ИЗМЕНЕНИЕ: Теперь передаем commentId и postId
+                
+                // ⚠️ ВАЖНОЕ ИЗМЕНЕНИЕ: Определяем, нужно ли переходить на страницу ответов
+                // Логика: если мы находимся на странице поста (не на странице ответов), 
+                // то нужно перейти в viewReply для этого комментария
+                const isOnRepliesPage = window.location.pathname.includes('/replies/');
+                const shouldNavigate = !isOnRepliesPage;
+                
+                console.log('📍 Навигационные данные:', {
+                    currentPath: window.location.pathname,
+                    isOnRepliesPage,
+                    shouldNavigate
+                });
+                
+                // ⚠️ ДОБАВЛЯЕМ ПАРАМЕТР shouldNavigate
                 this.sendAction('REPLY_ADDED_SUCCESS', { 
                     commentId: commentId, 
-                    postId: postId 
+                    postId: postId,
+                    shouldNavigate: shouldNavigate // true = перейти в viewReply, false = остаться
                 });
             } else {
                 console.error('❌ Failed to create reply, status:', res.status);

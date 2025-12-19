@@ -125,7 +125,8 @@ function transformPostForProfile(apiPost: any, isMyProfile: boolean): any {
         isOwnPost: isMyProfile,
         canEdit: isMyProfile,
         dataPostId: apiPost.id || '',
-        menuItems: menuItems
+        menuItems: menuItems,
+        hideCommentsIcon: false
     };
 }
 

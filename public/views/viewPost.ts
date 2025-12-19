@@ -157,7 +157,8 @@ export class PostView extends BaseView {
             commentsCount: post.commentsCount || 0,
             repostsCount: post.repostsCount || 0,
             viewsCount: post.viewsCount || 0,
-            isOwnPost: isOwnPost
+            isOwnPost: isOwnPost,
+            hideCommentsIcon: true,
         };
 
         try {

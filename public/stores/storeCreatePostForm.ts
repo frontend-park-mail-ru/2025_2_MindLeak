@@ -11,8 +11,9 @@ export interface CreatePostState {
     error: string | null;
     isEditing: boolean;
     editingPostId: string | null;
-    attachment: File | null; // Только один файл
-    previewUrl: string | null; // Только один preview
+    attachment: File | null;
+    previewUrl: string | null;
+    shouldDeleteMedia: boolean;
 }
 
 class CreatePostStore extends BaseStore<CreatePostState> {
@@ -28,7 +29,8 @@ class CreatePostStore extends BaseStore<CreatePostState> {
             isEditing: false,
             editingPostId: null,
             attachment: null,
-            previewUrl: null
+            previewUrl: null,
+            shouldDeleteMedia: false
         });
     }
 
@@ -161,7 +163,8 @@ class CreatePostStore extends BaseStore<CreatePostState> {
             
             this.setState({
                 attachment: payload.file,
-                previewUrl: payload.previewUrl
+                previewUrl: payload.previewUrl,
+                shouldDeleteMedia: false // сбрасываем флаг удаления
             });
         });
 
@@ -171,9 +174,15 @@ class CreatePostStore extends BaseStore<CreatePostState> {
                 URL.revokeObjectURL(this.state.previewUrl);
             }
             
+            // Если редактируем пост и есть существующее медиа - ставим флаг удаления
+            const shouldDeleteMedia = this.state.isEditing && 
+                                    this.state.previewUrl && 
+                                    !this.state.previewUrl.startsWith('data:');
+            
             this.setState({
                 attachment: null,
-                previewUrl: null
+                previewUrl: null,
+                shouldDeleteMedia: shouldDeleteMedia
             });
         });
 
@@ -202,7 +211,8 @@ class CreatePostStore extends BaseStore<CreatePostState> {
                 success: false,
                 error: null,
                 previewUrl: existingMedia,
-                attachment: null // новый файл будет перезаписывать существующий
+                attachment: null,
+                shouldDeleteMedia: false // сбрасываем при загрузке
             });
         });
 
@@ -223,7 +233,8 @@ class CreatePostStore extends BaseStore<CreatePostState> {
                 isEditing: false,
                 editingPostId: null,
                 attachment: null,
-                previewUrl: null
+                previewUrl: null,
+                shouldDeleteMedia: false // сбрасываем
             });
         });
     }

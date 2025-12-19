@@ -48,6 +48,7 @@ export const editPost = (postId: string, data: {
     topic_id: number;
     attachment?: File | null;
     existingMediaUrl?: string | null;
+    shouldDeleteMedia?: boolean;
 }) => {
     dispatcher.dispatch('EDIT_POST_REQUEST', { postId, ...data });
 };

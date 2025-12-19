@@ -989,18 +989,21 @@ private normalizeAppealData(appeal: any): any {
         topic_id: number;
         attachment?: File | null;
         existingMediaUrl?: string | null;
+        shouldDeleteMedia?: boolean;
     }): Promise<void> {
         
         console.log('✏️ Editing post:', {
             postId,
             title: payload.title,
             hasAttachment: !!payload.attachment,
-            hasExistingMedia: !!payload.existingMediaUrl
+            hasExistingMedia: !!payload.existingMediaUrl,
+            shouldDeleteMedia: payload.shouldDeleteMedia
         });
         
         let response;
         
         if (payload.attachment) {
+            // Загружаем новое фото
             try {
                 console.log('📎 Uploading new attachment for post', postId);
                 const mediaUrl = await this.uploadPostFile(payload.attachment, postId);
@@ -1008,15 +1011,14 @@ private normalizeAppealData(appeal: any): any {
                 if (mediaUrl) {
                     console.log('✅ New attachment uploaded:', mediaUrl);
                     
-                    // Обновляем пост с новой медиа
+                    // Обновляем пост (бэкенд сам обновит media_url)
                     response = await ajax.editPost(postId, {
                         title: payload.title,
                         content: payload.content,
                         topic_id: payload.topic_id
-                        // Бэкенд сам обновит media_url из загруженного файла
                     });
                 } else {
-                    // Обновляем пост без изменения медиа
+                    // Если загрузка не удалась, обновляем пост без изменения медиа
                     console.log('⚠️ Attachment upload failed, keeping existing media');
                     response = await ajax.editPost(postId, {
                         title: payload.title,
@@ -1032,6 +1034,42 @@ private normalizeAppealData(appeal: any): any {
                 });
                 return;
             }
+        } else if (payload.shouldDeleteMedia) {
+            // УДАЛЯЕМ существующее медиа
+            console.log('🗑️ Deleting existing media from post', postId);
+            
+            try {
+                // Сначала удаляем медиа файл
+                const deleteResponse = await ajax.deletePostMedia(postId);
+                
+                if (deleteResponse.status === STATUS.ok) {
+                    console.log('✅ Media deleted successfully');
+                    
+                    // Затем обновляем пост (без медиа)
+                    response = await ajax.editPost(postId, {
+                        title: payload.title,
+                        content: payload.content,
+                        topic_id: payload.topic_id
+                    });
+                } else {
+                    console.error('❌ Failed to delete media:', deleteResponse);
+                    // Все равно обновляем пост
+                    response = await ajax.editPost(postId, {
+                        title: payload.title,
+                        content: payload.content,
+                        topic_id: payload.topic_id
+                    });
+                }
+                
+            } catch (error) {
+                console.error('❌ Error deleting media:', error);
+                // Пробуем обновить пост без удаления медиа
+                response = await ajax.editPost(postId, {
+                    title: payload.title,
+                    content: payload.content,
+                    topic_id: payload.topic_id
+                });
+            }
         } else if (payload.existingMediaUrl) {
             // Сохраняем существующую медиа
             console.log('🔄 Keeping existing media:', payload.existingMediaUrl);
@@ -1041,8 +1079,8 @@ private normalizeAppealData(appeal: any): any {
                 topic_id: payload.topic_id
             });
         } else {
-            // Удаляем медиа (если она была)
-            console.log('🗑️ No attachment, removing media if exists');
+            // Просто обновляем текст поста (медиа не было изначально)
+            console.log('📝 Updating post text only (no media changes)');
             response = await ajax.editPost(postId, {
                 title: payload.title,
                 content: payload.content,

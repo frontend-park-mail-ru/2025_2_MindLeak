@@ -453,7 +453,8 @@ export class CreatePostFormView {
             content: content as string,
             topic_id: state.currentThemeId,
             attachment: state.attachment,
-            existingMediaUrl: state.previewUrl && !state.previewUrl.startsWith('data:') ? state.previewUrl : null
+            existingMediaUrl: state.previewUrl && !state.previewUrl.startsWith('data:') ? state.previewUrl : null,
+            shouldDeleteMedia: state.shouldDeleteMedia // ← передаем флаг удаления
         };
 
         if (state.isEditing && state.editingPostId) {

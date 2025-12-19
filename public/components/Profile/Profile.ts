@@ -107,7 +107,7 @@ function transformPostForProfile(apiPost: any, isMyProfile: boolean): any {
         menuItems = [
             { key: 'edit', text: 'Редактировать' },
             { key: 'delete', text: 'Удалить' },
-            ...menuItems
+            //...menuItems
         ];
     }
     

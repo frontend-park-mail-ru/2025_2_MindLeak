@@ -144,7 +144,7 @@ export class PostCard {
             menuItems = [
                 { key: 'edit', text: 'Редактировать' },
                 { key: 'delete', text: 'Удалить' },
-                ...menuItems
+                //...menuItems
             ];
         }
 

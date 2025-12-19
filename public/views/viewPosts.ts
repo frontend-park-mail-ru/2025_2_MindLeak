@@ -219,14 +219,6 @@ export class PostsView {
 
         const finalIsSubscribed = isSubscribed;
 
-        console.log('🔄 [PostsView] Subscription status (FIXED):', {
-            authorId: apiPost.authorId,
-            serverFlag: apiPost.isAuthorSubscribed,
-            storeFlag: isSubscribed,
-            finalFlag: finalIsSubscribed,
-            rule: 'ALWAYS USE STORE FLAG'
-        });
-
         // Обрабатываем хештеги в заголовке и тексте
         const processedTitle = HashtagParser.replaceHashtagsWithLinks(apiPost.title || '');
         const processedText = HashtagParser.replaceHashtagsWithLinks(apiPost.content || '');

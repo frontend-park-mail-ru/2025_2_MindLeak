@@ -198,8 +198,8 @@ class Ajax {
         });
     }
 
-    async uploadPostMedia(formData: FormData): Promise<ApiResponse> {
-        return this.request('/uploads/media', {
+    async uploadPostMedia(formData: FormData, articleId: string): Promise<ApiResponse> {
+        return this.request(`/uploads/media/${articleId}`, {
             method: 'POST',
             body: formData
         });

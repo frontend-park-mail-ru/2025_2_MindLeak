@@ -9,6 +9,7 @@ export interface Post {
     authorAvatar?: string;
     title?: string;
     content?: string;
+    image?: string;
     tags?: string[];
     commentsCount?: number;
     repostsCount?: number;

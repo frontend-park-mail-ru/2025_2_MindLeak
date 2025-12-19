@@ -152,6 +152,7 @@ export class PostView extends BaseView {
             },
             title: processedTitle,
             text: processedText,
+            image: post.image || '',
             tags: Array.isArray(post.tags) ? post.tags : [],
             commentsCount: post.commentsCount || 0,
             repostsCount: post.repostsCount || 0,

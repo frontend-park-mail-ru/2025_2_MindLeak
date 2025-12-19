@@ -474,17 +474,83 @@ private normalizeAppealData(appeal: any): any {
         }
     }
 
-    private async editPost(postId: string, payload: any): Promise<void> {
-        const response = await ajax.editPost(postId, {
+    private async editPost(postId: string, payload: { 
+        title: string; 
+        content: string; 
+        topic_id: number;
+        attachment?: File | null;
+        existingMediaUrl?: string | null;
+    }): Promise<void> {
+        
+        console.log('✏️ Editing post:', {
+            postId,
             title: payload.title,
-            content: payload.content,
-            topic_id: payload.topic_id
+            hasAttachment: !!payload.attachment,
+            hasExistingMedia: !!payload.existingMediaUrl
         });
+        
+        let response;
+        
+        if (payload.attachment) {
+            try {
+                console.log('📎 Uploading new attachment for post', postId);
+                const mediaUrl = await this.uploadPostFile(payload.attachment);
+                
+                if (mediaUrl) {
+                    console.log('✅ New attachment uploaded:', mediaUrl);
+                    
+                    // Обновляем пост с новой медиа
+                    const postData = {
+                        title: payload.title,
+                        content: payload.content,
+                        topic_id: payload.topic_id,
+                        media_url: mediaUrl
+                    };
+                    
+                    console.log('📤 Sending edit request:', postData);
+                    response = await ajax.editPost(postId, postData);
+                } else {
+                    // Обновляем пост без медиа
+                    console.log('⚠️ Attachment upload failed, editing post without media');
+                    response = await ajax.editPost(postId, {
+                        title: payload.title,
+                        content: payload.content,
+                        topic_id: payload.topic_id
+                    });
+                }
+                
+            } catch (error) {
+                console.error('❌ Error uploading attachment:', error);
+                this.sendAction('EDIT_POST_FAIL', {
+                    error: 'Ошибка при загрузке файла'
+                });
+                return;
+            }
+        } else if (payload.existingMediaUrl) {
+            // Сохраняем существующую медиа
+            console.log('🔄 Keeping existing media:', payload.existingMediaUrl);
+            response = await ajax.editPost(postId, {
+                title: payload.title,
+                content: payload.content,
+                topic_id: payload.topic_id
+                // Бэкенд сам сохранит существующую media_url
+            });
+        } else {
+            // Удаляем медиа (если она была)
+            console.log('🗑️ No attachment, removing media if exists');
+            response = await ajax.editPost(postId, {
+                title: payload.title,
+                content: payload.content,
+                topic_id: payload.topic_id
+            });
+        }
 
         if (response.status === 200) {
+            console.log('✅ Post edited successfully');
             this.sendAction('EDIT_POST_SUCCESS');
             this.sendAction('POSTS_RELOAD_AFTER_EDIT');
         } else {
+            console.error('❌ Edit post failed:', response.status, response.message);
             this.sendAction('EDIT_POST_FAIL', { 
                 error: response.message || 'Не удалось сохранить пост' 
             });
@@ -916,8 +982,68 @@ private normalizeAppealData(appeal: any): any {
         }
     }
     
-    private async createPost(payload: { title: string; content: string; topic_id: number }): Promise<void> {
-        const response = await ajax.createPost(payload);
+    private async createPost(payload: { 
+        title: string; 
+        content: string; 
+        topic_id: number;
+        attachment?: File | null;
+        existingMediaUrl?: string | null;
+    }): Promise<void> {
+        
+        console.log('📝 Creating post:', {
+            title: payload.title,
+            contentLength: payload.content?.length,
+            topic_id: payload.topic_id,
+            hasAttachment: !!payload.attachment,
+            hasExistingMedia: !!payload.existingMediaUrl
+        });
+        
+        let response;
+        
+        if (payload.attachment) {
+            try {
+                console.log('📎 Uploading attachment...');
+                const mediaUrl = await this.uploadPostFile(payload.attachment);
+                
+                if (mediaUrl) {
+                    console.log('✅ Attachment uploaded:', mediaUrl);
+                    
+                    // Создаем пост с медиа
+                    const postData = {
+                        title: payload.title,
+                        content: payload.content,
+                        topic_id: payload.topic_id,
+                        media_url: mediaUrl // передаем как строку URL
+                    };
+                    
+                    console.log('📤 Sending post to server:', postData);
+                    response = await ajax.createPost(postData);
+                } else {
+                    // Создаем пост без медиа
+                    console.log('⚠️ Attachment upload failed, creating post without media');
+                    response = await ajax.createPost({
+                        title: payload.title,
+                        content: payload.content,
+                        topic_id: payload.topic_id
+                    });
+                }
+                
+            } catch (error) {
+                console.error('❌ Error uploading attachment:', error);
+                this.sendAction('CREATE_POST_FAIL', {
+                    error: 'Ошибка при загрузке файла'
+                });
+                return;
+            }
+        } else {
+            // Текстовый пост
+            console.log('📤 Creating text-only post:', payload);
+            response = await ajax.createPost({
+                title: payload.title,
+                content: payload.content,
+                topic_id: payload.topic_id
+            });
+        }
 
         switch (response.status) {
             case STATUS.ok:
@@ -948,7 +1074,32 @@ private normalizeAppealData(appeal: any): any {
                 this.sendAction('CREATE_POST_FAIL', {
                     error: response.message || 'Не удалось создать пост'
                 });
+        }
+    }
+
+    private async uploadPostFile(file: File): Promise<string | null> {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        console.log('📤 Uploading file to server:', file.name, file.type, file.size);
+        
+        try {
+            const response = await ajax.uploadPostMedia(formData);
+            
+            if (response.status === STATUS.ok && response.data?.url) {
+                console.log('✅ File upload successful:', response.data.url);
+                return response.data.url;
+            } else if (response.status === STATUS.badRequest) {
+                console.warn('⚠️ File upload rejected:', response.data?.error);
+                return null;
+            } else {
+                console.error('❌ File upload failed:', response.status, response.message);
+                return null;
             }
+        } catch (error) {
+            console.error('❌ File upload exception:', error);
+            return null;
+        }
     }
 
     private async deletePost(postId: string): Promise<void> {

@@ -2,7 +2,13 @@ import { loginStore } from '../stores/storeLogin';
 import { dispatcher } from '../dispatcher/dispatcher';
 import { createPostStore, CreatePostState } from '../stores/storeCreatePostForm';
 import { SidebarMenu, SECONDARY_MENU_ITEMS } from '../components/SidebarMenu/SidebarMenu';
-import { selectTheme, createPost, updatePostContent, editPost } from '../actions/actionsCreatePostForm';
+import { 
+    selectTheme, 
+    createPost, 
+    updatePostContent, 
+    editPost,
+    removeAttachment 
+} from '../actions/actionsCreatePostForm';
 
 let createPostTemplate: Handlebars.TemplateDelegate | null = null;
 
@@ -188,6 +194,55 @@ export class CreatePostFormView {
         if (charCounter) {
             charCounter.textContent = (this.maxChars - state.draftContent.length).toString();
         }
+
+        // Обновляем preview файла
+        this.updateAttachmentPreview(state);
+    }
+
+    private updateAttachmentPreview(state: CreatePostState): void {
+        if (!this.formElement) return;
+        
+        const previewContainer = this.formElement.querySelector('[data-key="preview-container"]');
+        if (!previewContainer) return;
+        
+        // Очищаем контейнер
+        previewContainer.innerHTML = '';
+        
+        if (!state.previewUrl) return;
+        
+        // Добавляем preview для файла
+        const item = document.createElement('div');
+        item.className = 'attachment-preview__item';
+        
+        const isImage = state.previewUrl.startsWith('data:image') || 
+                       state.previewUrl.match(/\.(jpeg|jpg|png|gif|webp|bmp|svg)$/i);
+        
+        const fileName = state.attachment?.name || 'Прикрепленный файл';
+        
+        item.innerHTML = `
+            <div class="attachment-preview__image">
+                ${isImage 
+                    ? `<img src="${state.previewUrl}" alt="Прикрепленное изображение" loading="lazy">`
+                    : `<div class="attachment-preview__document">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#666">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                    </div>`
+                }
+            </div>
+            <button type="button" class="attachment-preview__remove" data-key="remove-attachment">
+                ×
+            </button>
+            <div class="attachment-preview__file-info">
+                ${fileName.length > 15 ? fileName.substring(0, 15) + '...' : fileName}
+            </div>
+        `;
+        
+        previewContainer.appendChild(item);
     }
 
     private updateCharCounter(): void {
@@ -253,42 +308,7 @@ export class CreatePostFormView {
         const form = this.formElement.querySelector('[data-key="create-post-form"]') as HTMLFormElement;
         form?.addEventListener('submit', async (e) => {
             e.preventDefault();
-
-            const fd = new FormData(form);
-            let title = fd.get('title');
-            let content = fd.get('content');
-
-            if (typeof title !== 'string') title = '';
-            if (typeof content !== 'string') content = '';
-
-            title = title.trim();
-
-            if (title.length === 0) {
-                this.showError('Заголовок не может быть пустым');
-                return;
-            }
-            if (title.length > 200) {
-                this.showError('Заголовок не должен превышать 200 символов');
-                return;
-            }
-
-            if (content.length > 5000) {
-                this.showError('Текст поста не должен превышать 5000 символов');
-                return;
-            }
-
-            const data = {
-                title,
-                content,
-                topic_id: createPostStore.getState().currentThemeId
-            };
-
-            const state = createPostStore.getState();
-            if (state.isEditing && state.editingPostId) {
-                editPost(state.editingPostId, data);
-            } else {
-                createPost(data);
-            }
+            await this.handleFormSubmit();
         });
 
         const textarea = this.formElement.querySelector('[data-key="post-content"]') as HTMLTextAreaElement;
@@ -315,9 +335,141 @@ export class CreatePostFormView {
         closeButton?.addEventListener('click', () => {
             this.destroy();
         });
+
+        // Обработчик кнопки прикрепления файлов
+        const attachButton = this.formElement.querySelector('[data-key="attach-button"]');
+        attachButton?.addEventListener('click', () => {
+            const fileInput = this.formElement?.querySelector('[data-key="file-input"]') as HTMLInputElement;
+            fileInput?.click();
+        });
+
+        // Обработчик удаления файла
+        this.formElement.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+            if (target.matches('[data-key="remove-attachment"]')) {
+                removeAttachment();
+            }
+        });
+
+        // Обработчик кнопки добавления файла (иконка)
+        const addFileIcon = this.formElement.querySelector('[data-key="add-file"]');
+        addFileIcon?.addEventListener('click', () => {
+            const fileInput = this.formElement?.querySelector('[data-key="file-input"]') as HTMLInputElement;
+            fileInput?.click();
+        });
+
+        // Обработчик выбора файла
+        const fileInput = this.formElement.querySelector('[data-key="file-input"]') as HTMLInputElement;
+        fileInput?.addEventListener('change', this.handleFileSelect.bind(this));
+    }
+
+    private async handleFileSelect(e: Event): Promise<void> {
+        const input = e.target as HTMLInputElement;
+        if (!input.files || input.files.length === 0) return;
+
+        const file = input.files[0]; // Берем только первый файл
+        
+        // Валидация файла
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        const allowedTypes = [
+            'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
+            'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'text/plain'
+        ];
+
+        if (!allowedTypes.includes(file.type) && !file.name.match(/\.(jpeg|jpg|png|gif|webp|bmp|pdf|doc|docx|txt)$/i)) {
+            this.showError(`Файл "${file.name}" имеет недопустимый формат. Разрешены: изображения, PDF, документы`);
+            input.value = '';
+            return;
+        }
+        
+        if (file.size > maxSize) {
+            this.showError(`Файл "${file.name}" превышает максимальный размер (10MB)`);
+            input.value = '';
+            return;
+        }
+        
+        // Создаем preview для изображений
+        let previewUrl = '';
+        if (file.type.startsWith('image/')) {
+            try {
+                previewUrl = await this.createImagePreview(file);
+            } catch (error) {
+                console.error('Error creating preview:', error);
+                previewUrl = '';
+            }
+        }
+        
+        // Отправляем файл в store
+        dispatcher.dispatch('ATTACHMENT_ADDED', { 
+            file, 
+            previewUrl 
+        });
+
+        // Сбрасываем input
+        input.value = '';
+    }
+
+    private createImagePreview(file: File): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target?.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    private async handleFormSubmit(): Promise<void> {
+        if (!this.formElement) return;
+
+        const form = this.formElement.querySelector('[data-key="create-post-form"]') as HTMLFormElement;
+        const fd = new FormData(form);
+        let title = fd.get('title');
+        let content = fd.get('content');
+
+        if (typeof title !== 'string') title = '';
+        if (typeof content !== 'string') content = '';
+
+        title = title.trim();
+
+        // Валидация
+        if (title.length === 0) {
+            this.showError('Заголовок не может быть пустым');
+            return;
+        }
+        if (title.length > 200) {
+            this.showError('Заголовок не должен превышать 200 символов');
+            return;
+        }
+
+        if (content.length > 5000) {
+            this.showError('Текст поста не должен превышать 5000 символов');
+            return;
+        }
+
+        const state = createPostStore.getState();
+        const data = {
+            title: title as string,
+            content: content as string,
+            topic_id: state.currentThemeId,
+            attachment: state.attachment,
+            existingMediaUrl: state.previewUrl && !state.previewUrl.startsWith('data:') ? state.previewUrl : null
+        };
+
+        if (state.isEditing && state.editingPostId) {
+            editPost(state.editingPostId, data);
+        } else {
+            createPost(data);
+        }
     }
 
     destroy(): void {
+        // Очищаем data URL для предотвращения утечек памяти
+        const state = createPostStore.getState();
+        if (state.previewUrl && state.previewUrl.startsWith('data:')) {
+            URL.revokeObjectURL(state.previewUrl);
+        }
+
         createPostStore.removeListener(this.boundStoreHandler);
         if (this.formElement && this.formElement.parentNode) {
             this.formElement.remove();

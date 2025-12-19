@@ -1,6 +1,12 @@
 import { dispatcher } from '../dispatcher/dispatcher';
 
-export const createPost = (data: { title: string; content: string; topic_id: number }) => {
+export const createPost = (data: { 
+    title: string; 
+    content: string; 
+    topic_id: number;
+    attachment?: File | null;
+    existingMediaUrl?: string | null;
+}) => {
     dispatcher.dispatch('CREATE_POST_REQUEST', data);
 };
 
@@ -10,6 +16,18 @@ export function selectTheme(themeName: string, topic_id: number): void {
 
 export const updatePostContent = (content: string) => {
     dispatcher.dispatch('POST_CONTENT_CHANGED', { content });
+};
+
+export const addAttachment = (file: File) => {
+    dispatcher.dispatch('ATTACHMENT_ADDED', { file });
+};
+
+export const removeAttachment = () => {
+    dispatcher.dispatch('ATTACHMENT_REMOVED');
+};
+
+export const clearAttachments = () => {
+    dispatcher.dispatch('ATTACHMENT_CLEARED');
 };
 
 export const addImage = () => {
@@ -24,6 +42,12 @@ export const applyTextFormat = (formatType: string) => {
     dispatcher.dispatch('TEXT_EDIT_APPLY', { type: formatType });
 };
 
-export const editPost = (postId: string, data: { title: string; content: string; topic_id: number }) => {
+export const editPost = (postId: string, data: { 
+    title: string; 
+    content: string; 
+    topic_id: number;
+    attachment?: File | null;
+    existingMediaUrl?: string | null;
+}) => {
     dispatcher.dispatch('EDIT_POST_REQUEST', { postId, ...data });
 };

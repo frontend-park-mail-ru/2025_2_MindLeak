@@ -107,7 +107,7 @@ function transformPostForProfile(apiPost: any, isMyProfile: boolean): any {
         menuItems = [
             { key: 'edit', text: 'Редактировать' },
             { key: 'delete', text: 'Удалить' },
-            ...menuItems
+            //...menuItems
         ];
     }
     
@@ -125,7 +125,8 @@ function transformPostForProfile(apiPost: any, isMyProfile: boolean): any {
         isOwnPost: isMyProfile,
         canEdit: isMyProfile,
         dataPostId: apiPost.id || '',
-        menuItems: menuItems
+        menuItems: menuItems,
+        hideCommentsIcon: false
     };
 }
 

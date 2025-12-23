@@ -34,6 +34,7 @@ export interface PostCardProps {
     isOwnPost: boolean;
     canEdit?: boolean;
     onMenuAction?: (action: string) => void;
+    hideCommentsIcon?: boolean;
 }
 
 async function getPostCardTemplate(): Promise<Handlebars.TemplateDelegate> {
@@ -79,6 +80,7 @@ export class PostCard {
     private isOwnPost: boolean;
     private canEdit: boolean;
     private onMenuAction?: (action: string) => void;
+    private hideCommentsIcon: boolean;
 
     constructor(props: PostCardProps) {
         this.postId = props.postId;
@@ -102,7 +104,8 @@ export class PostCard {
             repostsCount = 42,
             viewsCount = 42,
             isOwnPost = false,
-            canEdit = false
+            canEdit = false,
+            hideCommentsIcon = false
         } = props;
 
         this.user = {
@@ -122,6 +125,7 @@ export class PostCard {
         this.isOwnPost = isOwnPost;
         this.canEdit = canEdit;
         this.onMenuAction = props.onMenuAction;
+        this.hideCommentsIcon = hideCommentsIcon;
     }
 
     async render(): Promise<HTMLElement> {
@@ -144,9 +148,18 @@ export class PostCard {
             menuItems = [
                 { key: 'edit', text: 'Редактировать' },
                 { key: 'delete', text: 'Удалить' },
-                ...menuItems
+                //...menuItems
             ];
         }
+
+        const displayTags = [
+            {
+                key: "comments", 
+                icon: "/img/icons/comment.svg", 
+                count: this.commentsCount
+            }
+            // Можно добавить и другие теги
+        ];
 
         const template = await getPostCardTemplate();
         const html = template({
@@ -157,13 +170,14 @@ export class PostCard {
             link: this.link,
             linkText: this.linkText,
             image: this.image,
-            tags: this.tags,
+            tags: displayTags,
             commentsCount: this.commentsCount,
             repostsCount: this.repostsCount,
             viewsCount: this.viewsCount,
             menuId: this.menuId,
             menuItems: menuItems,
-            canEdit: this.canEdit
+            canEdit: this.canEdit,
+            hideCommentsIcon: this.hideCommentsIcon
         });
 
         const div = document.createElement('div');

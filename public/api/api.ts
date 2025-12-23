@@ -474,23 +474,6 @@ private normalizeAppealData(appeal: any): any {
         }
     }
 
-    private async editPost(postId: string, payload: any): Promise<void> {
-        const response = await ajax.editPost(postId, {
-            title: payload.title,
-            content: payload.content,
-            topic_id: payload.topic_id
-        });
-
-        if (response.status === 200) {
-            this.sendAction('EDIT_POST_SUCCESS');
-            this.sendAction('POSTS_RELOAD_AFTER_EDIT');
-        } else {
-            this.sendAction('EDIT_POST_FAIL', { 
-                error: response.message || 'Не удалось сохранить пост' 
-            });
-        }
-    }
-
     private async loadPostForEdit(postId: string): Promise<void> {
         const response = await ajax.get(`/post?id=${postId}`);
         if (response.status === 200 && response.data) {
@@ -597,26 +580,26 @@ private normalizeAppealData(appeal: any): any {
 
     //todo стоит ли менять???
     private async loadUserPosts(userId: number): Promise<any[]> {
-        console.log('🔄 [API] Loading user posts for userId:', userId);
+        console.log('[API] Loading user posts for userId:', userId);
         let url = `/posts?author_id=${userId}`;
         
         const response = await ajax.get(url);
-        console.log('📥 [API] User posts response:', response);
+        console.log('[API] User posts response:', response);
         
         if (response.status === STATUS.ok && response.data) {
             const postsArray = response.data.articles || response.data || [];
-            console.log('📊 [API] Raw posts data:', postsArray);
+            console.log('[API] Raw posts data:', postsArray);
             
             const normalizedPosts = postsArray.map((post: any) => {
-                const normalized = this.normalizePostData(post); // ✅ уже использует normalizePostData с timestamp
+                const normalized = this.normalizePostData(post);
                 return normalized;
             });
             
-            console.log('✅ [API] Normalized posts count:', normalizedPosts.length);
+            console.log('[API] Normalized posts count:', normalizedPosts.length);
             return normalizedPosts;
         }
         
-        console.log('❌ [API] No posts data');
+        console.log(' [API] No posts data');
         return [];
     }
 
@@ -641,7 +624,6 @@ private normalizeAppealData(appeal: any): any {
             switch (response.status) {
                 case STATUS.ok:
                     if (response.data) {
-                        // ✅ ДОБАВЛЯЕМ TIMESTAMP к URL чтобы избежать кэширования
                         const avatarWithTimestamp = response.data.avatar_url ? 
                             `${response.data.avatar_url}${response.data.avatar_url.includes('?') ? '&' : '?'}_=${Date.now()}` : 
                             response.data.avatar_url;
@@ -650,8 +632,6 @@ private normalizeAppealData(appeal: any): any {
                             `${response.data.cover_url}${response.data.cover_url.includes('?') ? '&' : '?'}_=${Date.now()}` : 
                             response.data.cover_url;
                         
-                        // ⚠️ НЕ используем серверный is_subscribed напрямую
-                        // Вместо этого будем полагаться на локальный subscriptionsStore
                         const profileData = {
                             id: response.data.id,
                             name: response.data.name,
@@ -662,7 +642,6 @@ private normalizeAppealData(appeal: any): any {
                             subscribers: response.data.subscribers || 0,
                             subscriptions: response.data.subscriptions || 0,
                             postsCount: response.data.posts_count || 0,
-                            // ⚠️ Серверный флаг может быть устаревшим
                             isSubscribed: response.data.is_subscribed || false
                         };
 
@@ -673,8 +652,6 @@ private normalizeAppealData(appeal: any): any {
                             posts: userPosts
                         });
                         
-                        // ⚠️ ВАЖНО: Не отправляем SUBSCRIBE_SUCCESS здесь!
-                        // Вместо этого пусть storeProfile сам проверит subscriptionsStore
                     } else {
                         this.sendAction('PROFILE_LOAD_FAIL', { 
                             error: 'No profile data' 
@@ -698,7 +675,7 @@ private normalizeAppealData(appeal: any): any {
                     });
             }
         } catch (error: any) {
-            // Ловим сетевые ошибки (Failed to fetch и т.д.)
+            // сетевые ошибки (Failed to fetch и т.д.)
             if (error.message && (
                 error.message.includes('Failed to fetch') || 
                 error.message.includes('NetworkError') ||
@@ -768,7 +745,6 @@ private normalizeAppealData(appeal: any): any {
         switch (response.status) {
             case STATUS.ok:
                 if (response.data) {
-                    // ✅ ДОБАВЛЯЕМ TIMESTAMP к URL в настройках тоже
                     const avatarWithTimestamp = response.data.avatar_url ? 
                         `${response.data.avatar_url}${response.data.avatar_url.includes('?') ? '&' : '?'}_=${Date.now()}` : 
                         response.data.avatar_url;
@@ -783,9 +759,9 @@ private normalizeAppealData(appeal: any): any {
                         language: response.data.language || 'Русский',
                         sex: response.data.sex || 'other',
                         date_of_birth: response.data.date_of_birth || '',
-                        cover_url: coverWithTimestamp,     // ✅ С TIMESTAMP!
+                        cover_url: coverWithTimestamp,
                         name: response.data.name || '',
-                        avatar_url: avatarWithTimestamp,   // ✅ С TIMESTAMP!
+                        avatar_url: avatarWithTimestamp,
                         email: response.data.email || '',
                         created_at: response.data.created_at || ''
                     };
@@ -811,7 +787,6 @@ private normalizeAppealData(appeal: any): any {
         const authState = loginStore.getState();
         if (authState.user && authState.isLoggedIn) {
             try {
-                // Загружаем свежие данные профиля с сервера
                 const profileResponse = await ajax.get('/profile');
                 
                 if (profileResponse.status === STATUS.ok && profileResponse.data) {
@@ -828,7 +803,6 @@ private normalizeAppealData(appeal: any): any {
                         isSubscribed: profileResponse.data.is_subscribed || false
                     };
 
-                    // Обновляем loginStore
                     const cacheBustedAvatar = profileData.avatar_url ? 
                         `${profileData.avatar_url}${profileData.avatar_url.includes('?') ? '&' : '?'}_=${Date.now()}` :
                         profileData.avatar_url;
@@ -843,14 +817,12 @@ private normalizeAppealData(appeal: any): any {
                         }
                     });
 
-                    // Обновляем profileStore
                     const userPosts = await this.loadUserPosts(profileData.id);
                     this.sendAction('PROFILE_LOAD_SUCCESS', {
                         profile: profileData,
                         posts: userPosts
                     });
 
-                    // Обновляем settingsAccountStore
                     this.loadSettingsAccount();
                     
                     console.log('✅ Profile synchronized successfully');
@@ -871,7 +843,6 @@ private normalizeAppealData(appeal: any): any {
                     
                     this.sendAction('SETTINGS_ACCOUNT_UPDATE_SUCCESS');
                     
-                    // ✅ ВАЖНО: ПРИНУДИТЕЛЬНО ПЕРЕЗАГРУЖАЕМ ПРОФИЛЬ И ПОСТЫ!
                     const authState = loginStore.getState();
                     if (authState.user) {
                         const cacheBustedUrl = `${response.data.avatar_url}${response.data.avatar_url.includes('?') ? '&' : '?'}_=${Date.now()}`;
@@ -886,12 +857,10 @@ private normalizeAppealData(appeal: any): any {
                             }
                         });
                         
-                        // ✅ ПРИНУДИТЕЛЬНО ПЕРЕЗАГРУЖАЕМ ПРОФИЛЬ
                         this.sendAction('PROFILE_LOAD_REQUEST', { 
                             userId: authState.user.id 
                         });
                         
-                        // ✅ ПРИНУДИТЕЛЬНО ПЕРЕЗАГРУЖАЕМ ПОСТЫ
                         this.sendAction('POSTS_RELOAD_AFTER_EDIT');
                     }
                     
@@ -930,39 +899,242 @@ private normalizeAppealData(appeal: any): any {
         }
     }
     
-    private async createPost(payload: { title: string; content: string; topic_id: number }): Promise<void> {
-        const response = await ajax.createPost(payload);
-
-        switch (response.status) {
-            case STATUS.ok:
-            case 201:
-                if (response.data) {
-                    this.sendAction('CREATE_POST_SUCCESS', response.data);
-                    this.sendAction('POSTS_RELOAD_AFTER_CREATE');
+    private async createPost(payload: { 
+        title: string; 
+        content: string; 
+        topic_id: number;
+        attachment?: File | null;
+        existingMediaUrl?: string | null;
+    }): Promise<void> {
+        
+        console.log('📝 Creating post:', {
+            title: payload.title,
+            contentLength: payload.content?.length,
+            topic_id: payload.topic_id,
+            hasAttachment: !!payload.attachment
+        });
+        
+        let response;
+        
+        // Сначала создаем пост без медиа
+        console.log('📤 Creating post without media first...');
+        const postResponse = await ajax.createPost({
+            title: payload.title,
+            content: payload.content,
+            topic_id: payload.topic_id
+        });
+        
+        if (postResponse.status !== STATUS.ok && postResponse.status !== 201) {
+            console.error('❌ Post creation failed:', postResponse);
+            this.sendAction('CREATE_POST_FAIL', {
+                error: postResponse.data?.globalError || 
+                    postResponse.data?.message || 
+                    'Не удалось создать пост'
+            });
+            return;
+        }
+        
+        const createdPost = postResponse.data;
+        console.log('✅ Post created:', createdPost);
+        
+        // Если есть файл, загружаем его к созданному посту
+        if (payload.attachment && createdPost?.id) {
+            try {
+                console.log('📎 Uploading attachment to post', createdPost.id);
+                const mediaUrl = await this.uploadPostFile(payload.attachment, createdPost.id);
+                
+                if (mediaUrl) {
+                    console.log('✅ Attachment uploaded:', mediaUrl);
+                    
+                    // Обновляем пост с медиа URL
+                    const updateResponse = await ajax.editPost(createdPost.id, {
+                        title: payload.title,
+                        content: payload.content,
+                        topic_id: payload.topic_id,
+                        // Бэкенд должен обновить media_url сам
+                    });
+                    
+                    if (updateResponse.status === 200) {
+                        console.log('✅ Post updated with media');
+                        this.sendAction('CREATE_POST_SUCCESS', updateResponse.data);
+                        this.sendAction('POSTS_RELOAD_AFTER_CREATE');
+                    } else {
+                        console.log('✅ Post created but media update failed');
+                        this.sendAction('CREATE_POST_SUCCESS', createdPost);
+                        this.sendAction('POSTS_RELOAD_AFTER_CREATE');
+                    }
                 } else {
-                    this.sendAction('CREATE_POST_FAIL', { 
-                        error: 'Пост создан, но данные не возвращены' 
+                    console.log('✅ Post created but attachment upload failed');
+                    this.sendAction('CREATE_POST_SUCCESS', createdPost);
+                    this.sendAction('POSTS_RELOAD_AFTER_CREATE');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error uploading attachment:', error);
+                // Пост все равно создан, просто без медиа
+                this.sendAction('CREATE_POST_SUCCESS', createdPost);
+                this.sendAction('POSTS_RELOAD_AFTER_CREATE');
+            }
+        } else {
+            // Текстовый пост успешно создан
+            console.log('✅ Text-only post created successfully');
+            this.sendAction('CREATE_POST_SUCCESS', createdPost);
+            this.sendAction('POSTS_RELOAD_AFTER_CREATE');
+        }
+    }
+
+    private async editPost(postId: string, payload: { 
+        title: string; 
+        content: string; 
+        topic_id: number;
+        attachment?: File | null;
+        existingMediaUrl?: string | null;
+        shouldDeleteMedia?: boolean;
+    }): Promise<void> {
+        
+        console.log('✏️ Editing post:', {
+            postId,
+            title: payload.title,
+            hasAttachment: !!payload.attachment,
+            hasExistingMedia: !!payload.existingMediaUrl,
+            shouldDeleteMedia: payload.shouldDeleteMedia
+        });
+        
+        let response;
+        
+        if (payload.attachment) {
+            // Загружаем новое фото
+            try {
+                console.log('📎 Uploading new attachment for post', postId);
+                const mediaUrl = await this.uploadPostFile(payload.attachment, postId);
+                
+                if (mediaUrl) {
+                    console.log('✅ New attachment uploaded:', mediaUrl);
+                    
+                    // Обновляем пост (бэкенд сам обновит media_url)
+                    response = await ajax.editPost(postId, {
+                        title: payload.title,
+                        content: payload.content,
+                        topic_id: payload.topic_id
+                    });
+                } else {
+                    // Если загрузка не удалась, обновляем пост без изменения медиа
+                    console.log('⚠️ Attachment upload failed, keeping existing media');
+                    response = await ajax.editPost(postId, {
+                        title: payload.title,
+                        content: payload.content,
+                        topic_id: payload.topic_id
                     });
                 }
-                break;
-            case STATUS.badRequest:
-                this.sendAction('CREATE_POST_FAIL', {
-                    error: response.data?.globalError || 
-                        response.data?.message || 
-                        'Некорректные данные поста'
+                
+            } catch (error) {
+                console.error('❌ Error uploading attachment:', error);
+                this.sendAction('EDIT_POST_FAIL', {
+                    error: 'Ошибка при загрузке файла'
                 });
-                break;
-            case STATUS.unauthorized:
-                this.sendAction('USER_UNAUTHORIZED');
-                this.sendAction('CREATE_POST_FAIL', { 
-                    error: 'Требуется авторизация для создания постов' 
-                });
-                break;
-            default:
-                this.sendAction('CREATE_POST_FAIL', {
-                    error: response.message || 'Не удалось создать пост'
+                return;
+            }
+        } else if (payload.shouldDeleteMedia) {
+            // УДАЛЯЕМ существующее медиа
+            console.log('🗑️ Deleting existing media from post', postId);
+            
+            try {
+                // Сначала удаляем медиа файл
+                const deleteResponse = await ajax.deletePostMedia(postId);
+                
+                if (deleteResponse.status === STATUS.ok) {
+                    console.log('✅ Media deleted successfully');
+                    
+                    // Затем обновляем пост (без медиа)
+                    response = await ajax.editPost(postId, {
+                        title: payload.title,
+                        content: payload.content,
+                        topic_id: payload.topic_id
+                    });
+                } else {
+                    console.error('❌ Failed to delete media:', deleteResponse);
+                    // Все равно обновляем пост
+                    response = await ajax.editPost(postId, {
+                        title: payload.title,
+                        content: payload.content,
+                        topic_id: payload.topic_id
+                    });
+                }
+                
+            } catch (error) {
+                console.error('❌ Error deleting media:', error);
+                // Пробуем обновить пост без удаления медиа
+                response = await ajax.editPost(postId, {
+                    title: payload.title,
+                    content: payload.content,
+                    topic_id: payload.topic_id
                 });
             }
+        } else if (payload.existingMediaUrl) {
+            // Сохраняем существующую медиа
+            console.log('🔄 Keeping existing media:', payload.existingMediaUrl);
+            response = await ajax.editPost(postId, {
+                title: payload.title,
+                content: payload.content,
+                topic_id: payload.topic_id
+            });
+        } else {
+            // Просто обновляем текст поста (медиа не было изначально)
+            console.log('📝 Updating post text only (no media changes)');
+            response = await ajax.editPost(postId, {
+                title: payload.title,
+                content: payload.content,
+                topic_id: payload.topic_id
+            });
+        }
+
+        if (response.status === 200) {
+            console.log('✅ Post edited successfully');
+            this.sendAction('EDIT_POST_SUCCESS');
+            this.sendAction('POSTS_RELOAD_AFTER_EDIT');
+        } else {
+            console.error('❌ Edit post failed:', response.status, response.message);
+            this.sendAction('EDIT_POST_FAIL', { 
+                error: response.message || 'Не удалось сохранить пост' 
+            });
+        }
+    }
+
+    private async uploadPostFile(file: File, articleId: string): Promise<string | null> {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        console.log('📤 Uploading file to server:', {
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            articleId: articleId
+        });
+        
+        try {
+            // Теперь передаем articleId в метод
+            const response = await ajax.uploadPostMedia(formData, articleId);
+            
+            if (response.status === STATUS.ok) {
+                console.log('✅ File upload successful');
+                // В зависимости от структуры ответа бэкенда
+                if (response.data?.MediaURL || response.data?.media_url || response.data?.url) {
+                    const mediaUrl = response.data.MediaURL || response.data.media_url || response.data.url;
+                    return mediaUrl;
+                }
+                // Если бэкенд не возвращает URL, но успешно загрузил - предположим что все ок
+                return 'uploaded';
+            } else if (response.status === STATUS.badRequest) {
+                console.warn('⚠️ File upload rejected:', response.data?.error || response.message);
+                return null;
+            } else {
+                console.error('❌ File upload failed:', response.status, response.message);
+                return null;
+            }
+        } catch (error) {
+            console.error('❌ File upload exception:', error);
+            return null;
+        }
     }
 
     private async deletePost(postId: string): Promise<void> {
@@ -997,10 +1169,8 @@ private normalizeAppealData(appeal: any): any {
                 console.log('✅ Avatar uploaded, URL:', avatarUrl);
                 
                 if (avatarUrl) {
-                    // ✅ TIMESTAMP будет добавлен при загрузке профиля!
                     this.sendAction('AVATAR_UPLOADED', { avatar: avatarUrl });
                     
-                    // ✅ ОБЯЗАТЕЛЬНО перезагружаем профиль
                     const authState = loginStore.getState();
                     if (authState.user) {
                         console.log('🔄 Forcing PROFILE_LOAD_REQUEST after avatar upload');
@@ -1009,7 +1179,6 @@ private normalizeAppealData(appeal: any): any {
                         });
                     }
                     
-                    // ✅ Перезагружаем настройки
                     this.loadSettingsAccount();
                 }
                 break;
@@ -1039,7 +1208,6 @@ private normalizeAppealData(appeal: any): any {
             case STATUS.ok:
                 this.sendAction('COVER_UPLOAD_SUCCESS');
                 
-                // ✅ ОБЯЗАТЕЛЬНО перезагружаем профиль
                 const authState = loginStore.getState();
                 if (authState.user) {
                     console.log('🔄 Forcing PROFILE_LOAD_REQUEST after cover upload');
@@ -1048,7 +1216,6 @@ private normalizeAppealData(appeal: any): any {
                     });
                 }
                 
-                // ✅ Перезагружаем настройки
                 this.loadSettingsAccount();
                 break;
             case STATUS.unauthorized:
@@ -1110,7 +1277,6 @@ private normalizeAppealData(appeal: any): any {
             case STATUS.ok:
                 if (response.data && Array.isArray(response.data.Blogs)) {
                     const users = response.data.Blogs.map((item: any) => {
-                        // ✅ ДОБАВЛЯЕМ TIMESTAMP к аватару
                         const avatar = item.avatar || '/img/defaultAvatar.jpg';
                         const avatarWithTimestamp = avatar ? 
                             `${avatar.split('?')[0]}?_=${Date.now()}` : 
@@ -1120,7 +1286,7 @@ private normalizeAppealData(appeal: any): any {
                             id: item.id,
                             name: item.name,
                             subtitle: `Подписчики: ${item.subscribers}`,
-                            avatar: avatarWithTimestamp, // ✅ С TIMESTAMP!
+                            avatar: avatarWithTimestamp,
                             isSubscribed: false,
                             hideSubscribeButton: true
                         };
@@ -1153,7 +1319,6 @@ private normalizeAppealData(appeal: any): any {
             return;
         }
         
-        // Загрузка вложения, если есть
         let attachmentUrl = '';
         if (attachment) {
             const formData = new FormData();
@@ -1176,17 +1341,15 @@ private normalizeAppealData(appeal: any): any {
 
             console.log('📥 Server response:', res.status, res.data);
 
-            // ИСПРАВЛЕНИЕ: Принимаем как 200, так и 201 как успешные статусы
             if (res.status === 200 || res.status === 201) {
-                console.log('✅ Comment created successfully, dispatching COMMENT_ADDED_SUCCESS with postId:', postId);
-                // ИЗМЕНЕНИЕ: Теперь передаем postId
+                console.log('Comment created successfully, dispatching COMMENT_ADDED_SUCCESS with postId:', postId);
                 this.sendAction('COMMENT_ADDED_SUCCESS', { postId: postId });
             } else {
-                console.error('❌ Failed to create comment, status:', res.status);
+                console.error('Failed to create comment, status:', res.status);
                 this.sendAction('COMMENT_ADD_FAIL', { error: 'Не удалось добавить комментарий' });
             }
         } catch (error) {
-            console.error('❌ Exception in createComment:', error);
+            console.error('Exception in createComment:', error);
             this.sendAction('COMMENT_ADD_FAIL', { error: 'Ошибка при отправке комментария' });
         }
     }
@@ -1281,13 +1444,9 @@ private normalizeAppealData(appeal: any): any {
 
             console.log('📥 Server response for reply:', res.status, res.data);
 
-            // ИСПРАВЛЕНИЕ: Принимаем как 200, так и 201 как успешные статусы
             if (res.status === 200 || res.status === 201) {
-                console.log('✅ Reply created successfully, dispatching REPLY_ADDED_SUCCESS');
+                console.log('Reply created successfully, dispatching REPLY_ADDED_SUCCESS');
                 
-                // ⚠️ ВАЖНОЕ ИЗМЕНЕНИЕ: Определяем, нужно ли переходить на страницу ответов
-                // Логика: если мы находимся на странице поста (не на странице ответов), 
-                // то нужно перейти в viewReply для этого комментария
                 const isOnRepliesPage = window.location.pathname.includes('/replies/');
                 const shouldNavigate = !isOnRepliesPage;
                 
@@ -1297,18 +1456,17 @@ private normalizeAppealData(appeal: any): any {
                     shouldNavigate
                 });
                 
-                // ⚠️ ДОБАВЛЯЕМ ПАРАМЕТР shouldNavigate
                 this.sendAction('REPLY_ADDED_SUCCESS', { 
                     commentId: commentId, 
                     postId: postId,
                     shouldNavigate: shouldNavigate // true = перейти в viewReply, false = остаться
                 });
             } else {
-                console.error('❌ Failed to create reply, status:', res.status);
+                console.error('Failed to create reply, status:', res.status);
                 this.sendAction('REPLY_ADD_FAIL', { error: 'Не удалось добавить ответ' });
             }
         } catch (error) {
-            console.error('❌ Exception in createReply:', error);
+            console.error('Exception in createReply:', error);
             this.sendAction('REPLY_ADD_FAIL', { error: 'Ошибка при отправке ответа' });
         }
     }
@@ -1336,11 +1494,11 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private async searchBlogs(query: string): Promise<void> {
-        console.log('🔍 API: Searching blogs with query:', query);
+        console.log(' API: Searching blogs with query:', query);
         
         try {
             const response = await ajax.get(`/blogssearch?q=${encodeURIComponent(query)}`);
-            console.log('📡 API: Search response:', response);
+            console.log('API: Search response:', response);
             
             switch (response.status) {
                 case STATUS.ok:
@@ -1356,7 +1514,6 @@ private normalizeAppealData(appeal: any): any {
                         }
                         
                         const normalizedUsers = users.map((item: any) => {
-                            // ✅ ДОБАВЛЯЕМ TIMESTAMP
                             const avatar = item.avatar || item.avatar_url || '/img/defaultAvatar.jpg';
                             const avatarWithTimestamp = avatar ? 
                                 `${avatar.split('?')[0]}?_=${Date.now()}` : 
@@ -1366,7 +1523,7 @@ private normalizeAppealData(appeal: any): any {
                                 id: item.id || item.userId,
                                 name: item.name || item.username || 'Неизвестный пользователь',
                                 subtitle: `Подписчики: ${item.subscribers || item.subscribersCount || 0}`,
-                                avatar: avatarWithTimestamp, // ✅ С TIMESTAMP!
+                                avatar: avatarWithTimestamp,
                                 isSubscribed: false,
                                 hideSubscribeButton: true
                             };
@@ -1390,7 +1547,7 @@ private normalizeAppealData(appeal: any): any {
                     });
             }
         } catch (error) {
-            console.error('❌ API: Search exception:', error);
+            console.error('API: Search exception:', error);
             this.sendAction('SEARCH_BLOGS_FAIL', {
                 error: 'Ошибка при выполнении поиска'
             });
@@ -1398,11 +1555,11 @@ private normalizeAppealData(appeal: any): any {
     }
 
     private async searchPosts(query: string): Promise<void> {
-        console.log('🔍 API: Searching posts with query:', query);
+        console.log('API: Searching posts with query:', query);
         
         try {
             const response = await ajax.get(`/postssearch?q=${encodeURIComponent(query)}`);
-            console.log('📡 API: Search posts response:', response);
+            console.log('API: Search posts response:', response);
             
             switch (response.status) {
                 case STATUS.ok:
@@ -1415,17 +1572,17 @@ private normalizeAppealData(appeal: any): any {
                             postsArray = response.data;
                         }
                         
-                        console.log('📝 Found posts:', postsArray.length, postsArray);
+                        console.log('Found posts:', postsArray.length, postsArray);
                         
                         const postsWithAuthorId = postsArray.map((post: any) => this.normalizePostData(post));
                         
-                        console.log('✅ Sending normalized posts:', postsWithAuthorId);
+                        console.log('Sending normalized posts:', postsWithAuthorId);
                         this.sendAction('SEARCH_POSTS_SUCCESS', { 
                             posts: postsWithAuthorId, 
                             query 
                         });
                     } else {
-                        console.log('📭 No posts data in response');
+                        console.log('No posts data in response');
                         this.sendAction('SEARCH_POSTS_SUCCESS', { 
                             posts: [], 
                             query 
@@ -1433,14 +1590,14 @@ private normalizeAppealData(appeal: any): any {
                     }
                     break;
                 case STATUS.noMoreContent:
-                    console.log('🔍 204 - No posts content');
+                    console.log('204 - No posts content');
                     this.sendAction('SEARCH_POSTS_SUCCESS', { 
                         posts: [], 
                         query 
                     });
                     break;
                 case STATUS.notFound:
-                    console.log('🔍 404 - No posts found');
+                    console.log('404 - No posts found');
                     this.sendAction('SEARCH_POSTS_SUCCESS', { 
                         posts: [], 
                         query 
@@ -1452,7 +1609,7 @@ private normalizeAppealData(appeal: any): any {
                     });
             }
         } catch (error) {
-            console.error('❌ API: Search posts exception:', error);
+            console.error('API: Search posts exception:', error);
             this.sendAction('SEARCH_POSTS_FAIL', {
                 error: 'Ошибка при выполнении поиска постов'
             });
@@ -1466,13 +1623,11 @@ private normalizeAppealData(appeal: any): any {
             switch (response.status) {
                 case STATUS.ok:
                 case 201:
-                    // Отправляем успех с ID пользователя
                     this.sendAction('SUBSCRIBE_SUCCESS', { 
                         userId: userId.toString(),
                         targetProfileId: targetProfileId ? targetProfileId.toString() : userId.toString()
                     });
                     
-                    // Обновляем данные профиля если это другой профиль
                     if (targetProfileId && targetProfileId !== userId) {
                         this.sendAction('PROFILE_LOAD_REQUEST', { 
                             userId: targetProfileId.toString() 
@@ -1507,7 +1662,6 @@ private normalizeAppealData(appeal: any): any {
                         targetProfileId: targetProfileId ? targetProfileId.toString() : userId.toString()
                     });
                     
-                    // Обновляем данные профиля если это другой профиль
                     if (targetProfileId && targetProfileId !== userId) {
                         this.sendAction('PROFILE_LOAD_REQUEST', { 
                             userId: targetProfileId.toString() 
@@ -1538,18 +1692,17 @@ private normalizeAppealData(appeal: any): any {
         }
         
         const response = await ajax.get(`/subscriptions?id=${authState.user.id}`);
-        console.log('📡 Subscriptions response:', response); // Добавь для отладки
+        console.log('📡 Subscriptions response:', response);
         
         switch (response.status) {
             case STATUS.ok:
                 if (response.data && response.data.subscriptions) {
-                    // ВАЖНО: берем response.data.subscriptions, а не response.data
                     this.sendAction('SUBSCRIPTIONS_LOAD_SUCCESS', { 
-                        users: response.data.subscriptions  // ← ИЗМЕНИЛОСЬ!
+                        users: response.data.subscriptions
                     });
                 } else {
                     this.sendAction('SUBSCRIPTIONS_LOAD_SUCCESS', { 
-                        users: []  // Отправляем пустой массив если нет подписок
+                        users: []
                     });
                 }
                 break;
@@ -1572,10 +1725,6 @@ private normalizeAppealData(appeal: any): any {
         }
         
         const response = await ajax.get(`/subscribers?id=${authState.user.id}`);
-        console.log('📡 Subscribers response:', response); // Это покажет структуру
-        console.log('📊 Subscriptions data DETAIL:', response.data);
-        console.log('👥 Subscriptions array:', response.data.subscriptions);
-        console.log('🆔 First subscription:', response.data.subscriptions[0]);
         
         switch (response.status) {
             case STATUS.ok:
@@ -1584,7 +1733,6 @@ private normalizeAppealData(appeal: any): any {
                         users: response.data.subscriptions
                     });
                 } else {
-                    // Нет данных или пустой массив
                     this.sendAction('SUBSCRIBERS_LOAD_SUCCESS', { 
                         users: []
                     });

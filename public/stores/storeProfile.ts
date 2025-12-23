@@ -2,6 +2,7 @@ import { BaseStore } from './store';
 import { Post } from './storePosts';
 import { loginStore } from './storeLogin';
 import { dispatcher } from '../dispatcher/dispatcher';
+import { subscriptionsStore } from './storeSubscriptions';
 
 export interface ProfileData {
     id: string;
@@ -25,11 +26,13 @@ export interface ProfileState {
     error: string | null;
     isEditingDescription: boolean;
     isMyProfile?: boolean;
-    isOffline?: boolean; // Добавляем флаг оффлайн
-    requestedId?: string; // Добавляем запрошенный ID
+    isOffline?: boolean;
+    requestedId?: string;
 }
 
 class ProfileStore extends BaseStore<ProfileState> {
+    private subscriptionsLoaded: boolean = false;
+
     constructor() {
         super({
             profile: null,
@@ -40,59 +43,105 @@ class ProfileStore extends BaseStore<ProfileState> {
             error: null,
             isEditingDescription: false,
             isMyProfile: false,
-            isOffline: false, // Инициализируем
+            isOffline: false,
             requestedId: undefined
         });
+
+        // Подписываемся на загрузку подписок
+        subscriptionsStore.addListener(() => {
+            this.onSubscriptionsUpdated();
+        });
+    }
+
+    private onSubscriptionsUpdated(): void {
+        const subscriptionState = subscriptionsStore.getState();
+        
+        // Если подписки загрузились
+        if (!subscriptionState.isLoading && !this.subscriptionsLoaded) {
+            this.subscriptionsLoaded = true;
+            
+            const state = this.getState();
+            // Если профиль уже загружен, обновляем флаг подписки
+            if (state.profile && !state.isMyProfile) {
+                const isSubscribed = subscriptionsStore.isSubscribed(state.profile.id);
+                
+                if (state.profile.isSubscribed !== isSubscribed) {
+                    console.log('🔄 [storeProfile] Updating subscription flag after load:', {
+                        profileId: state.profile.id,
+                        newFlag: isSubscribed
+                    });
+                    
+                    this.setState({
+                        profile: {
+                            ...state.profile,
+                            isSubscribed: isSubscribed
+                        }
+                    });
+                }
+            }
+        }
     }
 
     protected registerActions(): void {
         this.registerAction('PROFILE_LOAD_REQUEST', (payload: { userId?: string }) => {
+            // Сбрасываем флаг загрузки подписок при новой загрузке профиля
+            this.subscriptionsLoaded = subscriptionsStore.getState().isLoading ? false : true;
+            
             this.setState({
                 isLoading: true,
                 error: null,
-                isOffline: false, // Сбрасываем при новом запросе
-                requestedId: payload?.userId // Сохраняем запрошенный ID
+                isOffline: false,
+                requestedId: payload?.userId
             });
         });
 
         this.registerAction('PROFILE_LOAD_SUCCESS', (payload: { profile: ProfileData; posts: Post[] }) => {
             const loginState = loginStore.getState();
+            const subscriptionState = subscriptionsStore.getState();
             
-            // ПРАВИЛЬНАЯ логика определения isMyProfile
             let isMyProfile = false;
-            
             if (payload.profile && loginState.user) {
-                // Сравниваем ID профиля с ID текущего пользователя
-                isMyProfile = payload.profile.id === loginState.user.id.toString();
+                isMyProfile = String(payload.profile.id) === String(loginState.user.id);
             }
+
+            const updatedProfile = { ...payload.profile };
+            
+            // ⚠️ ВАЖНО: Если подписки уже загружены - используем локальный store
+            if (!isMyProfile && !subscriptionState.isLoading) {
+                updatedProfile.isSubscribed = subscriptionsStore.isSubscribed(updatedProfile.id);
+            }
+
+            console.log('🔍 [storeProfile] Profile subscription:', {
+                profileId: updatedProfile.id,
+                serverFlag: payload.profile.isSubscribed,
+                localFlag: updatedProfile.isSubscribed,
+                subscriptionsLoaded: !subscriptionState.isLoading,
+                isMyProfile: isMyProfile
+            });
             
             this.setState({
-                profile: payload.profile,
+                profile: updatedProfile,
                 posts: payload.posts,
                 isLoading: false,
                 error: null,
                 isMyProfile: isMyProfile,
-                isOffline: false // Успешная загрузка - не оффлайн
+                isOffline: false
             });
         });
 
-        // ОБНОВЛЯЕМ: Добавляем обработку оффлайн ошибки
         this.registerAction('PROFILE_LOAD_FAIL', (payload: { error: string; isOffline?: boolean; requestedId?: string }) => {
             const currentState = this.getState();
             
-            // Если это оффлайн ошибка, не очищаем данные полностью
             if (payload.isOffline) {
                 this.setState({
                     isLoading: false,
                     error: payload.error,
                     isOffline: true,
                     requestedId: payload.requestedId,
-                    // Сохраняем старые данные, если они есть
                     profile: currentState.profile,
                     posts: currentState.posts
                 });
             } else {
-                // Если обычная ошибка - очищаем
                 this.setState({
                     profile: null,
                     posts: [],
@@ -104,7 +153,6 @@ class ProfileStore extends BaseStore<ProfileState> {
             }
         });
 
-        // ДОБАВЛЯЕМ: Обработчик для сброса оффлайн состояния
         this.registerAction('PROFILE_RESET_OFFLINE', () => {
             this.setState({
                 isOffline: false,
@@ -112,11 +160,10 @@ class ProfileStore extends BaseStore<ProfileState> {
             });
         });
 
-        // ДОБАВЛЯЕМ: Обновление постов после редактирования
+        // ✅ ЭТИ ОБРАБОТЧИКИ ДОЛЖНЫ ВЫЗЫВАТЬ API ЧЕРЕЗ DISPATCHER
         this.registerAction('POSTS_RELOAD_AFTER_EDIT', () => {
             const state = this.getState();
             if (state.profile) {
-                // Перезагружаем профиль чтобы обновить посты
                 dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
                     userId: state.profile.id 
                 });
@@ -126,7 +173,6 @@ class ProfileStore extends BaseStore<ProfileState> {
         this.registerAction('PROFILE_RELOAD_AFTER_DELETE', () => {
             const state = this.getState();
             if (state.profile) {
-                // Перезагружаем профиль чтобы обновить посты
                 dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
                     userId: state.profile.id 
                 });
@@ -136,13 +182,13 @@ class ProfileStore extends BaseStore<ProfileState> {
         this.registerAction('POSTS_RELOAD_AFTER_CREATE', () => {
             const state = this.getState();
             if (state.profile) {
-                // Перезагружаем профиль чтобы обновить посты
                 dispatcher.dispatch('PROFILE_LOAD_REQUEST', { 
                     userId: state.profile.id 
                 });
             }
         });
 
+        // ... остальные обработчики без изменений ...
         this.registerAction('PROFILE_CHANGE_TAB', (payload: { tab: 'posts' | 'comments' }) => {
             this.setState({
                 activeTab: payload.tab
@@ -199,6 +245,76 @@ class ProfileStore extends BaseStore<ProfileState> {
 
         this.registerAction('PROFILE_LOAD_COMMENTS_FAIL', (payload: { error: string }) => {
             this.setState({ isLoading: false, error: payload.error });
+        });
+
+        this.registerAction('SUBSCRIBE_SUCCESS', (payload: { userId: number; targetProfileId: number | string }) => {
+            const state = this.getState();
+            
+            if (state.profile && String(state.profile.id) === String(payload.targetProfileId)) {
+                this.setState({
+                    profile: {
+                        ...state.profile,
+                        isSubscribed: true,
+                        subscribers: state.profile.subscribers + 1
+                    }
+                });
+            }
+            
+            const updatedPosts = state.posts.map(post => {
+                if (post.authorId === payload.userId) {
+                    return {
+                        ...post,
+                        isAuthorSubscribed: true
+                    };
+                }
+                return post;
+            });
+            
+            this.setState({
+                posts: updatedPosts
+            });
+        });
+
+        this.registerAction('UNSUBSCRIBE_SUCCESS', (payload: { userId: number; targetProfileId: number | string }) => {
+            const state = this.getState();
+            
+            if (state.profile && String(state.profile.id) === String(payload.targetProfileId)) {
+                this.setState({
+                    profile: {
+                        ...state.profile,
+                        isSubscribed: false,
+                        subscribers: Math.max(0, state.profile.subscribers - 1)
+                    }
+                });
+            }
+            
+            const updatedPosts = state.posts.map(post => {
+                if (post.authorId === payload.userId) {
+                    return {
+                        ...post,
+                        isAuthorSubscribed: false
+                    };
+                }
+                return post;
+            });
+            
+            this.setState({
+                posts: updatedPosts
+            });
+        });
+
+        this.registerAction('SUBSCRIBE_FAIL', (payload: { error: string }) => {
+            this.setState({
+                isLoading: false,
+                error: payload.error
+            });
+        });
+
+        this.registerAction('UNSUBSCRIBE_FAIL', (payload: { error: string }) => {
+            this.setState({
+                isLoading: false,
+                error: payload.error
+            });
         });
     }
 }

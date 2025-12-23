@@ -46,23 +46,208 @@ class TechSupportIframe {
     private currentFile: File | null = null;
     private appeals: Appeal[] = [];
     private isSubmitting: boolean = false;
+    
+    // Bound обработчики
+    private handleSubmitBound: ((e: Event) => Promise<void>) | null = null;
+    private fileInputHandler: ((e: Event) => void) | null = null;
+    private fileUploadDragOverHandler: ((e: DragEvent) => void) | null = null;
+    private fileUploadDragLeaveHandler: ((e: DragEvent) => void) | null = null;
+    private fileUploadDropHandler: ((e: DragEvent) => void) | null = null;
+    private fileUploadClickHandler: ((e: Event) => void) | null = null;
+    private pasteHandler: ((e: ClipboardEvent) => void) | null = null;
+    private newAppealBtnHandler: (() => void) | null = null;
+    private parentMessageHandler: ((e: MessageEvent) => void) | null = null;
+    
+    // Флаги управления
+    private isInitialized: boolean = false;
+    private isAppealsLoading: boolean = false;
+    private iframeReadySent: boolean = false;
+    private initDataReceived: boolean = false;
+    private pendingUserData: UserData | null = null;
+    
+    // Счетчик экземпляров
+    private static instanceCount: number = 0;
+    private instanceId: number;
+    
+    // Singleton
+    private static instance: TechSupportIframe | null = null;
 
     constructor() {
+        this.instanceId = ++TechSupportIframe.instanceCount;
+        console.log(`🚀 TechSupportIframe #${this.instanceId} creating...`);
+        
+        // Очищаем предыдущий экземпляр
+        if (TechSupportIframe.instance) {
+            console.log(`⚠️ Cleaning up previous instance #${TechSupportIframe.instance.instanceId}`);
+            TechSupportIframe.instance.cleanup();
+        }
+        
+        TechSupportIframe.instance = this;
         this.init();
     }
 
     async init(): Promise<void> {
+        if (this.isInitialized) {
+            console.log(`⚠️ Already initialized #${this.instanceId}`);
+            return;
+        }
+        
+        this.isInitialized = true;
+        console.log(`🚀 TechSupportIframe #${this.instanceId} initializing...`);
+        
+        // Настраиваем обработчик сообщений
+        this.parentMessageHandler = this.handleParentMessage.bind(this);
+        window.removeEventListener('message', this.parentMessageHandler);
+        window.addEventListener('message', this.parentMessageHandler);
+        
+        // Загружаем шаблоны
         await this.loadTemplates();
+        
+        // Рендерим форму
         this.renderForm();
         
-        window.addEventListener('message', this.handleParentMessage.bind(this));
+        // Отправляем готовность
+        this.sendIframeReady();
+    }
+
+    private sendIframeReady(): void {
+        if (this.iframeReadySent) {
+            return;
+        }
+        
+        this.iframeReadySent = true;
+        console.log(`📤 Sending IFRAME_READY from #${this.instanceId}`);
+        
+        // Отправляем только один раз
         window.parent.postMessage({ 
             type: 'IFRAME_READY', 
-            source: 'tech-support' 
+            source: 'tech-support',
+            instanceId: this.instanceId
         }, '*');
+    }
+
+    private cleanup(): void {
+        console.log(`🧹 Cleaning up #${this.instanceId}`);
         
-        // Загружаем историю обращений при инициализации
+        this.removeEventListeners();
+        
+        if (this.parentMessageHandler) {
+            window.removeEventListener('message', this.parentMessageHandler);
+            this.parentMessageHandler = null;
+        }
+        
+        // Сбрасываем состояние
+        this.form = null;
+        this.currentFile = null;
+        this.isSubmitting = false;
+        this.isInitialized = false;
+        this.isAppealsLoading = false;
+        this.iframeReadySent = false;
+        this.initDataReceived = false;
+        this.pendingUserData = null;
+        
+        // Очищаем контент
+        const contentEl = document.getElementById('tech-support-content');
+        if (contentEl) {
+            contentEl.innerHTML = '';
+        }
+        
+        if (TechSupportIframe.instance === this) {
+            TechSupportIframe.instance = null;
+        }
+    }
+
+    private handleParentMessage(event: MessageEvent): void {
+        if (event.origin && event.origin !== window.location.origin) {
+            return;
+        }
+        
+        const { type, payload, source, instanceId } = event.data;
+        
+        // Проверяем instanceId
+        const messageForThisInstance = !instanceId || instanceId === this.instanceId;
+        if (!messageForThisInstance) {
+            return;
+        }
+        
+        if (source === 'main-window') {
+            switch (type) {
+                case 'INIT_DATA':
+                    this.handleInitData(payload);
+                    break;
+                    
+                case 'APPEALS_LOAD_SUCCESS':
+                    this.handleAppealsLoadSuccess(payload);
+                    break;
+                    
+                case 'APPEALS_LOAD_FAIL':
+                    console.error(`❌ Appeals load failed for #${this.instanceId}:`, payload.error);
+                    this.isAppealsLoading = false;
+                    break;
+                    
+                case 'SUPPORT_TICKET_SUBMIT_SUCCESS':
+                    this.handleTicketSubmitSuccess();
+                    break;
+                    
+                case 'SUPPORT_TICKET_SUBMIT_FAIL':
+                    console.error(`❌ Ticket submission failed for #${this.instanceId}:`, payload.error);
+                    this.setLoading(false);
+                    this.isSubmitting = false;
+                    break;
+                    
+                case 'CLEANUP':
+                    console.log(`🧹 Received CLEANUP for #${this.instanceId}`);
+                    this.cleanup();
+                    break;
+            }
+        }
+    }
+
+    private handleInitData(payload: any): void {
+        if (this.initDataReceived) {
+            console.log(`⚠️ INIT_DATA already received for #${this.instanceId}`);
+            return;
+        }
+        
+        console.log(`🎉 INIT_DATA RECEIVED for #${this.instanceId}`);
+        this.initDataReceived = true;
+        
+        this.userData = {
+            userEmail: payload.userEmail || '',
+            userName: payload.userName || '',
+            userContactEmail: payload.userContactEmail || payload.userEmail || ''
+        };
+        
+        console.log(`✅ User data set for #${this.instanceId}`);
+        
+        // Если форма уже создана - заполняем ее
+        if (this.form) {
+            this.autoFillForm();
+        } else {
+            // Сохраняем данные для последующего заполнения
+            this.pendingUserData = this.userData;
+        }
+        
+        // Загружаем историю обращений
         this.loadAppealsHistory();
+    }
+
+    private handleAppealsLoadSuccess(payload: any): void {
+        this.isAppealsLoading = false;
+        
+        const newAppeals = payload.appeals || [];
+        console.log(`📋 Appeals loaded for #${this.instanceId}:`, newAppeals.length);
+        
+        this.appeals = this.deduplicateAppeals(newAppeals);
+        console.log(`📋 Final appeals for #${this.instanceId}:`, this.appeals.length);
+        
+        this.renderAppealsHistory();
+    }
+
+    private handleTicketSubmitSuccess(): void {
+        console.log(`✅ Ticket submitted successfully for #${this.instanceId}`);
+        this.isSubmitting = false;
+        this.showSuccessMessage();
     }
 
     async loadTemplates(): Promise<void> {
@@ -79,71 +264,15 @@ class TechSupportIframe {
         }
     }
 
-    private handleParentMessage(event: MessageEvent): void {
-        // Разрешаем сообщения с того же origin или без origin (для локальной разработки)
-        if (event.origin && event.origin !== window.location.origin) {
-            console.log('🚫 Message from different origin:', event.origin);
-            return;
-        }
-        
-        const { type, payload, source } = event.data;
-        
-        console.log('📨 Processing message:', { type, source, payload });
-        
-        // Принимаем сообщения от родительского окна или без указанного source
-        if (!source || source === 'main-window' || source === 'tech-support-parent') {
-            switch (type) {
-                case 'INIT_DATA':
-                    this.userData = {
-                        userEmail: payload.userEmail || '',
-                        userName: payload.userName || '',
-                        userContactEmail: payload.userContactEmail || payload.userEmail || ''
-                    };
-                    
-                    console.log('📧 Received user data:', this.userData);
-                    
-                    this.renderForm();
-                    break;
-                case 'APPEALS_LOAD_SUCCESS':
-                    // Получаем обращения из API и заменяем полностью старый список
-                    const newAppeals = payload.appeals || [];
-                    console.log('📋 Loaded appeals from API:', newAppeals);
-                    
-                    // Полностью заменяем старый список на новый (дедуплицированный)
-                    this.appeals = this.deduplicateAppeals(newAppeals);
-                    console.log('📋 Final appeals after deduplication:', this.appeals);
-                    
-                    // Обновляем историю на форме
-                    this.renderAppealsHistory();
-                    break;
-                case 'APPEALS_LOAD_FAIL':
-                    console.error('Failed to load appeals:', payload.error);
-                    break;
-                case 'SUPPORT_TICKET_SUBMIT_SUCCESS':
-                    console.log('✅ Ticket submitted successfully, reloading appeals...');
-                    // Обращение успешно отправлено, показываем успешное сообщение
-                    this.showSuccessMessage();
-                    break;
-                case 'SUPPORT_TICKET_SUBMIT_FAIL':
-                    console.error('❌ Ticket submission failed:', payload.error);
-                    this.showError(payload.error);
-                    this.setLoading(false);
-                    this.isSubmitting = false;
-                    break;
-            }
-        }
-    }
-
-        private showSuccessMessage(): void {
+    private showSuccessMessage(): void {
         const contentEl = document.getElementById('tech-support-content');
         if (!contentEl) return;
 
-        console.log('✅ Showing success message');
+        console.log(`✅ Showing success message for #${this.instanceId}`);
 
-        // Создаем HTML для успешного сообщения
         const successHtml = `
-            <div class="tech-support-iframe">
-                <div class="tech-support-modal">
+            <div class="tech-support__iframe">
+                <div class="tech-support__modal">
                     <div class="success-message">
                         <div style="font-size: 48px; margin-bottom: 20px;">✅</div>
                         <h2 style="margin-bottom: 16px;">Обращение отправлено</h2>
@@ -163,36 +292,30 @@ class TechSupportIframe {
         
         contentEl.innerHTML = successHtml;
         
-        // Добавляем обработчик для кнопки "Отправить новое обращение"
         const newAppealBtn = contentEl.querySelector('#newAppealAfterSuccess') as HTMLButtonElement;
         if (newAppealBtn) {
-            newAppealBtn.addEventListener('click', () => {
-                console.log('🔄 Creating new appeal after success');
+            if (this.newAppealBtnHandler) {
+                newAppealBtn.removeEventListener('click', this.newAppealBtnHandler);
+            }
+            
+            this.newAppealBtnHandler = () => {
+                console.log(`🔄 Creating new appeal for #${this.instanceId}`);
                 this.reloadForm();
-            });
+            };
+            newAppealBtn.addEventListener('click', this.newAppealBtnHandler);
         }
-        
-        console.log('✅ Success message displayed');
     }
 
-    /**
-     * Дедуплицирует обращения по ID
-     */
     private deduplicateAppeals(appeals: Appeal[]): Appeal[] {
         const uniqueMap = new Map();
         
         appeals.forEach(appeal => {
-            // Используем appeal_id или id как ключ для дедупликации
             const key = appeal.appeal_id || appeal.id;
             if (key) {
                 if (!uniqueMap.has(key)) {
                     uniqueMap.set(key, appeal);
-                } else {
-                    console.log('🔄 Found duplicate appeal, skipping:', key);
                 }
             } else {
-                console.warn('⚠️ Appeal without ID found:', appeal);
-                // Если нет ID, используем комбинацию полей как ключ
                 const fallbackKey = `${appeal.email_registered}_${appeal.problem_description}_${appeal.createdAt}`;
                 if (!uniqueMap.has(fallbackKey)) {
                     uniqueMap.set(fallbackKey, appeal);
@@ -202,109 +325,176 @@ class TechSupportIframe {
         
         const uniqueAppeals = Array.from(uniqueMap.values());
         
-        // Сортируем по дате создания (новые сверху)
         return uniqueAppeals.sort((a, b) => {
             const dateA = new Date(a.createdAt || 0).getTime();
             const dateB = new Date(b.createdAt || 0).getTime();
-            return dateB - dateA; // Новые сверху
+            return dateB - dateA;
         });
     }
 
     private autoFillForm(): void {
-        if (!this.form) return;
+        if (!this.form) {
+            console.log(`⚠️ Form not found for autofill for #${this.instanceId}`);
+            return;
+        }
 
+        console.log(`🔄 Auto-filling form for #${this.instanceId}`);
+        
         const accountEmailInput = this.form.querySelector('[name="email_registered"]') as HTMLInputElement;
         const contactNameInput = this.form.querySelector('[name="name"]') as HTMLInputElement;
         const contactEmailInput = this.form.querySelector('[name="email_for_connection"]') as HTMLInputElement;
 
-        if (accountEmailInput) {
+        if (accountEmailInput && this.userData.userEmail) {
             accountEmailInput.value = this.userData.userEmail;
         }
         
-        if (contactNameInput) {
+        if (contactNameInput && this.userData.userName) {
             contactNameInput.value = this.userData.userName;
         }
         
         if (contactEmailInput) {
-            const emailToUse = this.userData.userContactEmail || this.userData.userEmail;
+            const emailToUse = this.userData.userContactEmail || this.userData.userEmail || '';
             contactEmailInput.value = emailToUse;
         }
     }
 
     private renderForm(): void {
-        console.log('🔄 Rendering form...');
+        console.log(`🔄 Rendering form for #${this.instanceId}...`);
         
         if (!this.template) {
-            console.error('❌ Template not loaded');
-            this.showError('Template not loaded');
+            console.error(`❌ Template not loaded for #${this.instanceId}`);
             return;
         }
         
         const contentEl = document.getElementById('tech-support-content');
         if (!contentEl) {
-            console.error('❌ Content element not found');
+            console.error(`❌ Content element not found for #${this.instanceId}`);
             return;
         }
 
         try {
+            this.removeEventListeners();
+            
             const html = this.template({ 
-                userEmail: this.userData.userEmail 
+                userEmail: this.userData.userEmail || '',
+                userName: this.userData.userName || '',
+                userContactEmail: this.userData.userContactEmail || this.userData.userEmail || ''
             });
+            
             contentEl.innerHTML = html;
             
             this.form = document.getElementById('supportForm') as HTMLFormElement;
             if (this.form) {
-                console.log('✅ Form found and setup');
-                this.form.addEventListener('submit', this.handleSubmit.bind(this));
-                this.setupFileUpload();
-                this.autoFillForm();
+                console.log(`✅ Form found and setup for #${this.instanceId}`);
                 
-                // Добавляем историю обращений под формой
-                this.renderAppealsHistory();
-            } else {
-                console.error('❌ Form element not found');
+                this.setupEventListeners();
+                
+                // Если есть pending данные - заполняем форму
+                if (this.pendingUserData) {
+                    this.userData = this.pendingUserData;
+                    this.pendingUserData = null;
+                    this.autoFillForm();
+                } else if (this.userData.userEmail) {
+                    // Или если уже есть данные
+                    this.autoFillForm();
+                }
+                
+                // Отображаем историю если есть
+                if (this.appeals.length > 0) {
+                    this.renderAppealsHistory();
+                }
             }
         } catch (error) {
-            console.error('❌ Error rendering template:', error);
+            console.error(`❌ Error rendering template for #${this.instanceId}:`, error);
+        }
+    }
+
+    private setupEventListeners(): void {
+        if (!this.form) return;
+        
+        this.handleSubmitBound = this.handleSubmit.bind(this);
+        this.form.addEventListener('submit', this.handleSubmitBound);
+        this.setupFileUpload();
+    }
+
+    private removeEventListeners(): void {
+        if (this.form && this.handleSubmitBound) {
+            this.form.removeEventListener('submit', this.handleSubmitBound);
+            this.handleSubmitBound = null;
+        }
+        
+        this.removeFileUploadListeners();
+        
+        if (this.newAppealBtnHandler) {
+            const newAppealBtn = document.getElementById('newAppealAfterSuccess');
+            if (newAppealBtn) {
+                newAppealBtn.removeEventListener('click', this.newAppealBtnHandler);
+            }
+            this.newAppealBtnHandler = null;
+        }
+    }
+
+    private removeFileUploadListeners(): void {
+        const fileInput = this.form?.querySelector('input[type="file"]') as HTMLInputElement;
+        const fileUpload = this.form?.querySelector('#fileUpload') as HTMLElement;
+        
+        if (fileInput && this.fileInputHandler) {
+            fileInput.removeEventListener('change', this.fileInputHandler);
+            this.fileInputHandler = null;
+        }
+        
+        if (fileUpload) {
+            if (this.fileUploadDragOverHandler) {
+                fileUpload.removeEventListener('dragover', this.fileUploadDragOverHandler);
+                this.fileUploadDragOverHandler = null;
+            }
+            if (this.fileUploadDragLeaveHandler) {
+                fileUpload.removeEventListener('dragleave', this.fileUploadDragLeaveHandler);
+                this.fileUploadDragLeaveHandler = null;
+            }
+            if (this.fileUploadDropHandler) {
+                fileUpload.removeEventListener('drop', this.fileUploadDropHandler);
+                this.fileUploadDropHandler = null;
+            }
+            if (this.fileUploadClickHandler) {
+                fileUpload.removeEventListener('click', this.fileUploadClickHandler);
+                this.fileUploadClickHandler = null;
+            }
+        }
+        
+        if (this.pasteHandler) {
+            document.removeEventListener('paste', this.pasteHandler);
+            this.pasteHandler = null;
         }
     }
 
     private reloadForm(): void {
-        this.currentFile = null;
-        this.isSubmitting = false;
+        console.log(`🔄 Reloading form for #${this.instanceId}...`);
         this.renderForm();
-        this.loadAppealsHistory();
     }
 
     private renderAppealsHistory(): void {
-        if (!this.historyTemplate) {
-            console.error('❌ History template not loaded');
+        if (!this.historyTemplate || !this.form) {
             return;
         }
         
-        const formContainer = this.form?.closest('.tech-support-modal');
+        const formContainer = this.form.closest('.tech-support__modal') || this.form.parentElement;
         if (!formContainer) {
-            console.error('❌ Form container not found');
             return;
         }
 
-        // Удаляем старую историю если есть
         const existingHistory = formContainer.querySelector('.appeals-history');
         if (existingHistory) {
-            console.log('🗑️ Removing existing history');
             existingHistory.remove();
         }
 
-        // Если нет обращений, не показываем историю
         if (this.appeals.length === 0) {
-            console.log('ℹ️ No appeals to display');
             return;
         }
 
-        console.log('🔄 Rendering appeals history with:', this.appeals.length, 'appeals');
+        console.log(`🔄 Rendering appeals history for #${this.instanceId}:`, this.appeals.length, 'appeals');
 
         const appealsWithFormattedData = this.appeals.map(appeal => {
-            // Форматируем дату с проверкой валидности
             let formattedDate = 'Недавно';
             if (appeal.createdAt) {
                 const date = new Date(appeal.createdAt);
@@ -333,12 +523,10 @@ class TechSupportIframe {
             hasAppeals: this.appeals.length > 0
         });
         
-        // Вставляем историю после формы
         const historyElement = document.createElement('div');
+        historyElement.className = 'appeals-history';
         historyElement.innerHTML = historyHtml;
         formContainer.appendChild(historyElement);
-        
-        console.log('✅ Appeals history rendered, element:', historyElement);
     }
 
     private setupFileUpload(): void {
@@ -348,22 +536,21 @@ class TechSupportIframe {
         const fileLabel = this.form?.querySelector('.file-upload__label') as HTMLElement;
 
         if (fileInput && filePreview && fileUpload && fileLabel) {
-            fileInput.addEventListener('change', (e: Event) => {
+            this.fileInputHandler = (e: Event) => {
                 const file = (e.target as HTMLInputElement).files?.[0];
                 if (file) this.handleFileSelect(file, filePreview, fileLabel);
-            });
+            };
+            fileInput.addEventListener('change', this.fileInputHandler);
 
-            fileUpload.addEventListener('dragover', (e: DragEvent) => {
+            this.fileUploadDragOverHandler = (e: DragEvent) => {
                 e.preventDefault();
                 fileUpload.classList.add('drag-over');
-            });
-
-            fileUpload.addEventListener('dragleave', (e: DragEvent) => {
+            };
+            this.fileUploadDragLeaveHandler = (e: DragEvent) => {
                 e.preventDefault();
                 fileUpload.classList.remove('drag-over');
-            });
-
-            fileUpload.addEventListener('drop', (e: DragEvent) => {
+            };
+            this.fileUploadDropHandler = (e: DragEvent) => {
                 e.preventDefault();
                 fileUpload.classList.remove('drag-over');
                 
@@ -372,15 +559,19 @@ class TechSupportIframe {
                     fileInput.files = files;
                     this.handleFileSelect(files[0], filePreview, fileLabel);
                 }
-            });
-
-            fileUpload.addEventListener('click', (e: Event) => {
+            };
+            this.fileUploadClickHandler = (e: Event) => {
                 if (e.target !== fileInput && !(e.target as Element).closest('.file-remove-btn')) {
                     fileInput.click();
                 }
-            });
+            };
 
-            document.addEventListener('paste', (e: ClipboardEvent) => {
+            fileUpload.addEventListener('dragover', this.fileUploadDragOverHandler);
+            fileUpload.addEventListener('dragleave', this.fileUploadDragLeaveHandler);
+            fileUpload.addEventListener('drop', this.fileUploadDropHandler);
+            fileUpload.addEventListener('click', this.fileUploadClickHandler);
+
+            this.pasteHandler = (e: ClipboardEvent) => {
                 const items = e.clipboardData?.items;
                 if (items) {
                     for (let i = 0; i < items.length; i++) {
@@ -394,7 +585,8 @@ class TechSupportIframe {
                         }
                     }
                 }
-            });
+            };
+            document.addEventListener('paste', this.pasteHandler);
         }
     }
 
@@ -465,12 +657,14 @@ class TechSupportIframe {
         e.preventDefault();
         e.stopPropagation();
         
-        console.log('🔄 Form submission started');
+        console.log(`🔄 Form submission started for #${this.instanceId}`);
         
-        if (!this.form || this.isSubmitting) {
-            console.log('❌ Form not ready or already submitting');
+        if (this.isSubmitting || !this.form) {
             return;
         }
+
+        this.isSubmitting = true;
+        this.setLoading(true);
 
         const formData = new FormData(this.form);
         const data: SupportFormData = {
@@ -482,36 +676,30 @@ class TechSupportIframe {
             attachment: this.currentFile || undefined
         };
 
-        console.log('📝 Form data prepared:', data);
+        console.log(`📝 Form data prepared for #${this.instanceId}`);
 
         const errors = this.validateForm(data);
         if (errors.length > 0) {
-            console.log('❌ Form validation errors:', errors);
             this.showFieldErrors(errors);
+            this.setLoading(false);
+            this.isSubmitting = false;
             return;
         }
 
-        console.log('✅ Form validation passed, sending to parent...');
+        console.log(`✅ Form validation passed for #${this.instanceId}`);
         
         this.clearErrors();
-        this.setLoading(true);
-        this.isSubmitting = true;
 
         try {
             window.parent.postMessage({ 
                 type: 'SUPPORT_TICKET_SUBMIT_REQUEST', 
                 payload: data,
-                source: 'tech-support'
+                source: 'tech-support',
+                instanceId: this.instanceId
             }, '*');
             
-            console.log('📤 Message sent to parent window:', { 
-                type: 'SUPPORT_TICKET_SUBMIT_REQUEST', 
-                payload: data,
-                source: 'tech-support'
-            });
-            
         } catch (error) {
-            console.error('❌ Error sending message:', error);
+            console.error(`❌ Error sending message for #${this.instanceId}:`, error);
             this.showError('Ошибка отправки: ' + (error as Error).message);
             this.setLoading(false);
             this.isSubmitting = false;
@@ -519,62 +707,19 @@ class TechSupportIframe {
     }
 
     private loadAppealsHistory(): void {
-        // Запрашиваем загрузку обращений через API
-        window.parent.postMessage({ 
-            type: 'APPEALS_LOAD_REQUEST',
-            source: 'tech-support'
-        }, '*');
-    }
-
-    private showSuccessAndHistory(): void {
-        const contentEl = document.getElementById('tech-support-content');
-        if (!contentEl || !this.historyTemplate) return;
-
-        console.log('🔄 Showing success message and history with appeals:', this.appeals);
-
-        const appealsWithFormattedData = this.appeals.map(appeal => {
-            // Форматируем дату с проверкой валидности
-            let formattedDate = 'Недавно';
-            if (appeal.createdAt) {
-                const date = new Date(appeal.createdAt);
-                if (!isNaN(date.getTime())) {
-                    formattedDate = date.toLocaleDateString('ru-RU', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                }
-            }
-            
-            return {
-                ...appeal,
-                statusColor: this.getStatusColor(appeal.status),
-                statusText: this.getStatusText(appeal.status),
-                categoryName: this.getCategoryName(appeal.category_id),
-                formattedDate: formattedDate
-            };
-        });
-
-        const html = this.historyTemplate({
-            appeals: appealsWithFormattedData,
-            hasAppeals: this.appeals.length > 0
-        });
-        
-        contentEl.innerHTML = html;
-        
-        // Добавляем обработчик для кнопки "Отправить новое обращение"
-        const newAppealBtn = contentEl.querySelector('#newAppealAfterSuccess');
-        if (newAppealBtn) {
-            newAppealBtn.addEventListener('click', () => {
-                console.log('🔄 Creating new appeal after success');
-                this.renderForm();
-                this.loadAppealsHistory();
-            });
+        if (this.isAppealsLoading) {
+            console.log(`⏳ Appeals already loading for #${this.instanceId}`);
+            return;
         }
         
-        console.log('✅ Success message and history displayed');
+        this.isAppealsLoading = true;
+        console.log(`📤 Requesting appeals load for #${this.instanceId}`);
+        
+        window.parent.postMessage({ 
+            type: 'APPEALS_LOAD_REQUEST',
+            source: 'tech-support',
+            instanceId: this.instanceId
+        }, '*');
     }
 
     private getStatusColor(status: string): string {
@@ -679,6 +824,10 @@ class TechSupportIframe {
     }
 }
 
+// Инициализация
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 TechSupport iframe loaded');
     new TechSupportIframe();
 });
+
+//FFFFFFFFFFFFF

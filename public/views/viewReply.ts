@@ -8,6 +8,7 @@ import { Comment } from '../components/Comment/Comment';
 import { commentsStore } from '../stores/storeComments';
 import { userListStore } from '../stores/storeUserList';
 import { UserList } from '../components/UserList/UserList';
+import { subscriptionsStore } from '../stores/storeSubscriptions';
 
 export class ReplyView {
     private container: HTMLElement;
@@ -16,76 +17,153 @@ export class ReplyView {
     private boundCommentsStoreHandler: () => void;
     private rightMenu: HTMLElement | null = null;
     private boundUserListStoreHandler: () => void;
+    private rootElement: HTMLElement | null = null;
+    private currentCategory: string = '';
+    private sidebarEl1: HTMLElement | null = null;
+    private sidebarEl2: HTMLElement | null = null;
+    
+    // ⚠️ НОВЫЕ ПОЛЯ ДЛЯ РОДИТЕЛЬСКОГО КОММЕНТАРИЯ
+    private parentCommentSubscriptionHandler: () => void;
+    private parentCommentData: any = null;
+    private parentCommentElement: HTMLElement | null = null;
 
-  constructor(container: HTMLElement, params: { commentId: string }) {
-    this.container = container;
-    this.commentId = params.commentId;
+    constructor(container: HTMLElement, params: { commentId: string }) {
+        this.container = container;
+        this.commentId = params.commentId;
 
-    const urlParams = new URLSearchParams(window.location.search);
-    this.postId = urlParams.get('postId') || '';
+        const urlParams = new URLSearchParams(window.location.search);
+        this.postId = urlParams.get('postId') || '';
 
-    if (!this.postId) {
-        console.error('❌ postId отсутствует в URL — невозможно загрузить ответы');
+        if (!this.postId) {
+            console.error('❌ postId отсутствует в URL — невозможно загрузить ответы');
+        }
+
+        this.boundCommentsStoreHandler = this.handleCommentsStoreChange.bind(this);
+        this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
+        
+        // ⚠️ ИНИЦИАЛИЗИРУЕМ ОБРАБОТЧИК ДЛЯ РОДИТЕЛЬСКОГО КОММЕНТАРИЯ
+        this.parentCommentSubscriptionHandler = this.updateParentComment.bind(this);
+        
+        this.determineCurrentCategory();
     }
 
-    this.boundCommentsStoreHandler = this.handleCommentsStoreChange.bind(this);
-    this.boundUserListStoreHandler = this.handleUserListStoreChange.bind(this);
-  }
+    private determineCurrentCategory(): void {
+        const url = new URL(window.location.href);
+        const pathname = url.pathname;
+        if (pathname === '/' || pathname === '/feed') {
+            this.currentCategory = 'fresh';
+        } else if (pathname === '/feed/category') {
+            const topicParam = url.searchParams.get('topic');
+            this.currentCategory = topicParam || 'fresh';
+        }
+    }
 
-  async render(): Promise<HTMLElement> {
-    const rootElem = document.createElement('div');
+    private deactivateAll(sidebarEl: HTMLElement): void {
+        sidebarEl.querySelectorAll('.menu-item').forEach(item => {
+            item.classList.remove('menu-item--active');
+        });
+    }
 
-    // Header
-    const headerContainer = document.createElement('header');
-    const headerInstance = new Header();
-    const headerEl = await headerInstance.render(headerContainer);
-    headerContainer.appendChild(headerEl);
-    rootElem.appendChild(headerContainer);
+    async render(): Promise<HTMLElement> {
+        this.rootElement = document.createElement('div');
+        
+        // Header
+        const headerContainer = document.createElement('header');
+        const header = Header.getInstance();
+        
+        await header.init(headerContainer);
+        
+        const headerEl = header.getElement();
+        if (headerEl) {
+            headerContainer.appendChild(headerEl);
+            this.rootElement.appendChild(headerContainer);
+        }
 
-    // Основной контент
-    const contentContainer = document.createElement('div');
-    contentContainer.className = 'content-layout';
-    rootElem.appendChild(contentContainer);
+        // Основной контент
+        const contentContainer = document.createElement('div');
+        contentContainer.className = 'content-layout';
+        this.rootElement.appendChild(contentContainer);
 
-    const leftMenu = document.createElement('aside');
-    leftMenu.className = 'sidebar-left';
-    const sidebar1 = new SidebarMenu(MAIN_MENU_ITEMS, '', () => {});
-    const sidebar2 = new SidebarMenu(SECONDARY_MENU_ITEMS, '', () => {});
-    leftMenu.appendChild(await sidebar1.render());
-    leftMenu.appendChild(await sidebar2.render());
-    contentContainer.appendChild(leftMenu);
+        const leftMenu = document.createElement('aside');
+        leftMenu.className = 'sidebar-left';
+        
+        const sidebar1 = new SidebarMenu(
+            MAIN_MENU_ITEMS,
+            this.currentCategory,
+            (key) => {
+                if (this.sidebarEl2) this.deactivateAll(this.sidebarEl2);
+                let newUrl = '';
+                if (key === 'fresh') {
+                    newUrl = '/feed';
+                } else {
+                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
+                }
+                window.history.pushState({}, '', newUrl);
+                window.dispatchEvent(new PopStateEvent('popstate'));
+            }
+        );
+        this.sidebarEl1 = await sidebar1.render();
+        
+        const sidebar2 = new SidebarMenu(
+            SECONDARY_MENU_ITEMS,
+            this.currentCategory,
+            (key) => {
+                if (this.sidebarEl1) this.deactivateAll(this.sidebarEl1);
+                let newUrl = '';
+                if (key === 'fresh') {
+                    newUrl = '/feed';
+                } else {
+                    newUrl = `/feed/category?topic=${encodeURIComponent(key)}&offset=0`;
+                }
+                window.history.pushState({}, '', newUrl);
+                window.dispatchEvent(new PopStateEvent('popstate'));
+            }
+        );
+        this.sidebarEl2 = await sidebar2.render();
+        
+        leftMenu.appendChild(this.sidebarEl1);
+        leftMenu.appendChild(this.sidebarEl2);
+        contentContainer.appendChild(leftMenu);
 
-    // Центр — контейнер для комментария и ответов
-    const main = document.createElement('main');
-    main.className = 'main-content';
+        // Центр — контейнер для комментария и ответов
+        const main = document.createElement('main');
+        main.className = 'main-content';
 
-    const repliesContainer = document.createElement('div');
-    repliesContainer.id = 'replies-container';
+        const repliesContainer = document.createElement('div');
+        repliesContainer.id = 'replies-container';
 
-    // Создаём структуру: parent + форма + список ответов
-    const parentSection = document.createElement('div');
-    parentSection.className = 'replies-parent-section';
-    repliesContainer.appendChild(parentSection);
+        // Создаём структуру: parent + форма + список ответов
+        const parentSection = document.createElement('div');
+        parentSection.className = 'replies-parent-section';
+        repliesContainer.appendChild(parentSection);
 
-    const repliesList = document.createElement('div');
-    repliesList.className = 'replies-list';
-    repliesContainer.appendChild(repliesList);
+        const repliesTitle = document.createElement('h2');
+        repliesTitle.className = 'replies-title';
+        repliesTitle.textContent = 'Ответы на комментарий';
+        repliesContainer.appendChild(repliesTitle);
 
-    main.appendChild(repliesContainer);
-    contentContainer.appendChild(main);
+        const repliesList = document.createElement('div');
+        repliesList.className = 'replies-list';
+        repliesContainer.appendChild(repliesList);
 
-    // Правое меню 
-    this.rightMenu = document.createElement('aside');
-    this.rightMenu.className = 'sidebar-right';
+        main.appendChild(repliesContainer);
+        contentContainer.appendChild(main);
 
-    contentContainer.appendChild(this.rightMenu);
-    this.updateUserListContent();
+        // Правое меню 
+        this.rightMenu = document.createElement('aside');
+        this.rightMenu.className = 'sidebar-right';
 
-    // Загружаем данные
-    await this.init(repliesContainer, parentSection);
+        contentContainer.appendChild(this.rightMenu);
+        await this.updateUserListContent();
 
-    return rootElem;
-  }
+        // Загружаем данные
+        await this.init(repliesContainer, parentSection);
+
+        // Добавляем в контейнер
+        this.container.appendChild(this.rootElement);
+        
+        return this.rootElement;
+    }
 
     private async init(repliesContainer: HTMLElement, parentSection: HTMLElement): Promise<void> {
         if (!this.postId) {
@@ -95,6 +173,7 @@ export class ReplyView {
 
         commentsStore.addListener(this.boundCommentsStoreHandler);
         userListStore.addListener(this.boundUserListStoreHandler);
+        
         // 1. Загружаем родительский комментарий отдельно
         const allCommentsRes = await ajax.get(`/comments?articleId=${this.postId}`);
         if (!allCommentsRes.data?.comments) {
@@ -108,7 +187,7 @@ export class ReplyView {
             return;
         }
 
-        this.renderParentComment(parent, parentSection);
+        await this.renderParentComment(parent, parentSection);
 
         // 2. Загружаем ответы через store
         dispatcher.dispatch('REPLIES_LOAD_REQUEST', {
@@ -133,6 +212,12 @@ export class ReplyView {
             return;
         }
 
+        // Загружаем топ блогов если еще не загружены
+        if (!state.users || state.users.length === 0) {
+            dispatcher.dispatch('USER_LIST_LOAD_REQUEST', { type: 'topblogs' });
+            return;
+        }
+
         const userList = new UserList({
             title: 'Топ блогов',
             users: state.users || []
@@ -141,82 +226,161 @@ export class ReplyView {
         this.rightMenu.appendChild(userListElement);
     }
   
-  private renderParentComment(parent: any, container: HTMLElement): void {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'comment-wrapper comment--parent';
+    private async renderParentComment(parent: any, container: HTMLElement): Promise<void> {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'comment-wrapper comment--parent';
+        wrapper.id = `parent-comment-${parent.id}`; // ⚠️ Добавить ID для обновления
 
-    const commentInstance = new Comment({
-      commentId: parent.id,
-      postId: this.postId,
-      user: {
-        name: parent.author_name,
-        subtitle: '',
-        avatar: parent.author_avatar || '/img/defaultAvatar.jpg',
-        isSubscribed: false,
-        id: parent.user_id
-      },
-      postTitle: parent.article_title || '',
-      postDate: parent.created_at,
-      text: parent.content,
-      attachment: undefined,
-    });
+        const isOwnComment = parent.user_id === loginStore.getState().user?.id;
+        
+        // ⚠️ ИСПРАВИТЬ: Использовать store для начального значения
+        const isSubscribed = subscriptionsStore.isSubscribed(parent.user_id.toString());
 
-    commentInstance.render().then(el => {
-      wrapper.appendChild(el);
-      container.appendChild(wrapper);
-    });
-  }
+        const authorAvatar = parent.author_avatar || '/img/defaultAvatar.jpg';
+        const avatarWithTimestamp = authorAvatar ? 
+            `${authorAvatar.split('?')[0]}?_=${Date.now()}` : 
+            authorAvatar;
 
-  private handleCommentsStoreChange(): void {
-    const repliesList = document.querySelector('#replies-container .replies-list');
-    if (!repliesList) return;
-    console.log('handleCommentsStoreChange called');
-    const state = commentsStore.getState();
-    console.log('Replies to render:', state.comments);
-
-    if (state.isLoading) {
-      repliesList.innerHTML = '<div class="replies-loader">Загрузка ответов...</div>';
-      return;
-    }
-
-    if (state.error) {
-      repliesList.innerHTML = `<div class="replies-error">${state.error}</div>`;
-      return;
-    }
-
-    repliesList.innerHTML = '';
-    for (const reply of state.comments) {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'comment-wrapper';
-      const replyInstance = new Comment({
-        commentId: reply.id,
-        postId: this.postId,
-        user: {
-          name: reply.authorName,
-          subtitle: '',
-          avatar: reply.authorAvatar || '/img/defaultAvatar.jpg',
-          isSubscribed: false,
-          id: reply.authorId
-        },
-        postTitle: '',
-        postDate: reply.postDate,
-        text: reply.text,
-        attachment: reply.attachment,
-        onReplyClick: () => {
-            window.location.href = `/replies/${reply.id}?postId=${this.postId}`;
-        }
-      });
-      replyInstance.render().then(el => {
-        wrapper.appendChild(el);
-        }).catch(err => {
-        console.error('Render error:', err);
+        const commentInstance = new Comment({
+            commentId: parent.id,
+            postId: this.postId,
+            user: {
+                name: parent.author_name,
+                subtitle: '',
+                avatar: avatarWithTimestamp || '/img/defaultAvatar.jpg',
+                isSubscribed: isSubscribed, // ⚠️ Из store
+                id: parent.user_id
+            },
+            postTitle: '',
+            postDate: '',
+            text: parent.content,
+            attachment: undefined,
+            hideSubscribeButton: isOwnComment,
         });
-      repliesList.appendChild(wrapper);
-    }
-  }
 
-  destroy(): void {
-    commentsStore.removeListener(this.boundCommentsStoreHandler);
-    userListStore.removeListener(this.boundUserListStoreHandler);
-  }
+        try {
+            const el = await commentInstance.render();
+            wrapper.appendChild(el);
+            container.appendChild(wrapper);
+            
+            // ⚠️ Сохранить данные родительского комментария для обновления
+            this.parentCommentData = parent;
+            this.parentCommentElement = wrapper;
+            
+            // ⚠️ ПОДПИСАТЬСЯ НА ИЗМЕНЕНИЯ ПОДПИСОК
+            subscriptionsStore.addListener(this.parentCommentSubscriptionHandler);
+            
+            console.log('✅ Родительский комментарий отрендерен, подписан на обновления подписок');
+        } catch (error) {
+            console.error('Error rendering parent comment:', error);
+        }
+    }
+
+    // ⚠️ НОВЫЙ МЕТОД: Обновить родительский комментарий
+    private updateParentComment(): void {
+        if (!this.parentCommentElement || !this.parentCommentData) return;
+        
+        const isOwnComment = this.parentCommentData.user_id === loginStore.getState().user?.id;
+        if (isOwnComment) return; // На свой комментарий не обновляем
+        
+        const isSubscribed = subscriptionsStore.isSubscribed(this.parentCommentData.user_id.toString());
+        
+        // Найти кнопку подписки в родительском комментарии
+        const subscribeButton = this.parentCommentElement.querySelector(`[data-user-id="${this.parentCommentData.user_id}"]`);
+        if (subscribeButton && subscribeButton instanceof HTMLElement) {
+            const currentlySubscribed = subscribeButton.classList.contains('user-menu__button--subscribed');
+            
+            if (isSubscribed !== currentlySubscribed) {
+                console.log('🔄 [ReplyView] Updating parent comment subscription:', {
+                    userId: this.parentCommentData.user_id,
+                    newState: isSubscribed,
+                    currentlySubscribed: currentlySubscribed
+                });
+                
+                if (isSubscribed) {
+                    subscribeButton.classList.add('user-menu__button--subscribed');
+                    subscribeButton.textContent = 'Отписаться';
+                } else {
+                    subscribeButton.classList.remove('user-menu__button--subscribed');
+                    subscribeButton.textContent = 'Подписаться';
+                }
+            }
+        }
+    }
+
+    private handleCommentsStoreChange(): void {
+        const repliesList = document.querySelector('#replies-container .replies-list');
+        if (!repliesList) return;
+        
+        const state = commentsStore.getState();
+
+        if (state.isLoading) {
+            repliesList.innerHTML = '<div class="replies-loader">Загрузка ответов...</div>';
+            return;
+        }
+
+        if (state.error) {
+            repliesList.innerHTML = `<div class="replies-error">${state.error}</div>`;
+            return;
+        }
+
+        repliesList.innerHTML = '';
+        
+        for (const reply of state.comments) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'comment-wrapper';
+            
+            const isOwnReply = reply.authorId === loginStore.getState().user?.id;
+            const isSubscribed = reply.isAuthorSubscribed || false;
+            
+            const replyInstance = new Comment({
+                commentId: reply.id,
+                postId: this.postId,
+                user: {
+                    name: reply.authorName,
+                    subtitle: '',
+                    avatar: reply.authorAvatar || '/img/defaultAvatar.jpg',
+                    isSubscribed: isOwnReply ? false : isSubscribed,
+                    id: reply.authorId
+                },
+                postTitle: '',
+                postDate: '',
+                text: reply.text,
+                attachment: reply.attachment,
+                hideSubscribeButton: isOwnReply,
+                onReplyClick: () => {
+                    window.location.href = `/replies/${reply.id}?postId=${this.postId}`;
+                }
+            });
+            
+            replyInstance.render().then(el => {
+                wrapper.appendChild(el);
+                repliesList.appendChild(wrapper);
+            }).catch(err => {
+                console.error('Render error:', err);
+            });
+        }
+    }
+
+    destroy(): void {
+        commentsStore.removeListener(this.boundCommentsStoreHandler);
+        userListStore.removeListener(this.boundUserListStoreHandler);
+        
+        // ⚠️ ОТПИСАТЬСЯ ОТ ИЗМЕНЕНИЙ ПОДПИСОК
+        if (this.parentCommentSubscriptionHandler) {
+            subscriptionsStore.removeListener(this.parentCommentSubscriptionHandler);
+        }
+        
+        this.sidebarEl1 = null;
+        this.sidebarEl2 = null;
+        this.parentCommentElement = null;
+        this.parentCommentData = null;
+        
+        if (this.rootElement && this.rootElement.parentNode === this.container) {
+            this.container.removeChild(this.rootElement);
+        }
+        
+        this.rootElement = null;
+        this.rightMenu = null;
+    }
 }

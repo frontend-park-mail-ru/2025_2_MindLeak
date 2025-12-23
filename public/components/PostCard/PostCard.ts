@@ -14,6 +14,8 @@ export interface PostAuthor {
     avatar: string | null;
     isSubscribed: boolean;
     id?: number;
+    hideSubscribeButton?: boolean;
+    isMyProfile?: boolean;
 }
 
 export interface PostCardProps {
@@ -32,6 +34,7 @@ export interface PostCardProps {
     isOwnPost: boolean;
     canEdit?: boolean;
     onMenuAction?: (action: string) => void;
+    hideCommentsIcon?: boolean;
 }
 
 async function getPostCardTemplate(): Promise<Handlebars.TemplateDelegate> {
@@ -77,13 +80,21 @@ export class PostCard {
     private isOwnPost: boolean;
     private canEdit: boolean;
     private onMenuAction?: (action: string) => void;
+    private hideCommentsIcon: boolean;
 
     constructor(props: PostCardProps) {
         this.postId = props.postId;
         this.image = props.image || '';
 
         const {
-            user = { name: 'Аккаунт', subtitle: 'тема', avatar: null, isSubscribed: false },
+            user = { 
+                name: 'Аккаунт', 
+                subtitle: 'тема', 
+                avatar: null, 
+                isSubscribed: false,
+                hideSubscribeButton: false, // ← Добавить значение по умолчанию
+                isMyProfile: false // ← И это тоже
+            },
             title = 'Большой заголовок поста',
             text = 'Текст поста поменьше',
             link = '',
@@ -93,10 +104,15 @@ export class PostCard {
             repostsCount = 42,
             viewsCount = 42,
             isOwnPost = false,
-            canEdit = false
+            canEdit = false,
+            hideCommentsIcon = false
         } = props;
 
-        this.user = user;
+        this.user = {
+            ...user,
+            hideSubscribeButton: user.hideSubscribeButton || false, // Сохраняем флаг
+            isMyProfile: user.isMyProfile || false // Сохраняем если есть
+        };
         this.title = title;
         this.text = text;
         this.link = link;
@@ -109,6 +125,7 @@ export class PostCard {
         this.isOwnPost = isOwnPost;
         this.canEdit = canEdit;
         this.onMenuAction = props.onMenuAction;
+        this.hideCommentsIcon = hideCommentsIcon;
     }
 
     async render(): Promise<HTMLElement> {
@@ -131,9 +148,18 @@ export class PostCard {
             menuItems = [
                 { key: 'edit', text: 'Редактировать' },
                 { key: 'delete', text: 'Удалить' },
-                ...menuItems
+                //...menuItems
             ];
         }
+
+        const displayTags = [
+            {
+                key: "comments", 
+                icon: "/img/icons/comment.svg", 
+                count: this.commentsCount
+            }
+            // Можно добавить и другие теги
+        ];
 
         const template = await getPostCardTemplate();
         const html = template({
@@ -144,13 +170,14 @@ export class PostCard {
             link: this.link,
             linkText: this.linkText,
             image: this.image,
-            tags: this.tags,
+            tags: displayTags,
             commentsCount: this.commentsCount,
             repostsCount: this.repostsCount,
             viewsCount: this.viewsCount,
             menuId: this.menuId,
             menuItems: menuItems,
-            canEdit: this.canEdit
+            canEdit: this.canEdit,
+            hideCommentsIcon: this.hideCommentsIcon
         });
 
         const div = document.createElement('div');
@@ -176,17 +203,6 @@ export class PostCard {
                 textPreview.hidden = isExpanded;
                 textFull.hidden = !isExpanded;
                 toggleTextBtn.textContent = isExpanded ? 'Скрыть' : 'Показать полностью';
-            });
-        }
-
-        const titleEl = postCard.querySelector('.post-card__title') as HTMLElement;
-        if (titleEl) {
-            titleEl.style.cursor = 'pointer';
-            titleEl.title = 'Открыть пост';
-            titleEl.addEventListener('click', (e: Event) => {
-                e.preventDefault();
-                e.stopPropagation();
-                router.navigate(`/post/${this.postId}`);
             });
         }
 
@@ -299,6 +315,14 @@ export class PostCard {
 
         // И на весь блок user-menu
         const userMenuBlock = postCard.querySelector('.user-menu') as HTMLElement;
+        if (subscribeButton) {
+            subscribeButton.addEventListener('click', (e: Event) => {
+                e.stopPropagation();
+                this.handleSubscribeAction(subscribeButton);
+            });
+        }
+        
+        // Обновляем navigateToProfile чтобы не перекрывать кнопку подписки
         if (userMenuBlock) {
             userMenuBlock.style.cursor = 'pointer';
             userMenuBlock.addEventListener('click', (e: Event) => {
@@ -308,10 +332,30 @@ export class PostCard {
                 navigateToProfile(e);
             });
         }
+    }
 
-        if (subscribeButton) {
-            subscribeButton.addEventListener('click', (e: Event) => {
-                e.stopPropagation();
+    private handleSubscribeAction(button: HTMLElement): void {
+        // Получаем userId как строку
+        const userId = button.getAttribute('data-user-id'); // ← Используем getAttribute
+        
+        console.log('🔍 [PostCard] handleSubscribeAction:', {
+            userId: userId,
+            buttonClass: button.className
+        });
+        
+        if (!userId) return;
+        
+        const isSubscribed = button.classList.contains('user-menu__button--subscribed');
+        
+        if (isSubscribed) {
+            dispatcher.dispatch('UNSUBSCRIBE_REQUEST', { 
+                userId: userId, // ← Уже строка
+                targetProfileId: userId
+            });
+        } else {
+            dispatcher.dispatch('SUBSCRIBE_REQUEST', { 
+                userId: userId, // ← Уже строка
+                targetProfileId: userId
             });
         }
     }

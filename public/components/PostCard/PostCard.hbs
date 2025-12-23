@@ -2,7 +2,15 @@
 <div class="post-card" data-post-id="{{dataPostId}}">
     <div class="post-card">
         <div class="header">
-            {{> user-menu name=user.name subtitle=user.subtitle avatar=user.avatar isSubscribed=user.isSubscribed}}
+            {{> user-menu 
+                name=user.name 
+                subtitle=user.subtitle 
+                avatar=user.avatar 
+                isSubscribed=user.isSubscribed
+                hideSubscribeButton=user.hideSubscribeButton
+                id=user.id
+                isMyProfile=user.isMyProfile
+            }}
             <button class="post-card__menu-button" aria-label="Дополнительные действия">
                 <svg width="30" height="10" viewBox="0 0 30 10" fill="none" xmlns="http://www.w3.org/2000/svg" class="post-card__menu-icon">
                     <circle cx="5" cy="5" r="3" />
@@ -40,12 +48,20 @@
         -->
         <div class="post-card__footer">
             <div class="left-side-footer">
-                {{> tag key="comments" icon="/img/icons/comment.svg" count=commentsCount}}
+                {{#if hideCommentsIcon}}
+                    <!-- Скрыть иконку комментариев -->
+                {{else}}
+                    {{> tag key="comments" icon="/img/icons/comment.svg" count=commentsCount}}
+                {{/if}}
+                <!--
                 {{> tag key="reposts" icon="/img/icons/repost.svg" count=repostsCount}}
                 {{> tag key="bookmark" icon="/img/icons/bookmark.svg"}}
+                -->
             </div>
             <div class="right-side-footer">
+                <!--
                 {{> tag key="views" icon="/img/icons/views.svg" count=viewsCount}}
+                -->
             </div>
         </div>
 

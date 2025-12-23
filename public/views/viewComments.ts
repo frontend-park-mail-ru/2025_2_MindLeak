@@ -4,11 +4,13 @@ import { dispatcher } from '../dispatcher/dispatcher';
 import { loginStore } from '../stores/storeLogin';
 import { LoginFormView } from './viewLogin';
 import { ReplyView } from './viewReply';
+import { subscriptionsStore } from '../stores/storeSubscriptions';
 
 export class CommentView {
     private container: HTMLElement;
     private postId: string;
     private boundStoreHandler: () => void;
+    private isLoading: boolean = false; // Добавляем флаг загрузки
 
     constructor(container: HTMLElement, postId: string) {
         this.container = container;
@@ -17,36 +19,57 @@ export class CommentView {
     }
 
     async init(): Promise<void> {
-        this.container.appendChild(document.createElement('div'));
+        // Создаем контейнер для комментариев
+        const commentListContainer = document.createElement('div');
+        commentListContainer.id = 'comment-list-container';
+        this.container.appendChild(commentListContainer);
+        
+        // Добавляем сообщение о загрузке
+        commentListContainer.innerHTML = '<div class="comments-loader">Загрузка комментариев...</div>';
+        
         commentsStore.addListener(this.boundStoreHandler);
         dispatcher.dispatch('COMMENTS_LOAD_REQUEST', { postId: this.postId });
-
-        this.container.appendChild(document.createElement('div'));
     }
 
     private handleStoreChange(): void {
         const state = commentsStore.getState();
-        const commentListEl = this.container.children[0] as HTMLElement;
+        const commentListContainer = document.getElementById('comment-list-container');
+        
+        if (!commentListContainer) return;
 
         if (state.isLoading) {
-            commentListEl.innerHTML = '<div class="comments-loader">Загрузка комментариев...</div>';
+            commentListContainer.innerHTML = '<div class="comments-loader">Загрузка комментариев...</div>';
+            this.isLoading = true;
             return;
         }
 
         if (state.error) {
-            commentListEl.innerHTML = `<div class="comments-error">${state.error}</div>`;
+            commentListContainer.innerHTML = `<div class="comments-error">${state.error}</div>`;
+            this.isLoading = false;
             return;
         }
 
-        commentListEl.innerHTML = '';
+        // Если только что закончилась загрузка, рендерим комментарии
+        if (this.isLoading || commentListContainer.innerHTML.includes('Отправка')) {
+            this.renderComments(state, commentListContainer);
+            this.isLoading = false;
+        } else {
+            // Обычный рендер при изменении состояния
+            this.renderComments(state, commentListContainer);
+        }
+    }
+
+    private renderComments(state: any, container: HTMLElement): void {
+        container.innerHTML = '';
 
         const wrapper = document.createElement('div');
         wrapper.className = 'comment-wrapper';
-        commentListEl.appendChild(wrapper);
+        container.appendChild(wrapper);
 
         const authState = loginStore.getState();
         const userId = authState.user?.id;
-    
+
+        // Создаем заглушку для ввода нового комментария
         const emptyComment = new Comment({
             commentId: 'empty',
             postId: this.postId,
@@ -55,12 +78,13 @@ export class CommentView {
                 subtitle: '',
                 avatar: loginStore.getState().user?.avatar || '/img/defaultAvatar.jpg',
                 isSubscribed: true,
-                id: loginStore.getState().user?.id
+                id: userId
             },
             postTitle: '',
             postDate: '',
             text: '', 
             attachment: undefined,
+            hideSubscribeButton: true
         });
 
         emptyComment.render().then(el => {
@@ -85,9 +109,16 @@ export class CommentView {
                             loginView.render().then(modal => document.body.appendChild(modal));
                             return;
                         }
-                        dispatcher.dispatch('COMMENT_CREATE_REQUEST', { postId: this.postId, text });
-                        replyInput.value = '';
-                        replySubmit.disabled = true;
+                        
+                        // Показываем сообщение о загрузке
+                        container.innerHTML = '<div class="comments-loader">Отправка комментария...</div>';
+                        this.isLoading = true;
+                        
+                        // Отправляем комментарий
+                        dispatcher.dispatch('COMMENT_CREATE_REQUEST', { 
+                            postId: this.postId, 
+                            text 
+                        });
                     }
                 });
             }
@@ -97,7 +128,10 @@ export class CommentView {
         for (const comment of state.comments) {
             const wrapper = document.createElement('div');
             wrapper.className = 'comment-wrapper';
-            commentListEl.appendChild(wrapper);
+            container.appendChild(wrapper);
+
+            const isOwnComment = comment.authorId === userId;
+            const isSubscribed = comment.isAuthorSubscribed || false;
 
             const commentInstance = new Comment({
                 commentId: comment.id,
@@ -106,13 +140,14 @@ export class CommentView {
                     name: comment.authorName,
                     subtitle: '',
                     avatar: comment.authorAvatar || '/img/defaultAvatar.jpg',
-                    isSubscribed: false,
+                    isSubscribed: isOwnComment ? false : isSubscribed,
                     id: comment.authorId
                 },
-                postTitle: comment.postTitle,
-                postDate: comment.postDate,
+                postTitle: '',
+                postDate: '',
                 text: comment.text,
                 attachment: comment.attachment,
+                hideSubscribeButton: isOwnComment
             });
 
             commentInstance.render().then(el => {
@@ -123,5 +158,10 @@ export class CommentView {
 
     destroy(): void {
         commentsStore.removeListener(this.boundStoreHandler);
+        // Удаляем контейнер
+        const commentListContainer = document.getElementById('comment-list-container');
+        if (commentListContainer && commentListContainer.parentNode === this.container) {
+            this.container.removeChild(commentListContainer);
+        }
     }
 }

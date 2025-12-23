@@ -197,6 +197,33 @@ class Ajax {
             body: formData
         });
     }
+
+    async uploadPostMedia(formData: FormData, articleId: string): Promise<ApiResponse> {
+        return this.request(`/uploads/media/${articleId}`, {
+            method: 'POST',
+            body: formData
+        });
+    }
+
+    async deletePostMedia(articleId: string): Promise<ApiResponse> {
+        return this.request(`/delete/media/${articleId}`, {
+            method: 'DELETE'
+        });
+    }
+
+    async createPostWithMedia(postData: FormData): Promise<ApiResponse> {
+        return this.request('/posts', {
+            method: 'POST',
+            body: postData
+        });
+    }
+
+    async editPostWithMedia(postId: string, formData: FormData): Promise<ApiResponse> {
+        return this.request(`/posts/${postId}`, {
+            method: 'PUT',
+            body: formData
+        });
+    }
 }
 
 export const ajax = new Ajax();

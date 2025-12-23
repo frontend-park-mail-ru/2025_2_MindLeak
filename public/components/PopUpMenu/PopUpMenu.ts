@@ -2,6 +2,9 @@ import { dispatcher } from '../../dispatcher/dispatcher';
 import { loginStore } from '../../stores/storeLogin'
 
 let popUpMenuTemplate: Handlebars.TemplateDelegate | null = null;
+let currentTechSupportModal: HTMLElement | null = null;
+let currentTechSupportIframe: HTMLIFrameElement | null = null;
+let isIframeLoading: boolean = false;
 
 interface MenuItem {
     key: string;
@@ -38,8 +41,34 @@ async function getPopUpMenuTemplate(): Promise<Handlebars.TemplateDelegate> {
     return popUpMenuTemplate;
 }
 
+function closeTechSupportModal(): void {
+    if (currentTechSupportModal) {
+        console.log('🧹 Closing tech support modal programmatically');
+        
+        // Отправляем команду очистки в iframe
+        if (currentTechSupportIframe?.contentWindow) {
+            console.log('🧹 Sending CLEANUP command to iframe');
+            currentTechSupportIframe.contentWindow.postMessage({ 
+                type: 'CLEANUP',
+                source: 'main-window'
+            }, '*');
+        }
+        
+        currentTechSupportModal.remove();
+        currentTechSupportModal = null;
+        currentTechSupportIframe = null;
+        isIframeLoading = false;
+    }
+}
+
 function openTechSupportModal(): void {
     console.log('🛟 Opening tech support modal...');
+    
+    // Закрываем предыдущее модальное окно если есть
+    if (currentTechSupportModal) {
+        console.log('🧹 Closing previous tech support modal');
+        closeTechSupportModal();
+    }
     
     // Получаем данные пользователя из store
     const authState = loginStore.getState();
@@ -71,25 +100,38 @@ function openTechSupportModal(): void {
     modal.innerHTML = `<button class="iframe-modal__close">&times;</button>`;
     modal.appendChild(iframe);
     
-    // Ждем загрузки iframe и отправляем данные
-    iframe.addEventListener('load', () => {
-        console.log('📄 Iframe loaded, sending user data...');
-
-        iframe.contentWindow?.postMessage({
-            type: 'INIT_DATA',
-            payload: {
-                userEmail: userEmail,
-                userName: userName,
-                userContactEmail: userContactEmail
-            }
-        }, '*');
-        console.log('✅ User data sent to iframe:', {
-            userEmail,
-            userName,
-            userContactEmail
+    // Флаг чтобы предотвратить множественную отправку INIT_DATA
+    let initDataSent = false;
+    
+    // Обработчик загрузки iframe
+    const loadHandler = () => {
+        console.log('📄 Iframe loaded');
+        
+        // Даем время iframe на инициализацию
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                if (!initDataSent && iframe.contentWindow) {
+                    console.log('📤 Sending INIT_DATA to iframe...');
+                    
+                    const message = {
+                        type: 'INIT_DATA',
+                        payload: {
+                            userEmail: userEmail,
+                            userName: userName,
+                            userContactEmail: userContactEmail
+                        },
+                        source: 'main-window'
+                    };
+                    
+                    initDataSent = true;
+                    iframe.contentWindow.postMessage(message, window.location.origin);
+                    console.log('✅ User data sent to iframe');
+                }
+            });
         });
-
-    });
+    };
+    
+    iframe.addEventListener('load', loadHandler, { once: true });
 
     // Стили для модального окна (если их еще нет)
     if (!document.querySelector('style[data-tech-support]')) {
@@ -135,30 +177,34 @@ function openTechSupportModal(): void {
         document.head.appendChild(styles);
     }
 
+    // Закрытие по ESC
+    const handleEscKey = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && currentTechSupportModal) {
+            console.log('❌ Closing tech support modal (ESC)');
+            closeTechSupportModal();
+        }
+    };
+    document.addEventListener('keydown', handleEscKey);
+
     // Обработчик закрытия
     const closeButton = modal.querySelector('.iframe-modal__close') as HTMLButtonElement;
     closeButton.addEventListener('click', () => {
         console.log('❌ Closing tech support modal');
-        modal.remove();
+        closeTechSupportModal();
     });
 
     // Закрытие по клику вне iframe
     modal.addEventListener('click', (e: Event) => {
         if (e.target === modal) {
             console.log('❌ Closing tech support modal (outside click)');
-            modal.remove();
+            closeTechSupportModal();
         }
     });
 
-    // Закрытие по ESC
-    const handleEscKey = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
-            console.log('❌ Closing tech support modal (ESC)');
-            modal.remove();
-            document.removeEventListener('keydown', handleEscKey);
-        }
-    };
-    document.addEventListener('keydown', handleEscKey);
+    // Сохраняем ссылки
+    currentTechSupportModal = modal;
+    currentTechSupportIframe = iframe;
+    isIframeLoading = true;
 
     document.body.appendChild(modal);
     console.log('✅ Tech support modal opened');
@@ -172,68 +218,191 @@ async function handleLogout(): Promise<void> {
     }
 }
 
+let activePopUpMenus: PopUpMenu[] = [];
+
 export class PopUpMenu {
     private user: User;
     private menuItems: MenuItem[];
+    private lastSupportTicketTime: number = 0;
+    private lastAppealsLoadTime: number = 0;
+    private supportTicketMinInterval: number = 1000;
+    private appealsLoadMinInterval: number = 2000;
+    private isAppealsLoading: boolean = false;
+    private appealsLoadQueue: number = 0;
+    private boundLoginStoreHandler: () => void;
+    private messageHandlerBound: ((e: MessageEvent) => void) | null = null;
+    private popUpMenuElement: HTMLElement | null = null; // Новое поле для хранения ссылки на DOM элемент
 
     constructor({ user, menuItems }: PopUpMenuProps) {
         console.log('🎯 PopUpMenu constructor called');
-        this.user = user;
+        // AAAAAAAAAAAAAAAAAAaa
+        popUpMenuTemplate = null;
+
+        // Подписываемся на изменения loginStore
+        this.boundLoginStoreHandler = this.handleLoginStoreChange.bind(this);
+        loginStore.addListener(this.boundLoginStoreHandler);
+        
+        // Получаем актуальные данные из store при каждом создании
+        const authState = loginStore.getState();
+        this.user = authState.user || user; // Используем актуальные данные из store
+        
+        console.log('👤 PopUpMenu user data:', this.user);
+
+        activePopUpMenus.filter(menu => menu !== this).forEach(menu => {
+            if (menu['destroy']) menu.destroy();
+        });
+
         this.menuItems = menuItems || [
-            { key: 'bookmarks', icon: '/img/icons/note_icon.svg', text: 'Черновики' },
-            { key: 'saved', icon: '/img/icons/bookmark.svg', text: 'Закладки' },
+            //{ key: 'bookmarks', icon: '/img/icons/note_icon.svg', text: 'Черновики' },
+            //{ key: 'saved', icon: '/img/icons/bookmark.svg', text: 'Закладки' },
             { key: 'settings', icon: '/img/icons/settings_icon.svg', text: 'Настройки' },
-            { key: 'subscription', icon: '/img/icons/premium_icon.svg', text: 'Подписка' },
+            //{ key: 'subscription', icon: '/img/icons/premium_icon.svg', text: 'Подписка' },
             { key: 'TechSupport', icon: '/img/icons/chat_icon.svg', text: 'Техподдержка' },
             { key: 'Statistics', icon: '/img/icons/statistics_icon.svg', text: 'Статистика' },
             { key: 'logout', icon: '/img/icons/exit_icon.svg', text: 'Выйти' }
         ];
         
         this.setupMessageHandler();
+        activePopUpMenus.push(this);
     }
 
+    private handleLoginStoreChange(): void {
+        const authState = loginStore.getState();
+        
+        if (authState.user && this.user) {
+            // ✅ Сравниваем только аватар (с timestamp'ами)
+            if (this.user.avatar !== authState.user.avatar) {
+                this.user = authState.user;
+                console.log('🔄 PopUpMenu: Avatar changed!', authState.user.avatar);
+                
+                // ОБНОВЛЯЕМ DOM если меню отображается
+                this.forceUpdateDOM();
+            }
+        }
+    }
+
+    // Метод для принудительного обновления DOM
+    public forceUpdateDOM(): void {
+        if (!this.popUpMenuElement) return;
+        
+        const popUpMenu = this.popUpMenuElement;
+        this.updateDOMUserData(popUpMenu);
+        console.log('🔄 PopUpMenu DOM updated with new user data');
+    }
+
+    //основное изменение todo ФФФФФФФФФФФФФФФФФФФФФ
     private setupMessageHandler(): void {
         console.log('📡 Setting up message handler in PopUpMenu');
-        window.addEventListener('message', this.handleIframeMessage.bind(this));
+        if (this.messageHandlerBound) {
+            window.removeEventListener('message', this.messageHandlerBound);
+        }
+
+        this.messageHandlerBound = this.handleIframeMessage.bind(this);
+        window.addEventListener('message', this.messageHandlerBound);
+    }
+
+    public static clearTemplateCache(): void {
+        popUpMenuTemplate = null;
+        console.log('🧹 PopUpMenu template cache cleared');
     }
 
     private handleIframeMessage(event: MessageEvent): void {
-        console.log('📨 Raw message received:', event.data);
-        
         if (event.origin !== window.location.origin) {
-            console.log('🚫 Message from different origin:', event.origin);
             return;
         }
         
         const { type, payload, source } = event.data;
         
-        console.log('📨 Processing message:', { type, source, payload });
-        
         if (source === 'tech-support') {
-            console.log('✅ Valid tech-support message received');
-            
             switch (type) {
                 case 'IFRAME_READY':
                     console.log('✅ Tech support iframe is ready');
                     break;
+                    
                 case 'SUPPORT_TICKET_SUBMIT_REQUEST':
-                    console.log('🔄 Dispatching support ticket request:', payload);
-                    // Диспетчеризируем действие через API
-                    dispatcher.dispatch('SUPPORT_TICKET_SUBMIT_REQUEST', payload);
+                    console.log('🔄 Processing support ticket request');
+                    this.handleSupportTicketRequest(payload);
                     break;
+                    
                 case 'APPEALS_LOAD_REQUEST':
-                    console.log('🔄 Dispatching appeals load request');
-                    dispatcher.dispatch('APPEALS_LOAD_REQUEST');
+                    console.log('🔄 Processing appeals load request');
+                    this.handleAppealsLoadRequest();
                     break;
+                    
                 default:
-                    console.log('❓ Unknown message type from iframe:', type);
+                    console.log('❓ Unknown message type:', type);
             }
+        }
+    }
+
+    private handleSupportTicketRequest(payload: any): void {
+        const now = Date.now();
+        if (now - this.lastSupportTicketTime > this.supportTicketMinInterval) {
+            this.lastSupportTicketTime = now;
+            console.log('📤 Dispatching support ticket');
+            dispatcher.dispatch('SUPPORT_TICKET_SUBMIT_REQUEST', payload);
         } else {
-            console.log('🚫 Message from unknown source:', source);
+            console.log('🚫 Support ticket throttled');
+        }
+    }
+
+    private handleAppealsLoadRequest(): void {
+        const now = Date.now();
+        
+        // Считаем количество запросов в очереди
+        this.appealsLoadQueue++;
+        
+        // Если уже загружаем, ждем завершения
+        if (this.isAppealsLoading) {
+            console.log('⏳ Appeals already loading, request queued:', this.appealsLoadQueue);
+            return;
+        }
+        
+        // Проверяем интервал
+        if (now - this.lastAppealsLoadTime > this.appealsLoadMinInterval) {
+            this.lastAppealsLoadTime = now;
+            this.isAppealsLoading = true;
+            this.appealsLoadQueue = 0;
+            
+            console.log('📤 Dispatching appeals load');
+            dispatcher.dispatch('APPEALS_LOAD_REQUEST');
+        } else {
+            console.log('🚫 Appeals load throttled');
+            this.appealsLoadQueue = 0;
+        }
+    }
+
+    // Метод для сброса флага загрузки (вызывается извне когда загрузка завершена)
+    public markAppealsLoadComplete(): void {
+        this.isAppealsLoading = false;
+        console.log('✅ Appeals load marked as complete');
+        
+        // Если есть запросы в очереди, обрабатываем следующий
+        if (this.appealsLoadQueue > 0) {
+            console.log('🔄 Processing queued appeals load request');
+            requestAnimationFrame(() => {
+                this.handleAppealsLoadRequest();
+            });
+        }
+    }
+
+    public updateUserData(): void {
+        const authState = loginStore.getState();
+        if (authState.user) {
+            this.user = authState.user;
+            console.log('✅ PopUpMenu user data updated:', this.user);
+            // Также обновляем DOM если меню отображается
+            this.forceUpdateDOM();
         }
     }
 
     async render(): Promise<HTMLElement> {
+        // Получаем актуальные данные перед рендером
+        const currentAuthState = loginStore.getState();
+        if (currentAuthState.user) {
+            this.user = currentAuthState.user;
+        }
+
         const template = await getPopUpMenuTemplate();
         const html = template({
             user: this.user,
@@ -247,6 +416,11 @@ export class PopUpMenu {
         if (!popUpMenu) {
             throw new Error('Popup menu element not found');
         }
+
+        // Сохраняем ссылку на DOM элемент
+        this.popUpMenuElement = popUpMenu;
+
+        this.updateDOMUserData(popUpMenu);
 
         const userMenuBlock = popUpMenu.querySelector('.user-menu') as HTMLElement;
         if (userMenuBlock) {
@@ -265,76 +439,41 @@ export class PopUpMenu {
 
         const menuItems = popUpMenu.querySelectorAll('.menu-item');
 
-        console.log('🔍 Checking all menu items data-key:');
         menuItems.forEach((item, index) => {
             const key = (item as HTMLElement).dataset.key;
-            const text = item.querySelector('.menu-item__text')?.textContent;
-            console.log(`Item ${index}: data-key="${key}", text="${text}"`);
-        });
-
-        menuItems.forEach((item, index) => {
-            const key = (item as HTMLElement).dataset.key;
-            console.log(`🎯 Setting up handler for menu item ${index}:`, key, item);
             
             if (!item || !(item instanceof HTMLElement)) {
-                console.error('❌ Invalid menu item:', item);
                 return;
             }
             
             item.addEventListener('click', (e: Event) => {
-                console.log('🖱️ CLICK EVENT FIRED for key:', key);
-                console.log('🖱️ Event target:', e.target);
-                console.log('🖱️ Current target:', e.currentTarget);
-                
                 e.preventDefault();
                 const clickedKey = (item as HTMLElement).dataset.key;
-                
-                console.log('🖱️ Menu item clicked, key from dataset:', clickedKey);
 
                 if (popUpMenu.parentNode) {
                     popUpMenu.remove();
                 }
 
-                console.log('🖱️ Processing action for key:', clickedKey);
-                
                 switch (clickedKey) {
                     case 'logout':
-                        console.log('🚪 Logout clicked - executing');
                         handleLogout();
                         break;
                     case 'settings':
-                        console.log('⚙️ Settings clicked - executing');
                         window.history.pushState({}, '', '/settings');
                         window.dispatchEvent(new PopStateEvent('popstate'));
                         break;
                     case 'profile':
-                        console.log('👤 Profile clicked - executing');
                         window.history.pushState({}, '', '/profile');
                         window.dispatchEvent(new PopStateEvent('popstate'));
                         break;
                     case 'Statistics':
-                        console.log('📊 Statistics clicked - executing');
                         window.history.pushState({}, '', '/appeals/statistics');
                         window.dispatchEvent(new PopStateEvent('popstate'));
                         break;
                     case 'TechSupport':
-                        console.log('🛟 TechSupport clicked - EXECUTING openTechSupportModal');
                         openTechSupportModal();
                         break;
-                    default:
-                        console.log('❓ Unknown menu item:', clickedKey);
                 }
-            });
-        });
-
-        console.log('🔍 Final menu structure:');
-        menuItems.forEach((item, index) => {
-            const element = item as HTMLElement;
-            console.log(`Menu item ${index}:`, {
-                tagName: element.tagName,
-                className: element.className,
-                dataset: element.dataset,
-                innerHTML: element.innerHTML
             });
         });
 
@@ -344,4 +483,50 @@ export class PopUpMenu {
 
         return popUpMenu;
     }
+
+    private updateDOMUserData(popUpMenu: HTMLElement): void {
+        // Обновляем данные пользователя в DOM
+        const userNameEl = popUpMenu.querySelector('.user-menu__name');
+        const userAvatarEl = popUpMenu.querySelector('.user-menu__avatar');
+        const userSubtitleEl = popUpMenu.querySelector('.user-menu__subtitle');
+        
+        if (userNameEl) {
+            userNameEl.textContent = this.user.name;
+        }
+        
+        if (userAvatarEl && this.user.avatar) {
+            // Важно: добавляем timestamp к URL чтобы избежать кэширования
+            const avatarUrl = `${this.user.avatar}${this.user.avatar.includes('?') ? '&' : '?'}nocache=${Date.now()}`;
+            userAvatarEl.setAttribute('src', avatarUrl);
+            console.log('🖼️ Updated avatar in PopUpMenu:', avatarUrl);
+        }
+        
+        if (userSubtitleEl && this.user.subtitle) {
+            userSubtitleEl.textContent = this.user.subtitle;
+        }
+    }
+
+    destroy(): void {
+        console.log('🗑️ Destroying PopUpMenu instance');
+        
+        // Отписываемся от loginStore
+        if (this.boundLoginStoreHandler) {
+            loginStore.removeListener(this.boundLoginStoreHandler);
+        }
+        
+        if (this.messageHandlerBound) {
+            window.removeEventListener('message', this.messageHandlerBound);
+            this.messageHandlerBound = null;
+        }
+        
+        const index = activePopUpMenus.indexOf(this);
+        if (index > -1) {
+            activePopUpMenus.splice(index, 1);
+        }
+        
+        // Очищаем ссылку на DOM элемент
+        this.popUpMenuElement = null;
+    }
 }
+
+// FFFFFFFFFFFFFFF

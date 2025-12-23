@@ -4,6 +4,8 @@ import { dispatcher } from '../dispatcher/dispatcher';
 import { postsStore, Post } from '../stores/storePosts';
 import { loginStore } from '../stores/storeLogin';
 import { HashtagParser } from '../utils/hashtagParser'; // Добавляем импорт
+import { subscriptionsStore } from '../stores/storeSubscriptions';
+import { SubscriptionHelper } from '../utils/subscriptionHelper';
 
 export class PostsView {
     private feedWrapper: HTMLElement | null = null;
@@ -93,7 +95,7 @@ export class PostsView {
         for (const apiPost of this.allPosts) {
             console.log('📄 Processing post:', apiPost);
             
-            const postData = this.transformPost(apiPost);
+            const postData = await this.transformPost(apiPost);
             console.log('🔄 Transformed post data:', postData);
             
             const postCard = new PostCard({
@@ -204,10 +206,18 @@ export class PostsView {
         }
     }
 
-    private transformPost(apiPost: Post): PostCardProps {
+    private async transformPost(apiPost: Post): Promise<PostCardProps> {
         const authState = loginStore.getState();
         const currentUserId = authState.user?.id;
-        const isOwnPost = !!currentUserId && currentUserId.toString() === apiPost.authorId?.toString();
+
+        const isOwnPost = !!currentUserId && 
+            String(currentUserId) === String(apiPost.authorId);
+        
+        const isMyProfile = isOwnPost;
+
+        const isSubscribed = await SubscriptionHelper.getSubscriptionFlag(String(apiPost.authorId));
+
+        const finalIsSubscribed = isSubscribed;
 
         // Обрабатываем хештеги в заголовке и тексте
         const processedTitle = HashtagParser.replaceHashtagsWithLinks(apiPost.title || '');
@@ -220,11 +230,13 @@ export class PostsView {
                 name: apiPost.authorName || 'Аноним',
                 subtitle: apiPost.theme || 'Блог',
                 avatar: apiPost.authorAvatar || '/img/defaultAvatar.jpg',
-                isSubscribed: false,
-                id: apiPost.authorId
+                isSubscribed: finalIsSubscribed, // Используем исправленный флаг
+                id: apiPost.authorId,
+                hideSubscribeButton: isMyProfile,
+                isMyProfile: isMyProfile
             },
-            title: processedTitle, // Используем обработанный заголовок с хештегами
-            text: processedText,   // Используем обработанный текст с хештегами
+            title: processedTitle,
+            text: processedText,
             image: apiPost.image || '',
             tags: Array.isArray(apiPost.tags) ? apiPost.tags : [],
             commentsCount: apiPost.commentsCount || 0,
@@ -239,6 +251,8 @@ export class PostsView {
     private async renderNextPosts(): Promise<void> {
         if (!this.feedWrapper || this.allPosts.length === 0) return;
 
+        await SubscriptionHelper.waitForSubscriptions();
+
         const POSTS_PER_LOAD = 10;
         const fragment = document.createDocumentFragment();
         
@@ -251,7 +265,7 @@ export class PostsView {
             
             const apiPost = this.allPosts[this.virtualPostIndex];
             
-            const postData = this.transformPost(apiPost);
+            const postData = await this.transformPost(apiPost);
             
             try {
                 const postCard = new PostCard({
@@ -295,6 +309,9 @@ export class PostsView {
         this.allPosts = [];
         this.virtualPostIndex = 0;
         this.isInitialized = false;
+        
+        // Сбрасываем SubscriptionHelper
+        SubscriptionHelper.reset();
     }
 
     private handlePostAction(action: string, postId?: string): void {

@@ -11,6 +11,9 @@ export interface CreatePostState {
     error: string | null;
     isEditing: boolean;
     editingPostId: string | null;
+    attachment: File | null;
+    previewUrl: string | null;
+    shouldDeleteMedia: boolean;
 }
 
 class CreatePostStore extends BaseStore<CreatePostState> {
@@ -24,7 +27,10 @@ class CreatePostStore extends BaseStore<CreatePostState> {
             success: false,
             error: null,
             isEditing: false,
-            editingPostId: null
+            editingPostId: null,
+            attachment: null,
+            previewUrl: null,
+            shouldDeleteMedia: false
         });
     }
 
@@ -147,6 +153,89 @@ class CreatePostStore extends BaseStore<CreatePostState> {
 
         this.registerAction('EDIT_POST_FAIL', (payload: { error: string }) => {
             this.setState({ isCreating: false, error: payload.error });
+        });
+
+        this.registerAction('ATTACHMENT_ADDED', (payload: { file: File; previewUrl: string }) => {
+            // Очищаем старый preview если есть
+            if (this.state.previewUrl && this.state.previewUrl.startsWith('data:')) {
+                URL.revokeObjectURL(this.state.previewUrl);
+            }
+            
+            this.setState({
+                attachment: payload.file,
+                previewUrl: payload.previewUrl,
+                shouldDeleteMedia: false // сбрасываем флаг удаления
+            });
+        });
+
+        this.registerAction('ATTACHMENT_REMOVED', () => {
+            // Очищаем data URL
+            if (this.state.previewUrl && this.state.previewUrl.startsWith('data:')) {
+                URL.revokeObjectURL(this.state.previewUrl);
+            }
+            
+            // Если редактируем пост и есть существующее медиа - ставим флаг удаления
+            const shouldDeleteMedia = this.state.isEditing && 
+                                    this.state.previewUrl && 
+                                    !this.state.previewUrl.startsWith('data:');
+            
+            this.setState({
+                attachment: null,
+                previewUrl: null,
+                shouldDeleteMedia: shouldDeleteMedia
+            });
+        });
+
+        this.registerAction('ATTACHMENT_CLEARED', () => {
+            if (this.state.previewUrl && this.state.previewUrl.startsWith('data:')) {
+                URL.revokeObjectURL(this.state.previewUrl);
+            }
+            
+            this.setState({
+                attachment: null,
+                previewUrl: null
+            });
+        });
+
+        // Обновляем обработчик загрузки поста для редактирования
+        this.registerAction('POST_EDIT_LOAD_SUCCESS', (payload: { post: any }) => {
+            const existingMedia = payload.post.image || payload.post.media_url || null;
+            
+            this.setState({
+                draftTitle: payload.post.title || '',
+                draftContent: payload.post.content || '',
+                currentTheme: payload.post.theme || 'Без темы',
+                currentThemeId: payload.post.topic_id || 0,
+                isEditing: true,
+                editingPostId: payload.post.id,
+                success: false,
+                error: null,
+                previewUrl: existingMedia,
+                attachment: null,
+                shouldDeleteMedia: false // сбрасываем при загрузке
+            });
+        });
+
+        // Обновляем обработчик сброса формы
+        this.registerAction('CREATE_POST_FORM_INIT', () => {
+            if (this.state.previewUrl && this.state.previewUrl.startsWith('data:')) {
+                URL.revokeObjectURL(this.state.previewUrl);
+            }
+            
+            this.setState({
+                draftTitle: '',
+                draftContent: '',
+                currentTheme: 'Без темы',
+                currentThemeId: 0,
+                isCreating: false,
+                success: false,
+                error: null,
+                isEditing: false,
+                editingPostId: null,
+                attachment: null,
+                previewUrl: null,
+                shouldDeleteMedia: false // сбрасываем
+            });
         });
     }
 }

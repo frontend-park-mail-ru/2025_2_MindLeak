@@ -152,3 +152,43 @@
     background-color: var(--accent-color);
     color: var(--text-color-inverse);
 }
+
+.replies-title {
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-semi-bold);
+    color: var(--text-color);
+    margin: 20px 0 15px 0;
+    padding-bottom: 10px;
+}
+
+.comment--parent {
+    background-color: rgba(var(--accent-color-rgb), 0.05);
+}
+
+.replies-error,
+.replies-loader {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-lighter);
+    font-size: var(--text-base);
+}
+
+.comments-loader,
+.comments-error {
+    text-align: center;
+    padding: 20px;
+    margin: 10px 0;
+    border-radius: 8px;
+    font-size: var(--text-sm);
+}
+
+.comments-loader {
+    color: var(--text-lighter);
+    background-color: var(--section-hover);
+}
+
+.comments-error {
+    color: var(--text-failure);
+    background-color: rgba(255, 0, 0, 0.1);
+    border: 1px solid var(--text-failure);
+}

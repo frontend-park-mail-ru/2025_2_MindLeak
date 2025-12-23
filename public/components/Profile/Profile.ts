@@ -1,5 +1,6 @@
 import { PostCardMenu } from '../PostCardMenu/PostCardMenu';
 import { dispatcher } from '../../dispatcher/dispatcher';
+import { subscriptionsStore } from '../../stores/storeSubscriptions';
 
 let profileTemplate: Handlebars.TemplateDelegate | null = null;
 let partialsLoaded = false;
@@ -66,8 +67,36 @@ interface ProfileProps {
 }
 
 function transformPostForProfile(apiPost: any, isMyProfile: boolean): any {
+    console.log('🔍 [Profile] Checking post ownership:', {
+        postId: apiPost.id,
+        authorId: apiPost.authorId,
+        //authorIdType: typeof apiPost.authorId,
+        isMyProfile: isMyProfile
+    });
+
     if (!apiPost) return {};
     
+
+    const isSubscribed = subscriptionsStore.isSubscribed(String(apiPost.authorId));
+    // Правильно формируем объект user
+    const userData = {
+        name: apiPost.authorName || 'Аноним',
+        subtitle: apiPost.theme || 'Блог', 
+        avatar: apiPost.authorAvatar || '/img/defaultAvatar.jpg',
+        isSubscribed: isSubscribed, // Будет обновлено из store
+        id: apiPost.authorId,
+        hideSubscribeButton: isMyProfile, // Важно: передаем этот флаг
+        isMyProfile: isMyProfile // Также можно передать isMyProfile для UserMenu
+    };
+    
+    console.log('✅ User data with hideSubscribeButton:', userData.hideSubscribeButton);
+
+    console.log('✅ User data with subscription:', {
+        authorId: apiPost.authorId,
+        isSubscribed: isSubscribed,
+        fromServer: apiPost.isAuthorSubscribed
+    });
+
     // СОЗДАЕМ menuItems ТАК ЖЕ КАК В POSTCARD.TS
     let menuItems = [
         { key: 'hide', text: 'Скрыть' },
@@ -78,20 +107,14 @@ function transformPostForProfile(apiPost: any, isMyProfile: boolean): any {
         menuItems = [
             { key: 'edit', text: 'Редактировать' },
             { key: 'delete', text: 'Удалить' },
-            ...menuItems
+            //...menuItems
         ];
     }
     
     return {
         postId: apiPost.id || '',
         authorId: apiPost.authorId,
-        user: {
-            name: apiPost.authorName || 'Аноним',
-            subtitle: apiPost.theme || 'Блог', 
-            avatar: apiPost.authorAvatar || '/img/defaultAvatar.jpg',
-            isSubscribed: false,
-            id: apiPost.authorId
-        },
+        user: userData, // Важно: создаём объект user
         title: apiPost.title || '',
         text: apiPost.content || '',
         image: apiPost.image || '',
@@ -102,7 +125,8 @@ function transformPostForProfile(apiPost: any, isMyProfile: boolean): any {
         isOwnPost: isMyProfile,
         canEdit: isMyProfile,
         dataPostId: apiPost.id || '',
-        menuItems: menuItems
+        menuItems: menuItems,
+        hideCommentsIcon: false
     };
 }
 
@@ -134,7 +158,6 @@ export class Profile {
         );
         const transformedComments = this.props.comments?.map(transformCommentForProfile) || [];
 
-
         const templateData = {
             ...this.props,
             posts: transformedPosts,
@@ -152,10 +175,75 @@ export class Profile {
             throw new Error('Profile element not found');
         }
 
-        // ИНИЦИАЛИЗИРУЕМ PostCardMenu ДЛЯ КАЖДОГО ПОСТА
         this.initializePostCardMenus(profileElement);
+        this.setupCommentIconClickHandlers(profileElement);
+        this.attachSubscribeListeners(profileElement); // ← ДОБАВЛЯЕМ ЗДЕСЬ
 
         return profileElement;
+    }
+
+    // ДОБАВЛЯЕМ НОВЫЙ МЕТОД ДЛЯ ОБРАБОТКИ ПОДПИСОК
+    private attachSubscribeListeners(container: HTMLElement): void {
+        // Обработчик кнопки подписки в профиле
+        const subscribeBtn = container.querySelector('.profile__subscribe-btn');
+        if (subscribeBtn && subscribeBtn instanceof HTMLElement) { // ← Проверка типа
+            subscribeBtn.addEventListener('click', (e) => {
+                // Получаем userId из data-атрибута самой кнопки
+                const userId = subscribeBtn.getAttribute('data-user-id');
+                
+                console.log('🔍 [Profile] Subscribe button clicked:', {
+                    button: subscribeBtn,
+                    dataset: subscribeBtn.dataset, // ← Теперь безопасно
+                    userId: userId
+                });
+                
+                if (userId) {
+                    this.handleSubscribeAction(userId, subscribeBtn);
+                }
+            });
+        }
+        
+        // Обработчики кнопок подписки в постах
+        const postSubscribeBtns = container.querySelectorAll('.user-menu__button');
+        postSubscribeBtns.forEach(btn => {
+            if (btn instanceof HTMLElement) { // ← Проверка типа
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const userId = btn.getAttribute('data-user-id');
+                    
+                    if (userId) {
+                        this.handleSubscribeAction(userId, btn);
+                    }
+                });
+            }
+        });
+    }
+
+    // ДОБАВЛЯЕМ НОВЫЙ МЕТОД ДЛЯ ОБРАБОТКИ ДЕЙСТВИЙ ПОДПИСКИ
+    private handleSubscribeAction(userId: string, button: HTMLElement): void { // ← userId как string!
+        const isSubscribed = button.classList.contains('user-menu__button--subscribed') || 
+                            button.classList.contains('profile__subscribe-btn--subscribed');
+        
+        // Получаем ID профиля, который просматриваем
+        const targetProfileId = this.props.profile?.id;
+        
+        console.log('🔍 [Profile] handleSubscribeAction:', {
+            userId: userId,
+            targetProfileId: targetProfileId,
+            isSubscribed: isSubscribed
+        });
+        
+        if (isSubscribed) {
+            dispatcher.dispatch('UNSUBSCRIBE_REQUEST', { 
+                userId: userId, // ← Уже строка
+                targetProfileId: targetProfileId
+            });
+        } else {
+            dispatcher.dispatch('SUBSCRIBE_REQUEST', { 
+                userId: userId, // ← Уже строка
+                targetProfileId: targetProfileId
+            });
+        }
     }
 
     private initializePostCardMenus(container: HTMLElement): void {
@@ -178,6 +266,32 @@ export class Profile {
                     }
                 }
             }
+        });
+    }
+
+    private setupCommentIconClickHandlers(container: HTMLElement): void {
+        const commentIcons = container.querySelectorAll('.tag[data-key="comments"]');
+        
+        commentIcons.forEach(icon => {
+            icon.addEventListener('click', (e: Event) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const postCardWithId = icon.closest('[data-post-id]');
+                
+                if (postCardWithId) {
+                    const postId = postCardWithId.getAttribute('data-post-id');
+                    if (postId) {
+                        import('../../router/router').then(module => {
+                            module.router.navigate(`/post/${postId}`);
+                        });
+                    }
+                } else {
+                    console.error('No element with data-post-id found');
+                    console.log('Icon element:', icon);
+                    console.log('Closest .post-card:', icon.closest('.post-card'));
+                }
+            });
         });
     }
 

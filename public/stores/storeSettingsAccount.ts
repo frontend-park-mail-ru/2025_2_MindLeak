@@ -1,4 +1,6 @@
 import { BaseStore } from './store';
+import { dispatcher } from '../dispatcher/dispatcher';
+import { loginStore } from './storeLogin';
 
 export interface SettingsAccountData {
     phone: string;
@@ -93,13 +95,25 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
             });
         });
 
-        this.registerAction('AVATAR_UPLOAD_SUCCESS', (payload: { avatar_url: string }) => {
+        this.registerAction('AVATAR_UPLOAD_SUCCESS', () => {  // БЕЗ payload!
+            console.log('✅ AVATAR_UPLOAD_SUCCESS in store');
+            
             const currentSettings = this.state.settings;
+            // ✅ ОБНОВЛЯЕМ аватар в настройках тоже!
+            const authState = loginStore.getState();
+            const updatedSettings = currentSettings ? {
+                ...currentSettings,
+                avatar_url: authState.user?.avatar || currentSettings.avatar_url
+            } : currentSettings;
+            
             this.setState({
                 isUploadingAvatar: false,
                 error: null,
-                settings: currentSettings ? { ...currentSettings, avatar_url: payload.avatar_url } : null
+                settings: updatedSettings
             });
+            
+            // ✅ Триггерим обновление Header
+            dispatcher.dispatch('HEADER_FORCE_REFRESH');
         });
 
         this.registerAction('AVATAR_UPLOAD_FAIL', (payload: { error: string }) => {
@@ -139,12 +153,16 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
             });
         });
 
-        this.registerAction('COVER_UPLOAD_SUCCESS', (payload: { cover_url: string }) => {
+        //нужно ли это изменение todo ПРОВЕРИТЬ ФФФФФФФФФФФФФФ
+        this.registerAction('COVER_UPLOAD_SUCCESS', () => {  // БЕЗ payload!
+            console.log('✅ COVER_UPLOAD_SUCCESS in store');
+            
             const currentSettings = this.state.settings;
+            // Просто обновляем флаги
             this.setState({
                 isUploadingCover: false,
                 error: null,
-                settings: currentSettings ? { ...currentSettings, cover_url: payload.cover_url } : null
+                settings: currentSettings
             });
         });
 
@@ -183,6 +201,14 @@ class SettingsAccountStore extends BaseStore<SettingsAccountState> {
         if (!dateOfBirth) return undefined;
         
         const birthDate = new Date(dateOfBirth);
+        
+        // Проверяем, не является ли это специальной датой 01.01.0001
+        if (birthDate.getFullYear() === 1 && 
+            birthDate.getMonth() === 0 && 
+            birthDate.getDate() === 1) {
+            return undefined; // Возраст не рассчитывается для специальной даты
+        }
+        
         const today = new Date();
         let age = today.getFullYear() - birthDate.getFullYear();
         const monthDiff = today.getMonth() - birthDate.getMonth();

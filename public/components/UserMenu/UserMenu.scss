@@ -70,7 +70,12 @@
     }
 
     &--subscribed {
-      background: var(--text-success);
+      background-color: var(--text-lighter);
+      color: var(--text-color);
+      
+      &:hover {
+        background-color: var(--text-light);
+      }
     }
 
     &--login {

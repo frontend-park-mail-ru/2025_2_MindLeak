@@ -50,9 +50,25 @@ export class SettingsAccount {
         
         const formattedData = this.formatUserData(this.props.userData);
         
+        // Создаем объект userData с timestamp'ами
+        const userDataWithCacheBust = this.props.userData ? {
+            ...this.props.userData,
+            // Добавляем timestamp к URL аватара и обложки
+            avatar_url: this.props.userData.avatar_url ? 
+                `${this.props.userData.avatar_url}${this.props.userData.avatar_url.includes('?') ? '&' : '?'}nocache=${Date.now()}` :
+                '',
+            cover_url: this.props.userData.cover_url ?
+                `${this.props.userData.cover_url}${this.props.userData.cover_url.includes('?') ? '&' : '?'}nocache=${Date.now()}` :
+                ''
+        } : null;
+        
         const templateData = {
             ...formattedData,
-            userData: this.props.userData,
+            // Передаем avatar_url и cover_url на верхнем уровне для совместимости
+            avatar_url: userDataWithCacheBust?.avatar_url || '',
+            cover_url: userDataWithCacheBust?.cover_url || '',
+            // Передаем полный объект userData с обновленными URL
+            userData: userDataWithCacheBust,
             isLoading: this.props.isLoading || false,
             error: this.props.error || null,
             isUploadingAvatar: this.props.isUploadingAvatar || false,
@@ -83,7 +99,9 @@ export class SettingsAccount {
                 language: 'Русский',
                 sex: 'other',
                 date_of_birth: '',
-                age: 'Не указано'
+                age: 'Не указано',
+                avatar_url: '',
+                cover_url: ''
             };
         }
 
@@ -105,15 +123,26 @@ export class SettingsAccount {
         let age = 'Не указано';
         if (userData.date_of_birth) {
             const birthDate = new Date(userData.date_of_birth);
-            formattedBirthDate = birthDate.toISOString().split('T')[0]; // Формат для input[type="date"]
             
-            const today = new Date();
-            let calculatedAge = today.getFullYear() - birthDate.getFullYear();
-            const monthDiff = today.getMonth() - birthDate.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                calculatedAge--;
+            // Проверяем, не является ли это специальной датой 01.01.0001
+            if (birthDate.getFullYear() === 1 && 
+                birthDate.getMonth() === 0 && 
+                birthDate.getDate() === 1) {
+                // Оставляем специальную дату как есть
+                formattedBirthDate = '0001-01-01';
+                age = 'Не указано';
+            } else {
+                // Нормальная дата рождения
+                formattedBirthDate = birthDate.toISOString().split('T')[0];
+                
+                const today = new Date();
+                let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                    calculatedAge--;
+                }
+                age = calculatedAge.toString();
             }
-            age = calculatedAge.toString();
         }
 
         let formattedSex = userData.sex;
@@ -130,7 +159,9 @@ export class SettingsAccount {
             language: userData.language || 'Русский',
             sex: formattedSex,
             date_of_birth: formattedBirthDate,
-            age: age
+            age: age,
+            avatar_url: userData.avatar_url || '',
+            cover_url: userData.cover_url || '' 
         };
     }
 }

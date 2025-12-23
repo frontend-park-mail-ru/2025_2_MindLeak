@@ -76,7 +76,6 @@ export class ProfileView extends BaseView {
         // Инициализируем UserList
         await this.initUserList();
 
-        // Добавляем контент в container
         if (this.container && this.rootElement) {
             this.container.appendChild(this.rootElement);
         }
